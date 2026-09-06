@@ -81,13 +81,13 @@ export function Inicio() {
           {permisos.length === 0 ? (
             <p className="px-5 pb-5 text-sm text-muted">Sin solicitudes.</p>
           ) : permisos.map((p) => (
-            <div key={p.idSolicitudPermiso} className="flex items-center justify-between border-t border-line px-5 py-3">
+            <Link key={p.idSolicitudPermiso} to={`/permisos/${p.idSolicitudPermiso}`} className="flex items-center justify-between border-t border-line px-5 py-3 hover:bg-slate-50">
               <div>
                 <p className="text-sm font-medium">{p.empleado}</p>
                 <p className="text-xs text-muted">{p.tipoPermiso}</p>
               </div>
               <Badge value={p.estado} />
-            </div>
+            </Link>
           ))}
           <div className="border-t border-line px-5 py-3">
             <Link to="/permisos"><Button variant="secondary">Ver permisos</Button></Link>

@@ -190,6 +190,51 @@ export function FlujogramaCompact({ pasos, roles, usuarios }) {
   );
 }
 
+const PASO_DOT = {
+  APROBADO: 'bg-ok',
+  EN_CURSO: 'bg-navy',
+  RECHAZADO: 'bg-danger',
+  PENDIENTE: 'bg-slate-300',
+  OMITIDO: 'bg-slate-300',
+  CANCELADO: 'bg-slate-300'
+};
+
+export function PasosInstancia({ pasos }) {
+  if (!pasos?.length) return <p className="text-sm text-muted">Sin pasos instanciados.</p>;
+  return (
+    <ol className="space-y-4 border-l border-line pl-4">
+      {pasos.map((p) => (
+        <li key={p.idPasoSolicitud || p.numeroPaso} className="relative">
+          <span className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ${PASO_DOT[p.estado] || 'bg-slate-300'}`} />
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-navy">Paso {p.numeroPaso}: {p.nombrePaso}</p>
+            {p.estado === 'EN_CURSO' && (
+              <span className="rounded bg-navy px-1.5 py-0.5 text-[10px] font-semibold text-white">EN CURSO</span>
+            )}
+          </div>
+          <p className="text-xs text-muted">{p.rol || p.usuarioAsignado || APROBADOR[p.tipoAprobador]?.label || p.tipoAprobador}</p>
+          <div className="mt-1"><BadgeLite value={p.estado} /></div>
+          {p.usuarioDecision && (
+            <p className="mt-1 text-xs text-slate-500">{p.usuarioDecision}{p.comentario ? ` · ${p.comentario}` : ''}</p>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function BadgeLite({ value }) {
+  const tone = {
+    PENDIENTE: 'bg-amber-50 text-warn',
+    EN_CURSO: 'bg-slate-100 text-navy',
+    APROBADO: 'bg-emerald-50 text-ok',
+    RECHAZADO: 'bg-red-50 text-danger',
+    OMITIDO: 'bg-slate-100 text-muted',
+    CANCELADO: 'bg-red-50 text-danger'
+  }[value] || 'bg-slate-100 text-muted';
+  return <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${tone}`}>{value || '—'}</span>;
+}
+
 export function toPayload(form) {
   return {
     codigo: form.codigo.trim().toUpperCase(),

@@ -4,7 +4,10 @@ import { AppShell } from './layout/AppShell';
 import { Login } from './pages/Login';
 import { Inicio } from './pages/Inicio';
 import { Bandeja } from './pages/Bandeja';
+import { BandejaDecision } from './pages/BandejaDecision';
 import { Permisos } from './pages/Permisos';
+import { PermisoNuevo } from './pages/PermisoNuevo';
+import { PermisoDetalle } from './pages/PermisoDetalle';
 import { HorasExtras } from './pages/HorasExtras';
 import { Asistencia } from './pages/Asistencia';
 import { Marcar } from './pages/Marcar';
@@ -35,7 +38,11 @@ export default function App() {
         <Route index element={<Inicio />} />
         <Route path="perfil" element={<Private path="/perfil"><Perfil /></Private>} />
         <Route path="bandeja" element={<Private path="/bandeja"><Bandeja /></Private>} />
+        <Route path="bandeja/ver/:tipo/:id" element={<Private path="/bandeja"><BandejaDecision /></Private>} />
+        <Route path="bandeja/:idPaso" element={<Private path="/bandeja"><BandejaDecision /></Private>} />
         <Route path="permisos" element={<Private path="/permisos"><Permisos /></Private>} />
+        <Route path="permisos/nuevo" element={<Private path="/permisos"><PermisoNuevo /></Private>} />
+        <Route path="permisos/:id" element={<Private path="/permisos"><PermisoDetalle /></Private>} />
         <Route path="horas-extras" element={<Private path="/horas-extras"><HorasExtras /></Private>} />
         <Route path="marcar" element={<Private path="/marcar"><Marcar /></Private>} />
         <Route path="asistencia" element={<Private path="/asistencia"><Asistencia /></Private>} />
