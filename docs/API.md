@@ -10,6 +10,39 @@ Authorization: Bearer <accessToken>
 
 CORS permitido por defecto: `http://localhost:4200`, `5173` y `3000`.
 
+## Paginación
+
+Los listados operativos responden con este envoltorio (página 1-based, `size` por defecto 10, máximo 100):
+
+```json
+{
+  "content": [],
+  "page": 1,
+  "size": 10,
+  "totalElements": 42,
+  "totalPages": 5
+}
+```
+
+Query comunes: `page`, `size`, `q` (búsqueda de texto).  
+`estado` en permisos y horas extras admite uno o varios valores separados por coma (`PENDIENTE`, `APROBADO,RECHAZADO`).
+
+| Método | Ruta | Extra |
+|---|---|---|
+| GET | `/api/empleados` | `q` |
+| GET | `/api/usuarios` | `q` |
+| GET | `/api/permisos` | `estado`, `q` |
+| GET | `/api/horas-extras` | `estado`, `q` |
+| GET | `/api/bandeja` | `tipo`, `q` |
+| GET | `/api/asistencias` | `idEmpleado`, `desde`, `hasta`, `tipo`, `q` |
+| GET | `/api/flujos` | `q` |
+| GET | `/api/auditoria` | `q` |
+| GET | `/api/trazabilidad` | `q` |
+
+No se paginan catálogos, detalle por id, historial de una solicitud, ni reportes Excel/PDF/JSON.
+
+Para combos (empleado, jefe) use `page=1&size=100`.
+
 ## Auth
 
 | Método | Ruta | Auth | Descripción |
@@ -37,8 +70,14 @@ CORS permitido por defecto: `http://localhost:4200`, `5173` y `3000`.
     "nombreUsuario": "cmendoza",
     "correo": "carlos.mendoza@andina.pe",
     "rol": "APROBADOR",
+    "perfil": "Aprobador",
+    "idRol": 3,
     "idEmpleado": 3,
-    "nombreCompleto": "Carlos Alberto Mendoza Paredes"
+    "nombreCompleto": "Carlos Alberto Mendoza Paredes",
+    "permisos": ["PERMISO_APROBAR", "ASISTENCIA_MARCAR"],
+    "menu": [
+      { "grupo": "Operación", "items": [{ "codigo": "BANDEJA", "etiqueta": "Bandeja", "ruta": "/bandeja", "icono": "Inbox" }] }
+    ]
   }
 }
 ```
@@ -108,7 +147,7 @@ Auth: **ADMIN** o **RRHH**.
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/empleados` | Listar |
+| GET | `/api/empleados` | Listar paginado (`page`, `size`, `q`) |
 | GET | `/api/empleados/{id}` | Detalle |
 | POST | `/api/empleados` | Crear |
 | PUT | `/api/empleados/{id}` | Actualizar |
@@ -144,12 +183,26 @@ Auth: **ADMIN** o **RRHH**.
 
 Enums: `tipoDocumento` `DNI|CE|PASAPORTE`, `sexo` `M|F`, `tipoContrato` `PLANILLA|RECIBO_HONORARIOS|PRACTICAS`, `estado` `ACTIVO|INACTIVO|CESADO`.
 
+## Sesión y menú
+
+El perfil de la cuenta es el `rol`. El menú no es estático: se lee de `menu_item` + `menu_rol`.
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| GET | `/api/sesion` | Sí | Perfil, permisos funcionales y menú del usuario |
+| GET | `/api/menu` | Sí | Solo los grupos de menú del perfil |
+| GET | `/api/menus` | ADMIN | Mantenedor paginado |
+| GET | `/api/menus/{id}` | ADMIN | Detalle |
+| POST | `/api/menus` | ADMIN | Crear opción y asociarla a perfiles |
+| PUT | `/api/menus/{id}` | ADMIN | Actualizar opción y perfiles |
+| DELETE | `/api/menus/{id}` | ADMIN | Eliminar opción |
+
 ## Usuarios
 
 | Método | Ruta | Roles |
 |---|---|---|
 | GET | `/api/usuarios/me` | Autenticado |
-| GET | `/api/usuarios` | ADMIN, RRHH |
+| GET | `/api/usuarios` | ADMIN, RRHH · paginado |
 | GET | `/api/usuarios/{id}` | ADMIN, RRHH |
 | POST | `/api/usuarios` | ADMIN |
 | PUT | `/api/usuarios/{id}` | ADMIN |
@@ -172,13 +225,13 @@ En actualización, `password` es opcional.
 
 Auth: autenticado. Un empleado ve las suyas; ADMIN / RRHH / APROBADOR ven el conjunto operativo.
 
-| Método | Ruta |
-|---|---|
-| GET | `/api/permisos` |
-| GET | `/api/permisos/{id}` |
-| POST | `/api/permisos` |
-| POST | `/api/permisos/{id}/cancelar` |
-| GET | `/api/permisos/{id}/historial` |
+| Método | Ruta | Notas |
+|---|---|---|
+| GET | `/api/permisos` | Paginado (`page`, `size`, `estado`, `q`) |
+| GET | `/api/permisos/{id}` | Detalle |
+| POST | `/api/permisos` | Crear |
+| POST | `/api/permisos/{id}/cancelar` | Cancelar |
+| GET | `/api/permisos/{id}/historial` | Historial |
 
 ```json
 {
@@ -200,7 +253,7 @@ Misma convención que permisos.
 
 | Método | Ruta |
 |---|---|
-| GET | `/api/horas-extras` |
+| GET | `/api/horas-extras` (`page`, `size`, `estado`, `q`) |
 | GET | `/api/horas-extras/{id}` |
 | POST | `/api/horas-extras` |
 | POST | `/api/horas-extras/{id}/cancelar` |
@@ -221,7 +274,7 @@ Misma convención que permisos.
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/bandeja` | Pasos `EN_CURSO` que puede atender el usuario |
+| GET | `/api/bandeja` | Pasos `EN_CURSO` paginados (`tipo`, `q`) |
 | POST | `/api/pasos/{id}/aprobar` | Aprobar el paso |
 | POST | `/api/pasos/{id}/rechazar` | Rechazar (cierra la solicitud) |
 
@@ -236,7 +289,7 @@ El `id` es `idPasoSolicitud` de la bandeja, no el id de la solicitud. Los trigge
 | Método | Ruta | Descripción |
 |---|---|---|
 | POST | `/api/asistencias/marcar` | Registrar ingreso o salida |
-| GET | `/api/asistencias` | Listar. Query: `idEmpleado`, `desde`, `hasta` |
+| GET | `/api/asistencias` | Listar paginado. Query: `idEmpleado`, `desde`, `hasta`, `tipo`, `q` |
 | GET | `/api/asistencias/{id}` | Detalle |
 | PUT | `/api/asistencias/{id}` | Corregir marcación |
 
@@ -258,7 +311,7 @@ Auth: **ADMIN** o **RRHH**.
 
 | Método | Ruta |
 |---|---|
-| GET | `/api/flujos` |
+| GET | `/api/flujos` (`page`, `size`, `q`) |
 | GET | `/api/flujos/{id}` |
 | POST | `/api/flujos` |
 | PUT | `/api/flujos/{id}` |
@@ -317,8 +370,8 @@ Auth: **ADMIN** o **RRHH**.
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/auditoria` | Bitácora de acciones |
-| GET | `/api/trazabilidad` | Historial de todas las solicitudes |
+| GET | `/api/auditoria` | Bitácora paginada |
+| GET | `/api/trazabilidad` | Historial paginado de solicitudes |
 
 ## Errores
 

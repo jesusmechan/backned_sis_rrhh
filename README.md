@@ -13,7 +13,7 @@ La consultora es una MYPE. El sistema cubre personal, permisos, horas extras, as
 | API | Java 21, Spring Boot 3.4.5, Spring Security, JPA |
 | Auth | JWT (access 15 min + refresh 7 días) |
 | Exportes | Excel (Apache POI) y PDF (OpenPDF) |
-| Frontend | Pendiente |
+| Frontend | React 19 + Vite (puerto 5173) |
 
 ## Estructura
 
@@ -29,10 +29,8 @@ Proyecto_RRHH/
 │   ├── 02_seed.sql
 │   ├── 03_validar_flujo.sql
 │   └── 04_refresh_token.sql
-└── backend/                 # API Spring Boot (puerto 8080)
-    ├── .env.example
-    ├── .env                 # local, no se versiona
-    └── pom.xml
+├── backend/                 # API Spring Boot (puerto 8080)
+└── frontend/                # React + Vite (puerto 5173)
 ```
 
 ## Requisitos
@@ -40,6 +38,7 @@ Proyecto_RRHH/
 - PostgreSQL 16 (pgAdmin)
 - JDK 21
 - Maven 3.9+
+- Node.js 20+
 
 ## 1. Base de datos (pgAdmin)
 
@@ -114,6 +113,16 @@ Usuarios de demostración (contraseña **Andina2026**):
 | `lbenavides` | EMPLEADO | Lucía Benavides |
 
 Lista completa y catálogo de endpoints: [docs/API.md](docs/API.md).
+
+## 4. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abre http://localhost:5173. Vite proxea `/api` al backend en el puerto 8080. El menú cambia según el rol.
 
 ## Módulos
 

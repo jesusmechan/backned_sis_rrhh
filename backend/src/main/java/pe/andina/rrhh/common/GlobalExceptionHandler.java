@@ -47,19 +47,32 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", ex.getMessage()));
     }
 
-    @ExceptionHandler({CannotCreateTransactionException.class, DataAccessException.class})
-    public ResponseEntity<ApiError> handleDatabase(Exception ex) {
-        String detail = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
+    @ExceptionHandler(CannotCreateTransactionException.class)
+    public ResponseEntity<ApiError> handleNoDb(CannotCreateTransactionException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiError.of(503, "Service Unavailable",
-                        "No se pudo conectar a PostgreSQL. Revisa DB_URL, DB_USERNAME y DB_PASSWORD en backend/.env. "
-                                + detail));
+                        "No se pudo conectar a PostgreSQL. Revisa DB_URL, DB_USERNAME y DB_PASSWORD en backend/.env."));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ApiError> handleDatabase(DataAccessException ex) {
+        String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        if (detail != null && detail.toLowerCase().contains("json")) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiError.of(500, "Error interno", "No se pudo registrar la operación."));
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiError.of(500, "Error interno", "No se pudo completar la operación."));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex) {
         String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        if (detail != null && detail.toLowerCase().contains("json")) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiError.of(500, "Error interno", "No se pudo registrar la operación."));
+        }
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiError.of(409, "Conflict", detail));
+                .body(ApiError.of(409, "Conflict", "La operación entra en conflicto con un registro existente."));
     }
 }

@@ -44,7 +44,7 @@ public final class DtoMapper {
     public static UsuarioResponse usuario(Usuario u) {
         return new UsuarioResponse(
                 u.getIdUsuario(), u.getNombreUsuario(), u.getCorreo(), u.getActivo(), u.getUltimoAcceso(),
-                u.getRol().getIdRol(), u.getRol().getCodigo(),
+                u.getRol().getIdRol(), u.getRol().getCodigo(), u.getRol().getNombre(),
                 u.getEmpleado() != null ? u.getEmpleado().getIdEmpleado() : null,
                 u.getEmpleado() != null ? u.getEmpleado().nombreCompleto() : null
         );
@@ -101,7 +101,9 @@ public final class DtoMapper {
                         p.getNumeroPaso(), p.getNombrePaso(), p.getTipoAprobador(),
                         p.getRol() != null ? p.getRol().getIdRol() : null,
                         p.getUsuario() != null ? p.getUsuario().getIdUsuario() : null,
-                        p.getEsObligatorio()
+                        p.getEsObligatorio(),
+                        p.getRol() != null ? p.getRol().getNombre() : null,
+                        p.getUsuario() != null ? p.getUsuario().getNombreUsuario() : null
                 )).toList()
         );
     }

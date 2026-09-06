@@ -8,10 +8,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pe.andina.rrhh.common.PageResponses;
 import pe.andina.rrhh.dto.AppDtos.HistorialResponse;
 import pe.andina.rrhh.dto.AppDtos.HoraExtraRequest;
 import pe.andina.rrhh.dto.AppDtos.HoraExtraResponse;
+import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.service.SolicitudService;
 
 import java.util.List;
@@ -28,8 +31,17 @@ public class HoraExtraController {
     }
 
     @GetMapping
-    public List<HoraExtraResponse> listar() {
-        return solicitudService.listarHorasExtras();
+    @Operation(summary = "Listar horas extras paginado")
+    public PageResponse<HoraExtraResponse> listar(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String q) {
+        return PageResponses.of(
+                PageResponses.search(
+                        PageResponses.withEstados(solicitudService.listarHorasExtras(), estado, HoraExtraResponse::estado),
+                        q, h -> PageResponses.text(h.empleado(), h.motivo())),
+                page, size);
     }
 
     @GetMapping("/{id}")

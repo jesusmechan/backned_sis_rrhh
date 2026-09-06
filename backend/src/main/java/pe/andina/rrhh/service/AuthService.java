@@ -8,7 +8,6 @@ import pe.andina.rrhh.domain.RefreshToken;
 import pe.andina.rrhh.domain.Usuario;
 import pe.andina.rrhh.dto.AuthDtos.AuthResponse;
 import pe.andina.rrhh.dto.AuthDtos.LoginRequest;
-import pe.andina.rrhh.dto.AuthDtos.UsuarioResumen;
 import pe.andina.rrhh.repo.RefreshTokenRepository;
 import pe.andina.rrhh.repo.UsuarioRepository;
 import pe.andina.rrhh.security.JwtService;
@@ -25,17 +24,20 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuditoriaService auditoriaService;
     private final PasswordEncoder passwordEncoder;
+    private final SesionService sesionService;
 
     public AuthService(UsuarioRepository usuarioRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        JwtService jwtService,
                        AuditoriaService auditoriaService,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       SesionService sesionService) {
         this.usuarioRepository = usuarioRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtService = jwtService;
         this.auditoriaService = auditoriaService;
         this.passwordEncoder = passwordEncoder;
+        this.sesionService = sesionService;
     }
 
     @Transactional
@@ -94,21 +96,12 @@ public class AuthService {
         refresh.setFechaExpiracion(OffsetDateTime.now().plusSeconds(jwtService.getRefreshExpirationMs() / 1000));
         refresh.setRevocado(false);
         refreshTokenRepository.save(refresh);
-        String nombre = usuario.getEmpleado() != null ? usuario.getEmpleado().nombreCompleto() : usuario.getNombreUsuario();
-        Integer idEmp = usuario.getEmpleado() != null ? usuario.getEmpleado().getIdEmpleado() : null;
         return new AuthResponse(
                 access,
                 refresh.getToken(),
                 "Bearer",
                 jwtService.getAccessExpirationMs() / 1000,
-                new UsuarioResumen(
-                        usuario.getIdUsuario(),
-                        usuario.getNombreUsuario(),
-                        usuario.getCorreo(),
-                        usuario.getRol().getCodigo(),
-                        idEmp,
-                        nombre
-                )
+                sesionService.desde(usuario)
         );
     }
 

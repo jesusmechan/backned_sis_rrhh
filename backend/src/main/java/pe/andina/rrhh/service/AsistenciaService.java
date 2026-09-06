@@ -83,7 +83,9 @@ public class AsistenciaService {
         }
         if (idEmpleado != null) {
             return marcacionRepository.findByEmpleado_IdEmpleadoOrderByFechaHoraDesc(idEmpleado).stream()
-                    .map(DtoMapper::marcacion).toList();
+                    .filter(m -> !m.getFechaHora().toLocalDate().isBefore(ini) && !m.getFechaHora().toLocalDate().isAfter(fin))
+                    .map(DtoMapper::marcacion)
+                    .toList();
         }
         return marcacionRepository.findByFechaBetweenOrderByFechaHoraDesc(ini, fin).stream()
                 .map(DtoMapper::marcacion).toList();

@@ -8,8 +8,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pe.andina.rrhh.common.PageResponses;
 import pe.andina.rrhh.dto.AppDtos.HistorialResponse;
+import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.dto.AppDtos.PermisoRequest;
 import pe.andina.rrhh.dto.AppDtos.PermisoResponse;
 import pe.andina.rrhh.service.SolicitudService;
@@ -28,8 +31,17 @@ public class PermisoController {
     }
 
     @GetMapping
-    public List<PermisoResponse> listar() {
-        return solicitudService.listarPermisos();
+    @Operation(summary = "Listar permisos paginado")
+    public PageResponse<PermisoResponse> listar(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String q) {
+        return PageResponses.of(
+                PageResponses.search(
+                        PageResponses.withEstados(solicitudService.listarPermisos(), estado, PermisoResponse::estado),
+                        q, p -> PageResponses.text(p.empleado(), p.tipoPermiso(), p.motivo())),
+                page, size);
     }
 
     @GetMapping("/{id}")

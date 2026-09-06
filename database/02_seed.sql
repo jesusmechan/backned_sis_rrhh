@@ -115,6 +115,48 @@ JOIN permiso_funcional p ON p.codigo IN (
 )
 WHERE r.codigo = 'EMPLEADO';
 
+INSERT INTO menu_item (codigo, etiqueta, ruta, icono, grupo, descripcion, orden) VALUES
+    ('INICIO', 'Inicio', '/', 'Home', 'Operación', 'Resumen de la sesión y accesos del perfil.', 10),
+    ('BANDEJA', 'Bandeja', '/bandeja', 'Inbox', 'Operación', 'Aprobar o rechazar pasos en curso.', 20),
+    ('PERMISOS', 'Permisos', '/permisos', 'ClipboardCheck', 'Operación', 'Registrar y seguir solicitudes de permiso.', 30),
+    ('HORAS_EXTRAS', 'Horas extras', '/horas-extras', 'Clock3', 'Operación', 'Registrar y consultar tiempo extra.', 40),
+    ('MARCAR', 'Marcar', '/marcar', 'LogIn', 'Operación', 'Registrar entrada o salida del día.', 50),
+    ('ASISTENCIA', 'Asistencia', '/asistencia', 'Fingerprint', 'Operación', 'Consultar el historial de marcaciones.', 60),
+    ('PERFIL', 'Mi perfil', '/perfil', 'User', 'Operación', 'Ficha de personal y datos de la cuenta.', 70),
+    ('PERSONAL', 'Personal', '/empleados', 'Users', 'Administración', 'Directorio, alta y carga de colaboradores.', 80),
+    ('USUARIOS', 'Usuarios', '/usuarios', 'UserCog', 'Administración', 'Cuentas de acceso y asignación de perfil.', 90),
+    ('MENU', 'Menú', '/menu', 'List', 'Administración', 'Mantenedor de opciones de menú por perfil.', 95),
+    ('FLUJOS', 'Flujos', '/flujos', 'GitBranch', 'Administración', 'Circuitos de aprobación.', 100),
+    ('REPORTES', 'Reportes', '/reportes', 'FileSpreadsheet', 'Control', 'Exportar permisos, asistencia y personal.', 110),
+    ('AUDITORIA', 'Auditoría', '/auditoria', 'Shield', 'Control', 'Trazabilidad de operaciones.', 120);
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+CROSS JOIN rol r
+WHERE r.codigo = 'ADMIN';
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'RRHH'
+WHERE m.codigo IN (
+    'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
+    'PERSONAL', 'USUARIOS', 'FLUJOS', 'REPORTES', 'AUDITORIA'
+);
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'APROBADOR'
+WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL');
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'EMPLEADO'
+WHERE m.codigo IN ('INICIO', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL');
+
 -- 10 colaboradores de la empresa (OBN-03). Se insertan por niveles para resolver id_jefe_inmediato.
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,

@@ -93,8 +93,61 @@ public final class AppDtos {
             OffsetDateTime ultimoAcceso,
             Integer idRol,
             String rol,
+            String perfil,
             Integer idEmpleado,
             String nombreCompleto
+    ) {}
+
+    public record MenuItemResponse(
+            String codigo,
+            String etiqueta,
+            String ruta,
+            String icono,
+            String descripcion
+    ) {}
+
+    public record MenuGrupoResponse(
+            String grupo,
+            List<MenuItemResponse> items
+    ) {}
+
+    public record MenuAdminRequest(
+            @NotBlank String codigo,
+            @NotBlank String etiqueta,
+            @NotBlank String ruta,
+            @NotBlank String icono,
+            @NotBlank String grupo,
+            String descripcion,
+            Integer orden,
+            Boolean activo,
+            List<Integer> idPerfiles
+    ) {}
+
+    public record MenuAdminResponse(
+            Integer idMenu,
+            String codigo,
+            String etiqueta,
+            String ruta,
+            String icono,
+            String grupo,
+            String descripcion,
+            Integer orden,
+            Boolean activo,
+            List<Integer> idPerfiles,
+            List<String> perfiles
+    ) {}
+
+    public record SesionResponse(
+            Integer idUsuario,
+            String nombreUsuario,
+            String correo,
+            String rol,
+            String perfil,
+            Integer idRol,
+            Integer idEmpleado,
+            String nombreCompleto,
+            List<String> permisos,
+            List<MenuGrupoResponse> menu
     ) {}
 
     public record PermisoRequest(
@@ -212,7 +265,9 @@ public final class AppDtos {
             @NotNull TipoAprobador tipoAprobador,
             Integer idRol,
             Integer idUsuario,
-            Boolean esObligatorio
+            Boolean esObligatorio,
+            String rol,
+            String usuario
     ) {}
 
     public record FlujoResponse(
@@ -259,4 +314,12 @@ public final class AppDtos {
     ) {}
 
     public record CargaFilaResponse(Integer numeroFila, String resultado, String mensaje) {}
+
+    public record PageResponse<T>(
+            List<T> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
 }

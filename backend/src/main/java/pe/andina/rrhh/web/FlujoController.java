@@ -9,12 +9,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pe.andina.rrhh.common.PageResponses;
 import pe.andina.rrhh.dto.AppDtos.FlujoRequest;
 import pe.andina.rrhh.dto.AppDtos.FlujoResponse;
+import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.service.FlujoService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/flujos")
@@ -29,8 +30,17 @@ public class FlujoController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
-    public List<FlujoResponse> listar() {
-        return flujoService.listar();
+    public PageResponse<FlujoResponse> listar(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String tipoOrigen) {
+        var data = PageResponses.search(flujoService.listar(), q, f ->
+                PageResponses.text(f.codigo(), f.nombre(), f.tipoOrigen(), f.tipoPermiso()));
+        if (tipoOrigen != null && !tipoOrigen.isBlank()) {
+            data = data.stream().filter(f -> tipoOrigen.equalsIgnoreCase(String.valueOf(f.tipoOrigen()))).toList();
+        }
+        return PageResponses.of(data, page, size);
     }
 
     @GetMapping("/{id}")

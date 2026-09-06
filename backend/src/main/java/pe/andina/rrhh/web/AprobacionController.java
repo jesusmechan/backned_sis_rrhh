@@ -8,13 +8,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pe.andina.rrhh.common.PageResponses;
 import pe.andina.rrhh.dto.AppDtos.BandejaItem;
 import pe.andina.rrhh.dto.AppDtos.DecisionRequest;
+import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.dto.AppDtos.PasoResponse;
 import pe.andina.rrhh.service.SolicitudService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -28,9 +29,20 @@ public class AprobacionController {
     }
 
     @GetMapping("/bandeja")
-    @Operation(summary = "Bandeja de pasos pendientes del usuario")
-    public List<BandejaItem> bandeja() {
-        return solicitudService.bandeja();
+    @Operation(summary = "Bandeja de pasos pendientes del usuario, paginada")
+    public PageResponse<BandejaItem> bandeja(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) String q) {
+        var data = solicitudService.bandeja();
+        if (tipo != null && !tipo.isBlank()) {
+            data = data.stream().filter(item -> tipo.equalsIgnoreCase(item.tipoSolicitud())).toList();
+        }
+        return PageResponses.of(
+                PageResponses.search(data, q, item -> PageResponses.text(
+                        item.solicitante(), item.tipoSolicitud(), item.tipoTramite(), item.motivo())),
+                page, size);
     }
 
     @PostMapping("/pasos/{id}/aprobar")

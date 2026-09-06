@@ -13,16 +13,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import pe.andina.rrhh.common.PageResponses;
 import pe.andina.rrhh.dto.AppDtos.CargaResponse;
 import pe.andina.rrhh.dto.AppDtos.EmpleadoRequest;
 import pe.andina.rrhh.dto.AppDtos.EmpleadoResponse;
+import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.service.CargaExcelService;
 import pe.andina.rrhh.service.EmpleadoService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/empleados")
@@ -39,12 +40,19 @@ public class EmpleadoController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
-    public List<EmpleadoResponse> listar() {
-        return empleadoService.listar();
+    @Operation(summary = "Listar empleados paginado")
+    public PageResponse<EmpleadoResponse> listar(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String q) {
+        return PageResponses.of(
+                PageResponses.search(empleadoService.listar(), q, e ->
+                        PageResponses.text(e.codigoEmpleado(), e.nombreCompleto(), e.area(), e.cargo())),
+                page, size);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("isAuthenticated()")
     public EmpleadoResponse obtener(@PathVariable Integer id) {
         return empleadoService.obtener(id);
     }

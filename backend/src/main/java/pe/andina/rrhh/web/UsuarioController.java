@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RestController;
+import pe.andina.rrhh.common.PageResponses;
+import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.dto.AppDtos.UsuarioRequest;
 import pe.andina.rrhh.dto.AppDtos.UsuarioResponse;
 import pe.andina.rrhh.service.UsuarioService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -38,8 +38,15 @@ public class UsuarioController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
-    public List<UsuarioResponse> listar() {
-        return usuarioService.listar();
+    @Operation(summary = "Listar usuarios paginado")
+    public PageResponse<UsuarioResponse> listar(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String q) {
+        return PageResponses.of(
+                PageResponses.search(usuarioService.listar(), q, u ->
+                        PageResponses.text(u.nombreUsuario(), u.nombreCompleto(), u.rol(), u.correo())),
+                page, size);
     }
 
     @GetMapping("/{id}")

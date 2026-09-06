@@ -2,6 +2,7 @@ package pe.andina.rrhh.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import pe.andina.rrhh.dto.AppDtos.SesionResponse;
 
 public final class AuthDtos {
     private AuthDtos() {}
@@ -18,7 +19,7 @@ public final class AuthDtos {
             String refreshToken,
             String tokenType,
             long expiresIn,
-            UsuarioResumen usuario
+            SesionResponse usuario
     ) {}
 
     public record UsuarioResumen(

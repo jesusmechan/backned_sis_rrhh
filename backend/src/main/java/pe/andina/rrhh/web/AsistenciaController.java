@@ -11,12 +11,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pe.andina.rrhh.common.PageResponses;
 import pe.andina.rrhh.dto.AppDtos.MarcacionRequest;
 import pe.andina.rrhh.dto.AppDtos.MarcacionResponse;
+import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.service.AsistenciaService;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/asistencias")
@@ -36,11 +37,22 @@ public class AsistenciaController {
     }
 
     @GetMapping
-    public List<MarcacionResponse> listar(
+    @Operation(summary = "Listar marcaciones paginado")
+    public PageResponse<MarcacionResponse> listar(
             @RequestParam(required = false) Integer idEmpleado,
             @RequestParam(required = false) LocalDate desde,
-            @RequestParam(required = false) LocalDate hasta) {
-        return asistenciaService.listar(idEmpleado, desde, hasta);
+            @RequestParam(required = false) LocalDate hasta,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String q) {
+        var data = asistenciaService.listar(idEmpleado, desde, hasta);
+        if (tipo != null && !tipo.isBlank()) {
+            data = data.stream().filter(m -> tipo.equalsIgnoreCase(m.tipo().name())).toList();
+        }
+        return PageResponses.of(
+                PageResponses.search(data, q, m -> PageResponses.text(m.empleado(), m.origen(), m.observacion())),
+                page, size);
     }
 
     @GetMapping("/{id}")

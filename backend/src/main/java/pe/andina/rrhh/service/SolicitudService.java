@@ -98,7 +98,7 @@ public class SolicitudService {
     @Transactional(readOnly = true)
     public List<PermisoResponse> listarPermisos() {
         UsuarioPrincipal me = SecurityUtils.current();
-        List<SolicitudPermiso> data = SecurityUtils.isAdminOrRrhh()
+        List<SolicitudPermiso> data = SecurityUtils.puedeVerConjuntoOperativo()
                 ? permisoRepository.findAll()
                 : permisoRepository.findByEmpleado_IdEmpleadoOrderByIdSolicitudPermisoDesc(me.getIdEmpleado());
         return data.stream().map(this::toPermiso).toList();
@@ -114,7 +114,7 @@ public class SolicitudService {
     @Transactional(readOnly = true)
     public List<HoraExtraResponse> listarHorasExtras() {
         UsuarioPrincipal me = SecurityUtils.current();
-        List<SolicitudHoraExtra> data = SecurityUtils.isAdminOrRrhh()
+        List<SolicitudHoraExtra> data = SecurityUtils.puedeVerConjuntoOperativo()
                 ? horaExtraRepository.findAll()
                 : horaExtraRepository.findByEmpleado_IdEmpleadoOrderByIdSolicitudHoraExtraDesc(me.getIdEmpleado());
         return data.stream().map(this::toHoraExtra).toList();

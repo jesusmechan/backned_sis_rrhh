@@ -45,6 +45,12 @@ public class EmpleadoService {
 
     @Transactional(readOnly = true)
     public EmpleadoResponse obtener(Integer id) {
+        if (!SecurityUtils.isAdminOrRrhh()) {
+            Integer propio = SecurityUtils.current().getIdEmpleado();
+            if (propio == null || !propio.equals(id)) {
+                throw ApiException.forbidden("Solo puede consultar su ficha de personal");
+            }
+        }
         return DtoMapper.empleado(buscar(id));
     }
 

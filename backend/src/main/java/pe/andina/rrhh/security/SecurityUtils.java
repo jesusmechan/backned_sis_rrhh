@@ -24,4 +24,8 @@ public final class SecurityUtils {
     public static boolean isAdminOrRrhh() {
         return hasRole("ADMIN") || hasRole("RRHH");
     }
+
+    public static boolean puedeVerConjuntoOperativo() {
+        return isAdminOrRrhh() || hasRole("APROBADOR");
+    }
 }

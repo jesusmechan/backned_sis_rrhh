@@ -103,8 +103,14 @@ public class FlujoService {
             d.setEsObligatorio(p.esObligatorio() == null || p.esObligatorio());
             d.setActivo(true);
             if (p.tipoAprobador() == TipoAprobador.ROL) {
-                d.setRol(rolRepository.findById(p.idRol()).orElseThrow(() -> ApiException.badRequest("Rol no existe")));
+                if (p.idRol() == null) {
+                    throw ApiException.badRequest("El paso " + p.numeroPaso() + " requiere un perfil");
+                }
+                d.setRol(rolRepository.findById(p.idRol()).orElseThrow(() -> ApiException.badRequest("Perfil no existe")));
             } else if (p.tipoAprobador() == TipoAprobador.USUARIO) {
+                if (p.idUsuario() == null) {
+                    throw ApiException.badRequest("El paso " + p.numeroPaso() + " requiere un usuario");
+                }
                 d.setUsuario(usuarioRepository.findById(p.idUsuario()).orElseThrow(() -> ApiException.badRequest("Usuario no existe")));
             }
             detalleRepository.save(d);
