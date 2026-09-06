@@ -9,6 +9,8 @@ import { Permisos } from './pages/Permisos';
 import { PermisoNuevo } from './pages/PermisoNuevo';
 import { PermisoDetalle } from './pages/PermisoDetalle';
 import { HorasExtras } from './pages/HorasExtras';
+import { HoraExtraNueva } from './pages/HoraExtraNueva';
+import { HoraExtraDetalle } from './pages/HoraExtraDetalle';
 import { Asistencia } from './pages/Asistencia';
 import { Marcar } from './pages/Marcar';
 import { Empleados } from './pages/Empleados';
@@ -44,6 +46,8 @@ export default function App() {
         <Route path="permisos/nuevo" element={<Private path="/permisos"><PermisoNuevo /></Private>} />
         <Route path="permisos/:id" element={<Private path="/permisos"><PermisoDetalle /></Private>} />
         <Route path="horas-extras" element={<Private path="/horas-extras"><HorasExtras /></Private>} />
+        <Route path="horas-extras/nuevo" element={<Private path="/horas-extras"><HoraExtraNueva /></Private>} />
+        <Route path="horas-extras/:id" element={<Private path="/horas-extras"><HoraExtraDetalle /></Private>} />
         <Route path="marcar" element={<Private path="/marcar"><Marcar /></Private>} />
         <Route path="asistencia" element={<Private path="/asistencia"><Asistencia /></Private>} />
         <Route path="empleados" element={<Private path="/empleados"><Empleados /></Private>} />

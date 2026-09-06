@@ -12,6 +12,7 @@ import pe.andina.rrhh.repo.MarcacionRepository;
 import pe.andina.rrhh.security.SecurityUtils;
 import pe.andina.rrhh.security.UsuarioPrincipal;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -51,6 +52,10 @@ public class AsistenciaService {
         }
         OffsetDateTime fechaHora = request.fechaHora() != null ? request.fechaHora() : OffsetDateTime.now();
         LocalDate fecha = fechaHora.atZoneSameInstant(LIMA).toLocalDate();
+        DayOfWeek dia = fecha.getDayOfWeek();
+        if ("WEB".equals(origen) && (dia == DayOfWeek.SATURDAY || dia == DayOfWeek.SUNDAY)) {
+            throw ApiException.badRequest("No se puede marcar asistencia los sábados ni los domingos");
+        }
         if (!marcacionRepository.findByEmpleado_IdEmpleadoAndTipoAndFecha(empleado.getIdEmpleado(), request.tipo(), fecha).isEmpty()
                 && "WEB".equals(origen)) {
             throw ApiException.conflict("Ya existe una marcación de " + request.tipo() + " para hoy");

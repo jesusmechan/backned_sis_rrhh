@@ -303,7 +303,7 @@ El `id` es `idPasoSolicitud` de la bandeja, no el id de la solicitud. Los trigge
 }
 ```
 
-`tipo`: `INGRESO` o `SALIDA`.
+`tipo`: `INGRESO` o `SALIDA`. Origen `WEB` no admite sábado ni domingo (zona `America/Lima`).
 
 ## Flujos de aprobación
 

@@ -10,8 +10,17 @@ const TIPOS = [
 ];
 
 function todayIso() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+}
+
+function esFinDeSemana(date = new Date()) {
+  const dia = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/Lima' }).format(date);
+  return dia === 'Sat' || dia === 'Sun';
 }
 
 function formatTime(iso) {
@@ -55,12 +64,17 @@ export function Marcar() {
   const selected = TIPOS.find((t) => t.id === pick);
   const SelectedIcon = selected.icon;
   const already = pick === 'INGRESO' ? entrada : salida;
+  const finDeSemana = esFinDeSemana(now);
 
   async function marcar() {
     setError('');
     setOk('');
     if (!usuario?.idEmpleado) {
       setError('Su usuario no está asociado a un trabajador.');
+      return;
+    }
+    if (esFinDeSemana(now)) {
+      setError('La marcación no está disponible sábados ni domingos.');
       return;
     }
     if (already) {
@@ -91,7 +105,7 @@ export function Marcar() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Control de jornada</p>
           <h1 className="mt-1 text-3xl font-bold text-navy">Marcar asistencia</h1>
-          <p className="mt-2 text-sm text-muted">Elija entrada o salida. Una marca de cada tipo por día.</p>
+          <p className="mt-2 text-sm text-muted">Elija entrada o salida. Una marca de cada tipo por día hábil.</p>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-line bg-white px-4 py-3 shadow-sm">
           <Avatar name={usuario?.nombreCompleto || usuario?.nombreUsuario} />
@@ -114,6 +128,9 @@ export function Marcar() {
 
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
+      {finDeSemana && (
+        <Alert>Hoy es fin de semana. La marcación de entrada y salida está deshabilitada.</Alert>
+      )}
 
       <div className="rounded-2xl border border-line bg-white p-5 shadow-sm">
         <div className="grid grid-cols-2 gap-3">
@@ -125,9 +142,12 @@ export function Marcar() {
               <button
                 key={t.id}
                 type="button"
+                disabled={finDeSemana}
                 onClick={() => setPick(t.id)}
                 className={`rounded-xl px-4 py-6 text-left transition-colors ${
-                  active ? 'bg-navy text-white' : 'bg-slate-50 text-slate-700 ring-1 ring-line hover:bg-slate-100'
+                  finDeSemana
+                    ? 'cursor-not-allowed bg-slate-50 text-slate-400 ring-1 ring-line'
+                    : active ? 'bg-navy text-white' : 'bg-slate-50 text-slate-700 ring-1 ring-line hover:bg-slate-100'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -150,9 +170,11 @@ export function Marcar() {
             );
           })}
         </div>
-        <Button className="mt-5 w-full py-3.5 text-base" onClick={marcar} disabled={!usuario?.idEmpleado || Boolean(already) || saving}>
+        <Button className="mt-5 w-full py-3.5 text-base" onClick={marcar} disabled={finDeSemana || !usuario?.idEmpleado || Boolean(already) || saving}>
           <SelectedIcon size={18} />
-          {already ? `${selected.label} ya registrada` : `Registrar ${selected.label.toLowerCase()} ahora`}
+          {finDeSemana
+            ? 'Marcación no disponible el fin de semana'
+            : already ? `${selected.label} ya registrada` : `Registrar ${selected.label.toLowerCase()} ahora`}
         </Button>
       </div>
     </div>
