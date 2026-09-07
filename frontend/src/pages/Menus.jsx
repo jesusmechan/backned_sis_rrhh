@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { MENU_ICON_OPTIONS, menuIcon } from '../layout/icons';
-import { Alert, Badge, Button, Empty, Field, FormGrid, Kpi, Modal, Pager } from '../components/ui';
+import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
 
 const GRUPOS = ['Operación', 'Administración', 'Control'];
 const empty = {
@@ -27,7 +27,7 @@ export function Menus() {
   const [estado, setEstado] = useState('');
   const [q, setQ] = useState('');
   const [qDebounced, setQDebounced] = useState('');
-  const [counts, setCounts] = useState({ total: 0, operacion: 0, administracion: 0, control: 0, activos: 0 });
+  const [counts, setCounts] = useState({ total: 0, operacion: 0, administracion: 0, control: 0, activos: 0, inactivos: 0 });
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q.trim()), 300);
@@ -41,19 +41,21 @@ export function Menus() {
   }, []);
 
   async function loadCounts() {
-    const [all, op, ad, co, act] = await Promise.all([
+    const [all, op, ad, co, act, ina] = await Promise.all([
       http.page(pagePath('/api/menus', { page: 1, size: 1 })),
       http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Operación' })),
       http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Administración' })),
       http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Control' })),
-      http.page(pagePath('/api/menus', { page: 1, size: 1, activo: true }))
+      http.page(pagePath('/api/menus', { page: 1, size: 1, activo: true })),
+      http.page(pagePath('/api/menus', { page: 1, size: 1, activo: false }))
     ]);
     setCounts({
       total: all.totalElements || 0,
       operacion: op.totalElements || 0,
       administracion: ad.totalElements || 0,
       control: co.totalElements || 0,
-      activos: act.totalElements || 0
+      activos: act.totalElements || 0,
+      inactivos: ina.totalElements || 0
     });
   }
 
@@ -165,51 +167,21 @@ export function Menus() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <Kpi value={counts.total} label="Opciones" hint="Ítems del menú" />
-        <Kpi value={counts.activos} label="Activas" hint="Visibles para los perfiles asignados" />
-        <Kpi
-          value={`${counts.operacion}/${counts.administracion}/${counts.control}`}
-          label="Por grupo"
-          hint="Operación · Administración · Control"
-        />
-      </div>
+      <KpiRow>
+        <Kpi value={counts.total} label="Opciones" hint="Ítems del menú" active={estado === ''} onClick={() => { setEstado(''); setPage(1); }} />
+        <Kpi value={counts.activos} label="Activas" hint="Visibles para los perfiles asignados" active={estado === 'activos'} onClick={() => { setEstado('activos'); setPage(1); }} />
+        <Kpi value={counts.inactivos} label="Inactivas" hint="Ocultas en el menú de sesión" active={estado === 'inactivos'} onClick={() => { setEstado('inactivos'); setPage(1); }} />
+      </KpiRow>
 
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap gap-2">
-          {[
-            ['', 'Todos', counts.total],
-            ['Operación', 'Operación', counts.operacion],
-            ['Administración', 'Administración', counts.administracion],
-            ['Control', 'Control', counts.control]
-          ].map(([id, label, n]) => (
-            <button
-              key={id || 'todos'}
-              type="button"
-              onClick={() => { setTab(id); setPage(1); }}
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === id ? 'bg-navy text-white' : 'border border-line bg-white text-slate-600 hover:bg-slate-50'}`}
-            >
-              {label} ({n})
-            </button>
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              className="pl-9"
-              placeholder="Buscar código, etiqueta, ruta o perfil"
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setPage(1); }}
-            />
-          </div>
-          <select value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }}>
-            <option value="">Todos los estados</option>
-            <option value="activos">Activas</option>
-            <option value="inactivos">Inactivas</option>
-          </select>
-        </div>
-      </div>
+      <FilterBar>
+        <SearchField placeholder="Buscar código, etiqueta, ruta o perfil" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="w-auto" value={tab} onChange={(e) => { setTab(e.target.value); setPage(1); }}>
+          <option value="">Todos los grupos</option>
+          <option value="Operación">Operación ({counts.operacion})</option>
+          <option value="Administración">Administración ({counts.administracion})</option>
+          <option value="Control">Control ({counts.control})</option>
+        </select>
+      </FilterBar>
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-line bg-white">

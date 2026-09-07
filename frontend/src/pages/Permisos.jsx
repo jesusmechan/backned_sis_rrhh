@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Avatar, Badge, Button, Empty, Pager } from '../components/ui';
+import { Alert, Avatar, Badge, Button, Empty, FilterBar, Kpi, KpiRow, Pager, SearchField } from '../components/ui';
 import { fmtDate, fmtTime } from './bandejaShared';
 
 export function Permisos() {
@@ -69,41 +69,24 @@ export function Permisos() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <Kpi value={counts.total} label="Total" hint="Solicitudes visibles" />
-        <Kpi value={counts.pendientes} label="Pendientes" hint="En circuito de aprobación" />
-        <Kpi value={counts.aprobados} label="Aprobados" hint="Flujo cerrado a favor" />
-      </div>
+      <KpiRow>
+        <Kpi value={counts.total} label="Total" hint="Solicitudes visibles" active={tab === 'todas'} onClick={() => { setTab('todas'); setPage(1); }} />
+        <Kpi value={counts.pendientes} label="Pendientes" hint="En circuito de aprobación" active={tab === 'PENDIENTE'} onClick={() => { setTab('PENDIENTE'); setPage(1); }} />
+        <Kpi value={counts.aprobados} label="Aprobadas" hint="Flujo cerrado a favor" active={tab === 'APROBADO'} onClick={() => { setTab('APROBADO'); setPage(1); }} />
+      </KpiRow>
 
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap gap-2">
-          {[
-            ['todas', 'Todas', counts.total],
-            ['PENDIENTE', 'Pendientes', counts.pendientes],
-            ['APROBADO', 'Aprobadas', counts.aprobados],
-            ['RECHAZADO', 'Rechazadas', counts.rechazados],
-            ['CANCELADO', 'Canceladas', null]
-          ].map(([id, label, n]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => { setTab(id); setPage(1); }}
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === id ? 'bg-navy text-white' : 'border border-line bg-white text-slate-600 hover:bg-slate-50'}`}
-            >
-              {label}{n != null ? ` (${n})` : ''}
-            </button>
-          ))}
-        </div>
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            className="pl-9"
-            placeholder="Buscar colaborador, tipo o motivo"
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setPage(1); }}
-          />
-        </div>
-      </div>
+      <FilterBar>
+        <SearchField placeholder="Buscar colaborador, tipo o motivo" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select
+          className="w-auto"
+          value={tab === 'RECHAZADO' || tab === 'CANCELADO' ? tab : ''}
+          onChange={(e) => { setTab(e.target.value || 'todas'); setPage(1); }}
+        >
+          <option value="">Más estados</option>
+          <option value="RECHAZADO">Rechazadas ({counts.rechazados})</option>
+          <option value="CANCELADO">Canceladas</option>
+        </select>
+      </FilterBar>
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-line bg-white">
@@ -141,16 +124,6 @@ export function Permisos() {
       <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </div>
-    </div>
-  );
-}
-
-function Kpi({ value, label, hint }) {
-  return (
-    <div className="rounded-xl border border-line bg-white p-4">
-      <p className="text-2xl font-bold text-navy">{value}</p>
-      <p className="mt-1 text-sm font-medium text-navy">{label}</p>
-      <p className="text-xs text-muted">{hint}</p>
     </div>
   );
 }

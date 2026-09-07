@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Badge, Button, Empty } from '../components/ui';
+import { Alert, Badge, Button, Empty, FilterBar, Kpi, KpiRow, SearchField } from '../components/ui';
 import { FlujogramaCompact, ORIGEN } from './flujoShared';
 
 export function Flujos() {
@@ -55,28 +55,15 @@ export function Flujos() {
         <Button onClick={() => navigate('/flujos/nuevo')}><Plus size={16} /> Nuevo</Button>
       </div>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex rounded-lg border border-line bg-white p-1">
-          {[
-            ['TODOS', `Todos (${counts.TODOS})`],
-            ['PERMISO', `Permisos (${counts.PERMISO})`],
-            ['HORA_EXTRA', `Horas extras (${counts.HORA_EXTRA})`]
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setOrigen(id)}
-              className={`rounded-md px-3 py-1.5 text-sm ${origen === id ? 'bg-navy text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrar por nombre o código" className="pl-9" />
-        </div>
-      </div>
+      <KpiRow>
+        <Kpi value={counts.TODOS} label="Total" hint="Circuitos configurados" active={origen === 'TODOS'} onClick={() => setOrigen('TODOS')} />
+        <Kpi value={counts.PERMISO} label="Permisos" hint="Flujos de permiso" active={origen === 'PERMISO'} onClick={() => setOrigen('PERMISO')} />
+        <Kpi value={counts.HORA_EXTRA} label="Horas extras" hint="Flujos de tiempo extra" active={origen === 'HORA_EXTRA'} onClick={() => setOrigen('HORA_EXTRA')} />
+      </KpiRow>
+
+      <FilterBar>
+        <SearchField placeholder="Filtrar por nombre o código" value={q} onChange={(e) => setQ(e.target.value)} />
+      </FilterBar>
 
       <Alert>{error}</Alert>
 

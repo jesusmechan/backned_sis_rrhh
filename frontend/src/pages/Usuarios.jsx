@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Badge, Button, Empty, Field, FormGrid, Kpi, Modal, Pager } from '../components/ui';
+import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
 
 const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: 'Andina2026', activo: true };
 
@@ -154,45 +154,19 @@ export function Usuarios() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <Kpi value={counts.total} label="Cuentas" hint="Usuarios registrados" />
-        <Kpi value={counts.activos} label="Activos" hint="Pueden iniciar sesión" />
-        <Kpi value={counts.inactivos} label="Inactivos" hint="Acceso suspendido" />
-      </div>
+      <KpiRow>
+        <Kpi value={counts.total} label="Cuentas" hint="Usuarios registrados" active={tab === ''} onClick={() => { setTab(''); setPage(1); }} />
+        <Kpi value={counts.activos} label="Activos" hint="Pueden iniciar sesión" active={tab === 'activos'} onClick={() => { setTab('activos'); setPage(1); }} />
+        <Kpi value={counts.inactivos} label="Inactivos" hint="Acceso suspendido" active={tab === 'inactivos'} onClick={() => { setTab('inactivos'); setPage(1); }} />
+      </KpiRow>
 
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap gap-2">
-          {[
-            ['', 'Todos', counts.total],
-            ['activos', 'Activos', counts.activos],
-            ['inactivos', 'Inactivos', counts.inactivos]
-          ].map(([id, label, n]) => (
-            <button
-              key={id || 'todos'}
-              type="button"
-              onClick={() => { setTab(id); setPage(1); }}
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === id ? 'bg-navy text-white' : 'border border-line bg-white text-slate-600 hover:bg-slate-50'}`}
-            >
-              {label} ({n})
-            </button>
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              className="pl-9"
-              placeholder="Buscar usuario, nombre, correo o perfil"
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setPage(1); }}
-            />
-          </div>
-          <select value={rol} onChange={(e) => { setRol(e.target.value); setPage(1); }}>
-            <option value="">Todos los perfiles</option>
-            {roles.map((r) => <option key={r.id} value={r.codigo}>{r.nombre || r.codigo}</option>)}
-          </select>
-        </div>
-      </div>
+      <FilterBar>
+        <SearchField placeholder="Buscar usuario, nombre, correo o perfil" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="w-auto" value={rol} onChange={(e) => { setRol(e.target.value); setPage(1); }}>
+          <option value="">Todos los perfiles</option>
+          {roles.map((r) => <option key={r.id} value={r.codigo}>{r.nombre || r.codigo}</option>)}
+        </select>
+      </FilterBar>
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-line bg-white">

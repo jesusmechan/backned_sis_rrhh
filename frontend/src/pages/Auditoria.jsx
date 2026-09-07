@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Button, Empty, PageHeader, Pager, Panel, StackTable } from '../components/ui';
+import { Alert, Empty, Kpi, KpiRow, PageHeader, Pager, Panel, StackTable } from '../components/ui';
 
 export function Auditoria() {
   const [tab, setTab] = useState('auditoria');
@@ -8,6 +8,16 @@ export function Auditoria() {
   const [meta, setMeta] = useState(emptyPage);
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
+  const [counts, setCounts] = useState({ auditoria: 0, trazabilidad: 0 });
+
+  useEffect(() => {
+    Promise.all([
+      http.page(pagePath('/api/auditoria', { page: 1, size: 1 })),
+      http.page(pagePath('/api/trazabilidad', { page: 1, size: 1 }))
+    ])
+      .then(([a, t]) => setCounts({ auditoria: a.totalElements || 0, trazabilidad: t.totalElements || 0 }))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const path = tab === 'auditoria' ? '/api/auditoria' : '/api/trazabilidad';
@@ -22,13 +32,23 @@ export function Auditoria() {
         kicker="Gobierno"
         title="Auditoría"
         subtitle="Bitácora de acciones y trazabilidad de solicitudes."
-        actions={(
-          <div className="flex flex-wrap gap-2">
-            <Button variant={tab === 'auditoria' ? 'primary' : 'secondary'} onClick={() => { setTab('auditoria'); setPage(1); }}>Bitácora</Button>
-            <Button variant={tab === 'trazabilidad' ? 'primary' : 'secondary'} onClick={() => { setTab('trazabilidad'); setPage(1); }}>Trazabilidad</Button>
-          </div>
-        )}
       />
+      <KpiRow cols={2}>
+        <Kpi
+          value={counts.auditoria}
+          label="Bitácora"
+          hint="Acciones de usuarios"
+          active={tab === 'auditoria'}
+          onClick={() => { setTab('auditoria'); setPage(1); }}
+        />
+        <Kpi
+          value={counts.trazabilidad}
+          label="Trazabilidad"
+          hint="Historial de solicitudes"
+          active={tab === 'trazabilidad'}
+          onClick={() => { setTab('trazabilidad'); setPage(1); }}
+        />
+      </KpiRow>
       <Alert>{error}</Alert>
       <Panel padded={false}>
         {rows.length === 0 ? <Empty text="Sin registros." /> : tab === 'auditoria' ? (

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Download, Search } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Avatar, Badge, Button, Empty, Pager, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Badge, Button, Empty, FilterBar, Kpi, KpiRow, Pager, SearchField, downloadBlob } from '../components/ui';
 import { TIPO, fmtDateTime } from './bandejaShared';
 
 export function Bandeja() {
@@ -124,56 +124,33 @@ export function Bandeja() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <Kpi value={counts.total} label="Por atender" hint="Pasos que esperan su decisión" />
-        <Kpi value={counts.seguimiento} label="En seguimiento" hint="Creadas o ya decididas por usted" />
+      <KpiRow>
+        <Kpi
+          value={counts.total}
+          label="Por atender"
+          hint="Pasos que esperan su decisión"
+          active={tab === 'pendientes'}
+          onClick={() => { setTab('pendientes'); setPage(1); setChecked({}); }}
+        />
+        <Kpi
+          value={counts.seguimiento}
+          label="En seguimiento"
+          hint="Creadas o ya decididas por usted"
+          active={tab === 'seguimiento'}
+          onClick={() => { setTab('seguimiento'); setPage(1); setChecked({}); }}
+        />
         <Kpi value={counts.permiso + counts.hora} label="Pendientes por tipo" hint={`${counts.permiso} permisos · ${counts.hora} horas extras`} />
-      </div>
+      </KpiRow>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {[
-          ['pendientes', 'Por atender', counts.total],
-          ['seguimiento', 'En seguimiento', counts.seguimiento]
-        ].map(([id, label, n]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => { setTab(id); setPage(1); setChecked({}); }}
-            className={`rounded-lg px-3 py-1.5 text-sm ${tab === id ? 'bg-navy text-white' : 'border border-line bg-white text-slate-600 hover:bg-slate-50'}`}
-          >
-            {label}
-            {n != null && (
-              <span className={`ml-2 rounded-md px-1.5 text-xs ${tab === id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'}`}>{n}</span>
-            )}
-          </button>
-        ))}
-        <div className="ml-auto flex flex-wrap gap-2">
-          {tab === 'pendientes' && (
-            <Button onClick={masiva} disabled={saving || !seleccionados}>
-              Aprobar seleccionadas{seleccionados ? ` (${seleccionados})` : ''}
-            </Button>
-          )}
-          <Button variant="secondary" onClick={exportar}><Download size={14} /> Exportar</Button>
-        </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-2 rounded-xl border border-line bg-white p-3">
-        <div className="relative min-w-0 flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            className="pl-9"
-            placeholder="Buscar colaborador, trámite o motivo"
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setPage(1); }}
-          />
-        </div>
-        <select value={tipo} onChange={(e) => { setTipo(e.target.value); setPage(1); }}>
+      <FilterBar>
+        <SearchField placeholder="Buscar colaborador, trámite o motivo" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="w-auto" value={tipo} onChange={(e) => { setTipo(e.target.value); setPage(1); }}>
           <option value="">Todos los tipos</option>
           <option value="PERMISO">Permiso</option>
           <option value="HORA_EXTRA">Horas extras</option>
         </select>
         {tab === 'seguimiento' && (
-          <select value={estadoSeguimiento} onChange={(e) => { setEstadoSeguimiento(e.target.value); setPage(1); }}>
+          <select className="w-auto" value={estadoSeguimiento} onChange={(e) => { setEstadoSeguimiento(e.target.value); setPage(1); }}>
             <option value="">Todos los estados</option>
             <option value="PENDIENTE">Pendiente</option>
             <option value="APROBADO">Aprobado</option>
@@ -181,7 +158,13 @@ export function Bandeja() {
             <option value="CANCELADO">Cancelado</option>
           </select>
         )}
-      </div>
+        {tab === 'pendientes' && (
+          <Button onClick={masiva} disabled={saving || !seleccionados}>
+            Aprobar seleccionadas{seleccionados ? ` (${seleccionados})` : ''}
+          </Button>
+        )}
+        <Button variant="secondary" onClick={exportar}><Download size={14} /> Exportar</Button>
+      </FilterBar>
 
       {lista.length === 0 ? (
         <div className="rounded-xl border border-line bg-white">
@@ -257,16 +240,6 @@ export function Bandeja() {
       <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </div>
-    </div>
-  );
-}
-
-function Kpi({ value, label, hint }) {
-  return (
-    <div className="rounded-xl border border-line bg-white p-4">
-      <p className="text-2xl font-bold text-navy">{value}</p>
-      <p className="mt-1 text-sm font-medium text-navy">{label}</p>
-      <p className="text-xs text-muted">{hint}</p>
     </div>
   );
 }

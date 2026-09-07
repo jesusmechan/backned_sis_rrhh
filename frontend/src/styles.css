@@ -23,6 +23,10 @@
   textarea {
     @apply w-full max-w-full rounded-lg border border-line bg-white px-3 py-2.5 text-base text-slate-800 outline-none md:text-sm;
   }
+  .filter-bar select {
+    @apply w-auto max-w-56 shrink-0;
+  }
+
   input:focus, select:focus, textarea:focus {
     @apply border-slate-400;
   }

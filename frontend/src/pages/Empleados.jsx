@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, Plus, Search, Upload } from 'lucide-react';
+import { Download, Plus, Upload } from 'lucide-react';
 import { api, emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, Empty, Field, FormGrid, Kpi, Modal, Pager, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
 
 const CONTRATO = {
   PLANILLA: 'Planilla',
@@ -77,7 +77,7 @@ export function Empleados() {
       page,
       size: PAGE_SIZE,
       q: qDebounced,
-      estado: tab,
+      estado: tab === 'baja' ? 'INACTIVO,CESADO' : tab,
       idArea: idArea || undefined
     }));
     setRows(data.content || []);
@@ -207,46 +207,25 @@ export function Empleados() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <Kpi value={counts.total} label="Colaboradores" hint="Personas en el directorio" />
-        <Kpi value={counts.activos} label="Activos" hint="Con vínculo vigente" />
-        <Kpi value={counts.inactivos + counts.cesados} label="Baja o cese" hint={`${counts.inactivos} inactivos · ${counts.cesados} cesados`} />
-      </div>
+      <KpiRow>
+        <Kpi value={counts.total} label="Colaboradores" hint="Personas en el directorio" active={tab === ''} onClick={() => { setTab(''); setPage(1); }} />
+        <Kpi value={counts.activos} label="Activos" hint="Con vínculo vigente" active={tab === 'ACTIVO'} onClick={() => { setTab('ACTIVO'); setPage(1); }} />
+        <Kpi
+          value={counts.inactivos + counts.cesados}
+          label="Baja o cese"
+          hint={`${counts.inactivos} inactivos · ${counts.cesados} cesados`}
+          active={tab === 'baja'}
+          onClick={() => { setTab('baja'); setPage(1); }}
+        />
+      </KpiRow>
 
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap gap-2">
-          {[
-            ['', 'Todos', counts.total],
-            ['ACTIVO', 'Activos', counts.activos],
-            ['INACTIVO', 'Inactivos', counts.inactivos],
-            ['CESADO', 'Cesados', counts.cesados]
-          ].map(([id, label, n]) => (
-            <button
-              key={id || 'todos'}
-              type="button"
-              onClick={() => { setTab(id); setPage(1); }}
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === id ? 'bg-navy text-white' : 'border border-line bg-white text-slate-600 hover:bg-slate-50'}`}
-            >
-              {label} ({n})
-            </button>
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              className="pl-9"
-              placeholder="Buscar código, nombre, documento, área o cargo"
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setPage(1); }}
-            />
-          </div>
-          <select value={idArea} onChange={(e) => { setIdArea(e.target.value); setPage(1); }}>
-            <option value="">Todas las áreas</option>
-            {cats.areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
-        </div>
-      </div>
+      <FilterBar>
+        <SearchField placeholder="Buscar código, nombre, documento, área o cargo" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="w-auto" value={idArea} onChange={(e) => { setIdArea(e.target.value); setPage(1); }}>
+          <option value="">Todas las áreas</option>
+          {cats.areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </select>
+      </FilterBar>
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-line bg-white">

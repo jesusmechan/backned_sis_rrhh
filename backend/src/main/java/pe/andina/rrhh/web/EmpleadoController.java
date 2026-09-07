@@ -50,7 +50,14 @@ public class EmpleadoController {
         var data = PageResponses.search(empleadoService.listar(), q, e ->
                 PageResponses.text(e.codigoEmpleado(), e.nombreCompleto(), e.area(), e.cargo(), e.estado(), e.numeroDocumento()));
         if (estado != null && !estado.isBlank()) {
-            data = data.stream().filter(e -> estado.equalsIgnoreCase(String.valueOf(e.estado()))).toList();
+            var estados = java.util.Arrays.stream(estado.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .map(String::toUpperCase)
+                    .collect(java.util.stream.Collectors.toSet());
+            data = data.stream()
+                    .filter(e -> e.estado() != null && estados.contains(e.estado().name()))
+                    .toList();
         }
         if (idArea != null) {
             data = data.stream().filter(e -> idArea.equals(e.idArea())).toList();

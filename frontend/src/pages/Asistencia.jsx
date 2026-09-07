@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, Clock3, Download, Search, Timer } from 'lucide-react';
+import { CalendarDays, Clock3, Download, Timer } from 'lucide-react';
 import { emptyPage, http, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Button, Empty, Pager, Panel, StackTable, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Button, Empty, FilterBar, Pager, Panel, SearchField, StackTable, downloadBlob } from '../components/ui';
 
 function sameMonth(iso, d = new Date()) {
   const x = new Date(iso);
@@ -158,28 +158,19 @@ export function Asistencia() {
           </Panel>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => { setTab('mias'); setPage(1); }} className={`rounded-full px-3 py-1.5 text-sm ${tab === 'mias' ? 'bg-navy text-white' : 'bg-white text-slate-600 ring-1 ring-line'}`}>
-          Mis marcaciones ({mineTotal})
-        </button>
-        {canSupervise && (
-          <button type="button" onClick={() => { setTab('equipo'); setPage(1); }} className={`rounded-full px-3 py-1.5 text-sm ${tab === 'equipo' ? 'bg-navy text-white' : 'bg-white text-slate-600 ring-1 ring-line'}`}>
-            Supervisión de equipo ({equipoTotal})
-          </button>
-        )}
-        <div className="flex w-full min-w-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap">
-          <select value={tipoFiltro} onChange={(e) => { setTipoFiltro(e.target.value); setPage(1); }}>
-            <option value="">Tipo</option>
-            <option value="INGRESO">Entrada</option>
-            <option value="SALIDA">Salida</option>
-          </select>
-          <div className="relative min-w-0 flex-1 sm:min-w-52">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="pl-8" placeholder="Buscar colaborador..." value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-          </div>
-          {canSupervise && <Button variant="secondary" onClick={exportar}><Download size={14} /> Exportar reporte</Button>}
-        </div>
-      </div>
+      <FilterBar>
+        <select className="w-auto" value={tab} onChange={(e) => { setTab(e.target.value); setPage(1); }}>
+          <option value="mias">Mis marcaciones ({mineTotal})</option>
+          {canSupervise && <option value="equipo">Supervisión de equipo ({equipoTotal})</option>}
+        </select>
+        <select className="w-auto" value={tipoFiltro} onChange={(e) => { setTipoFiltro(e.target.value); setPage(1); }}>
+          <option value="">Tipo</option>
+          <option value="INGRESO">Entrada</option>
+          <option value="SALIDA">Salida</option>
+        </select>
+        <SearchField placeholder="Buscar colaborador" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        {canSupervise && <Button variant="secondary" onClick={exportar}><Download size={14} /> Exportar</Button>}
+      </FilterBar>
 
       <Panel padded={false}>
         {rows.length === 0 ? <Empty text="Sin marcaciones en esta vista." /> : (

@@ -1,3 +1,5 @@
+import { Search } from 'lucide-react';
+
 export function cn(...parts) {
   return parts.filter(Boolean).join(' ');
 }
@@ -128,12 +130,43 @@ export function StackTable({ cards, table }) {
   );
 }
 
-export function Kpi({ value, label, hint }) {
-  return (
-    <div className="rounded-xl border border-line bg-white p-4">
+export function Kpi({ value, label, hint, active, onClick }) {
+  const className = cn(
+    'w-full rounded-xl border bg-white p-4 text-left',
+    onClick && 'cursor-pointer hover:border-slate-300',
+    active ? 'border-navy ring-1 ring-navy' : 'border-line'
+  );
+  const body = (
+    <>
       <p className="text-2xl font-bold text-navy">{value}</p>
       <p className="mt-1 text-sm font-medium text-navy">{label}</p>
       {hint && <p className="text-xs text-muted">{hint}</p>}
+    </>
+  );
+  if (onClick) {
+    return <button type="button" className={className} onClick={onClick} aria-pressed={Boolean(active)}>{body}</button>;
+  }
+  return <div className={className}>{body}</div>;
+}
+
+export function KpiRow({ children, cols = 3 }) {
+  const grid = cols === 2 ? 'sm:grid-cols-2' : cols === 4 ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3';
+  return <div className={cn('mb-4 grid gap-3', grid)}>{children}</div>;
+}
+
+export function FilterBar({ children }) {
+  return (
+    <div className="filter-bar mb-4 flex flex-wrap items-center gap-2">
+      {children}
+    </div>
+  );
+}
+
+export function SearchField({ value, onChange, placeholder }) {
+  return (
+    <div className="relative min-w-0 flex-1">
+      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input className="pl-9" placeholder={placeholder} value={value} onChange={onChange} />
     </div>
   );
 }
