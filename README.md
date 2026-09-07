@@ -22,13 +22,12 @@ Proyecto_RRHH/
 ├── README.md
 ├── docs/
 │   ├── API.md
-│   └── BASE_DE_DATOS.md
+│   ├── BASE_DE_DATOS.md
+│   └── PRUEBAS.md           # Cuentas y recorrido de los flujos
 ├── database/
 │   ├── 00_create_database.sql
-│   ├── 01_schema.sql
-│   ├── 02_seed.sql
-│   ├── 03_validar_flujo.sql
-│   └── 04_refresh_token.sql
+│   ├── 01_install.sql       # Esquema + datos iniciales
+│   └── 02_reset.sql         # Limpia trámites y deja 3 cuentas
 ├── backend/                 # API Spring Boot (puerto 8080)
 └── frontend/                # React + Vite (puerto 5173)
 ```
@@ -45,13 +44,12 @@ Proyecto_RRHH/
 1. Query Tool sobre la base **`postgres`**, con **Auto commit** activo.
 2. Ejecutar `database/00_create_database.sql` (F5).
 3. Refresh → Query Tool sobre **`rrhh_andina`**.
-4. Ejecutar, en este orden:
-   - `01_schema.sql`
-   - `02_seed.sql`
-   - `03_validar_flujo.sql` (opcional, pruebas del flujo)
-5. Si la base ya existía **antes** de agregar tokens, ejecutar `04_refresh_token.sql`.
+4. Ejecutar `01_install.sql` (esquema + menú + 3 cuentas + flujos).
+5. Para volver a dejar la base sin solicitudes ni marcaciones: `02_reset.sql`.
 
-`01_schema.sql` recrea el esquema `public`. Se puede repetir: borra solo objetos de `rrhh_andina`.
+`01_install.sql` recrea el esquema `public`. Se puede repetir: borra solo objetos de `rrhh_andina`.
+
+Cuentas y cómo recorrer cada flujo: [docs/PRUEBAS.md](docs/PRUEBAS.md).
 
 Detalle: [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md).
 
@@ -89,7 +87,7 @@ Especificación OpenAPI: [http://localhost:8080/v3/api-docs](http://localhost:80
 `POST /api/auth/login`
 
 ```json
-{ "nombreUsuario": "cmendoza", "password": "Andina2026" }
+{ "nombreUsuario": "jesus.mechan", "password": "Andina2026" }
 ```
 
 Respuesta: `accessToken`, `refreshToken`, `tokenType` (`Bearer`), `expiresIn` y datos del usuario.
@@ -100,19 +98,15 @@ Las demás rutas llevan:
 Authorization: Bearer <accessToken>
 ```
 
-Usuarios de demostración (contraseña **Andina2026**):
+Usuarios de prueba (contraseña **Andina2026**):
 
 | Usuario | Rol | Persona |
 |---|---|---|
-| `ediaz` | ADMIN | Elena Díaz |
-| `mquispe` | RRHH | María Elena Quispe |
-| `csilva` | RRHH | Carmen Silva |
-| `cmendoza` | APROBADOR | Carlos Mendoza (jefe Contabilidad) |
-| `sparedes` | APROBADOR | Silvia Paredes (jefa Tributario) |
-| `rsalas` | APROBADOR | Roberto Salas (Gerencia) |
-| `lbenavides` | EMPLEADO | Lucía Benavides |
+| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales (acceso total) |
+| `jesus.pantoja` | APROBADOR | Jesús Pantoja Pantoja (jefe de Juan) |
+| `juan.espinoza` | EMPLEADO | Juan Espinoza (inicia el flujo) |
 
-Lista completa y catálogo de endpoints: [docs/API.md](docs/API.md).
+Recorrido paso a paso: [docs/PRUEBAS.md](docs/PRUEBAS.md). Endpoints: [docs/API.md](docs/API.md).
 
 ## 4. Frontend
 

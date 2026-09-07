@@ -87,7 +87,10 @@ export function BandejaDecision() {
       await http.post(`/api/pasos/${idPaso}/${accion}`, { comentario: text || 'Conforme' });
       navigate('/bandeja', {
         replace: true,
-        state: { ok: accion === 'aprobar' ? 'Paso aprobado' : 'Solicitud rechazada' }
+        state: {
+          ok: accion === 'aprobar' ? 'Paso aprobado. La solicitud queda en seguimiento, solo lectura.' : 'Solicitud rechazada. Queda visible en seguimiento.',
+          tab: 'seguimiento'
+        }
       });
     } catch (e) {
       setError(e.message);
@@ -112,7 +115,7 @@ export function BandejaDecision() {
       <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Aprobaciones</p>
-          <h1 className="mt-1 text-3xl font-bold text-navy">
+          <h1 className="page-title mt-1">
             {deciding ? 'Revisar solicitud' : 'Solicitud'}
           </h1>
           {item && (

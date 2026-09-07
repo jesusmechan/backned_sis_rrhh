@@ -227,7 +227,9 @@ public final class AppDtos {
             String nombrePaso,
             TipoAprobador tipoAprobador,
             String motivo,
-            OffsetDateTime fechaInicio
+            OffsetDateTime fechaInicio,
+            String estadoSolicitud,
+            boolean puedeDecidir
     ) {}
 
     public record MarcacionRequest(

@@ -6,7 +6,7 @@ import { Alert, Button, Field } from '../components/ui';
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [nombreUsuario, setNombreUsuario] = useState('cmendoza');
+  const [nombreUsuario, setNombreUsuario] = useState('juan.espinoza');
   const [password, setPassword] = useState('Andina2026');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,7 @@ export function Login() {
 
   return (
     <div className="grid min-h-screen place-items-center bg-surface px-4">
-      <form className="w-full max-w-md rounded-xl border border-line bg-white p-8 shadow-sm" onSubmit={onSubmit}>
+      <form className="w-full max-w-md rounded-xl border border-line bg-white p-5 shadow-sm sm:p-8" onSubmit={onSubmit}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Consultora Contable Andina</p>
         <h1 className="mt-1 text-2xl font-bold text-navy">Ingreso al sistema</h1>
         <p className="mt-1 mb-6 text-sm text-muted">Gestión de RR. HH.</p>
@@ -41,8 +41,8 @@ export function Login() {
           </Field>
           <Button className="w-full" disabled={loading}>{loading ? 'Ingresando…' : 'Ingresar'}</Button>
         </div>
-        <p className="mt-4 text-xs text-muted">
-          Prueba: ediaz, mquispe, cmendoza, lbenavides. Contraseña: Andina2026.
+        <p className="mt-4 break-any text-xs text-muted">
+          Prueba: juan.espinoza, jesus.pantoja, jesus.mechan. Contraseña: Andina2026.
         </p>
       </form>
     </div>

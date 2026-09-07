@@ -27,7 +27,12 @@ import pe.andina.rrhh.repo.TipoPermisoRepository;
 import pe.andina.rrhh.security.SecurityUtils;
 import pe.andina.rrhh.security.UsuarioPrincipal;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class SolicitudService {
@@ -107,7 +112,9 @@ public class SolicitudService {
     @Transactional(readOnly = true)
     public PermisoResponse obtenerPermiso(Integer id) {
         SolicitudPermiso s = permisoRepository.findById(id).orElseThrow(() -> ApiException.notFound("Solicitud no encontrada"));
-        assertPuedeVer(s.getEmpleado().getIdEmpleado());
+        assertPuedeVer(
+                s.getEmpleado().getIdEmpleado(),
+                pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
         return toPermiso(s);
     }
 
@@ -123,7 +130,9 @@ public class SolicitudService {
     @Transactional(readOnly = true)
     public HoraExtraResponse obtenerHoraExtra(Integer id) {
         SolicitudHoraExtra s = horaExtraRepository.findById(id).orElseThrow(() -> ApiException.notFound("Solicitud no encontrada"));
-        assertPuedeVer(s.getEmpleado().getIdEmpleado());
+        assertPuedeVer(
+                s.getEmpleado().getIdEmpleado(),
+                pasoRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(s.getIdSolicitudHoraExtra()));
         return toHoraExtra(s);
     }
 
@@ -153,7 +162,14 @@ public class SolicitudService {
     public PasoResponse decidir(Integer idPaso, boolean aprobar, DecisionRequest request) {
         SolicitudPasoAprobacion paso = pasoRepository.findById(idPaso)
                 .orElseThrow(() -> ApiException.notFound("Paso no encontrado"));
-        Usuario decisor = SecurityUtils.current().getUsuario();
+        if (paso.getEstado() != EstadoPasoAprobacion.EN_CURSO) {
+            throw ApiException.badRequest("Este paso ya no está pendiente de decisión");
+        }
+        UsuarioPrincipal me = SecurityUtils.current();
+        if (!correspondeBandeja(paso, me)) {
+            throw ApiException.forbidden("Este paso no le corresponde");
+        }
+        Usuario decisor = me.getUsuario();
         paso.setUsuarioDecision(decisor);
         paso.setComentario(request.comentario());
         paso.setEstado(aprobar ? EstadoPasoAprobacion.APROBADO : EstadoPasoAprobacion.RECHAZADO);
@@ -164,12 +180,62 @@ public class SolicitudService {
     }
 
     @Transactional(readOnly = true)
-    public List<BandejaItem> bandeja() {
+    public List<BandejaItem> bandeja(String vista) {
+        if (vista != null && "SEGUIMIENTO".equalsIgnoreCase(vista.trim())) {
+            return bandejaSeguimiento();
+        }
+        return bandejaPendientes();
+    }
+
+    private List<BandejaItem> bandejaPendientes() {
         UsuarioPrincipal me = SecurityUtils.current();
         return pasoRepository.findByEstado(EstadoPasoAprobacion.EN_CURSO).stream()
                 .filter(p -> correspondeBandeja(p, me))
-                .map(this::toBandeja)
+                .map(p -> toBandeja(p, true))
                 .toList();
+    }
+
+    private List<BandejaItem> bandejaSeguimiento() {
+        UsuarioPrincipal me = SecurityUtils.current();
+        Map<String, BandejaItem> items = new LinkedHashMap<>();
+        Integer idEmpleado = me.getIdEmpleado();
+        Integer idUsuario = me.getIdUsuario();
+
+        if (idEmpleado != null) {
+            permisoRepository.findByEmpleado_IdEmpleadoOrderByIdSolicitudPermisoDesc(idEmpleado)
+                    .forEach(s -> putSeguimiento(items, s));
+            horaExtraRepository.findByEmpleado_IdEmpleadoOrderByIdSolicitudHoraExtraDesc(idEmpleado)
+                    .forEach(s -> putSeguimiento(items, s));
+        }
+
+        Set<EstadoPasoAprobacion> resueltos = Set.of(
+                EstadoPasoAprobacion.APROBADO,
+                EstadoPasoAprobacion.RECHAZADO,
+                EstadoPasoAprobacion.OMITIDO,
+                EstadoPasoAprobacion.CANCELADO);
+
+        List<SolicitudPasoAprobacion> participados = new ArrayList<>();
+        participados.addAll(pasoRepository.findByUsuarioDecision_IdUsuario(idUsuario));
+        participados.addAll(pasoRepository.findByUsuarioAsignado_IdUsuarioAndEstadoIn(idUsuario, resueltos));
+        for (SolicitudPasoAprobacion paso : participados) {
+            if (paso.getSolicitudPermiso() != null) {
+                putSeguimiento(items, paso.getSolicitudPermiso());
+            } else if (paso.getSolicitudHoraExtra() != null) {
+                putSeguimiento(items, paso.getSolicitudHoraExtra());
+            }
+        }
+
+        List<BandejaItem> data = new ArrayList<>(items.values());
+        data.sort(Comparator.comparing(BandejaItem::fechaInicio, Comparator.nullsLast(Comparator.reverseOrder())));
+        return data;
+    }
+
+    private void putSeguimiento(Map<String, BandejaItem> items, SolicitudPermiso s) {
+        items.putIfAbsent("PERMISO-" + s.getIdSolicitudPermiso(), toBandejaSeguimiento(s));
+    }
+
+    private void putSeguimiento(Map<String, BandejaItem> items, SolicitudHoraExtra s) {
+        items.putIfAbsent("HORA_EXTRA-" + s.getIdSolicitudHoraExtra(), toBandejaSeguimiento(s));
     }
 
     @Transactional(readOnly = true)
@@ -194,17 +260,59 @@ public class SolicitudService {
         };
     }
 
-    private BandejaItem toBandeja(SolicitudPasoAprobacion p) {
+    private BandejaItem toBandeja(SolicitudPasoAprobacion p, boolean puedeDecidir) {
         if (p.getSolicitudPermiso() != null) {
             SolicitudPermiso s = p.getSolicitudPermiso();
             return new BandejaItem(p.getIdPasoSolicitud(), "PERMISO", s.getIdSolicitudPermiso(),
                     s.getEmpleado().nombreCompleto(), s.getTipoPermiso().getNombre(),
-                    p.getNumeroPaso(), p.getNombrePaso(), p.getTipoAprobador(), s.getMotivo(), p.getFechaInicio());
+                    p.getNumeroPaso(), p.getNombrePaso(), p.getTipoAprobador(), s.getMotivo(),
+                    p.getFechaInicio() != null ? p.getFechaInicio() : s.getFechaCreacion(),
+                    s.getEstado().name(), puedeDecidir);
         }
         SolicitudHoraExtra s = p.getSolicitudHoraExtra();
         return new BandejaItem(p.getIdPasoSolicitud(), "HORA_EXTRA", s.getIdSolicitudHoraExtra(),
                 s.getEmpleado().nombreCompleto(), "Horas extras",
-                p.getNumeroPaso(), p.getNombrePaso(), p.getTipoAprobador(), s.getMotivo(), p.getFechaInicio());
+                p.getNumeroPaso(), p.getNombrePaso(), p.getTipoAprobador(), s.getMotivo(),
+                p.getFechaInicio() != null ? p.getFechaInicio() : s.getFechaCreacion(),
+                s.getEstado().name(), puedeDecidir);
+    }
+
+    private BandejaItem toBandejaSeguimiento(SolicitudPermiso s) {
+        List<SolicitudPasoAprobacion> pasos = pasoRepository
+                .findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso());
+        return toBandeja(pasoVisible(pasos), false, s.getEmpleado().nombreCompleto(),
+                s.getTipoPermiso().getNombre(), s.getMotivo(), s.getFechaCreacion(),
+                s.getEstado().name(), "PERMISO", s.getIdSolicitudPermiso());
+    }
+
+    private BandejaItem toBandejaSeguimiento(SolicitudHoraExtra s) {
+        List<SolicitudPasoAprobacion> pasos = pasoRepository
+                .findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(s.getIdSolicitudHoraExtra());
+        return toBandeja(pasoVisible(pasos), false, s.getEmpleado().nombreCompleto(),
+                "Horas extras", s.getMotivo(), s.getFechaCreacion(),
+                s.getEstado().name(), "HORA_EXTRA", s.getIdSolicitudHoraExtra());
+    }
+
+    private BandejaItem toBandeja(SolicitudPasoAprobacion p, boolean puedeDecidir, String solicitante,
+                                 String tipoTramite, String motivo, java.time.OffsetDateTime fecha,
+                                 String estadoSolicitud, String tipoSolicitud, Integer idSolicitud) {
+        if (p == null) {
+            return new BandejaItem(null, tipoSolicitud, idSolicitud, solicitante, tipoTramite,
+                    null, null, null, motivo, fecha, estadoSolicitud, puedeDecidir);
+        }
+        return new BandejaItem(p.getIdPasoSolicitud(), tipoSolicitud, idSolicitud, solicitante, tipoTramite,
+                p.getNumeroPaso(), p.getNombrePaso(), p.getTipoAprobador(), motivo,
+                fecha != null ? fecha : p.getFechaInicio(), estadoSolicitud, puedeDecidir);
+    }
+
+    private SolicitudPasoAprobacion pasoVisible(List<SolicitudPasoAprobacion> pasos) {
+        if (pasos == null || pasos.isEmpty()) {
+            return null;
+        }
+        return pasos.stream()
+                .filter(p -> p.getEstado() == EstadoPasoAprobacion.EN_CURSO)
+                .findFirst()
+                .orElse(pasos.get(pasos.size() - 1));
     }
 
     private PermisoResponse toPermiso(SolicitudPermiso s) {
@@ -226,13 +334,27 @@ public class SolicitudService {
         return empleadoService.buscar(me.getIdEmpleado());
     }
 
-    private void assertPuedeVer(Integer idEmpleado) {
+    private void assertPuedeVer(Integer idEmpleado, List<SolicitudPasoAprobacion> pasos) {
         if (SecurityUtils.isAdminOrRrhh() || SecurityUtils.hasRole("APROBADOR")) {
             return;
         }
-        if (!idEmpleado.equals(SecurityUtils.current().getIdEmpleado())) {
-            throw ApiException.forbidden("No puede consultar solicitudes de otro trabajador");
+        UsuarioPrincipal me = SecurityUtils.current();
+        if (idEmpleado.equals(me.getIdEmpleado())) {
+            return;
         }
+        if (participoEnCircuito(pasos, me.getIdUsuario())) {
+            return;
+        }
+        throw ApiException.forbidden("No puede consultar solicitudes de otro trabajador");
+    }
+
+    private boolean participoEnCircuito(List<SolicitudPasoAprobacion> pasos, Integer idUsuario) {
+        if (pasos == null || idUsuario == null) {
+            return false;
+        }
+        return pasos.stream().anyMatch(p ->
+                (p.getUsuarioDecision() != null && idUsuario.equals(p.getUsuarioDecision().getIdUsuario()))
+                        || (p.getUsuarioAsignado() != null && idUsuario.equals(p.getUsuarioAsignado().getIdUsuario())));
     }
 
     private void assertEsDuenioORrhh(Integer idEmpleado) {

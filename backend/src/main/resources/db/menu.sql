@@ -21,7 +21,7 @@ INSERT INTO menu_item (codigo, etiqueta, ruta, icono, grupo, descripcion, orden)
 SELECT v.codigo, v.etiqueta, v.ruta, v.icono, v.grupo, v.descripcion, v.orden
 FROM (VALUES
     ('INICIO', 'Inicio', '/', 'Home', 'Operación', 'Resumen de la sesión y accesos del perfil.', 10),
-    ('BANDEJA', 'Bandeja', '/bandeja', 'Inbox', 'Operación', 'Aprobar o rechazar pasos en curso.', 20),
+    ('BANDEJA', 'Bandeja', '/bandeja', 'Inbox', 'Operación', 'Atender y seguir solicitudes del circuito.', 20),
     ('PERMISOS', 'Permisos', '/permisos', 'ClipboardCheck', 'Operación', 'Registrar y seguir solicitudes de permiso.', 30),
     ('HORAS_EXTRAS', 'Horas extras', '/horas-extras', 'Clock3', 'Operación', 'Registrar y consultar tiempo extra.', 40),
     ('MARCAR', 'Marcar', '/marcar', 'LogIn', 'Operación', 'Registrar entrada o salida del día.', 50),
@@ -64,5 +64,5 @@ INSERT INTO menu_rol (id_menu, id_rol)
 SELECT m.id_menu, r.id_rol
 FROM menu_item m
 JOIN rol r ON r.codigo = 'EMPLEADO'
-WHERE m.codigo IN ('INICIO', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL')
+WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL')
   AND NOT EXISTS (SELECT 1 FROM menu_rol x WHERE x.id_menu = m.id_menu AND x.id_rol = r.id_rol);

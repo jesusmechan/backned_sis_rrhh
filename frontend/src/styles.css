@@ -13,21 +13,27 @@
 
 @layer base {
   html, body, #root { min-height: 100%; }
-  body { @apply m-0 bg-surface font-sans text-slate-800; }
+  html, body { @apply m-0 max-w-[100%] overflow-x-hidden bg-surface font-sans text-slate-800; }
+  #root { @apply min-w-0; }
 
   button, input, select, textarea { font: inherit; }
 
   input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    @apply w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-slate-800 outline-none;
+    @apply w-full max-w-full rounded-lg border border-line bg-white px-3 py-2.5 text-base text-slate-800 outline-none md:text-sm;
   }
   input:focus, select:focus, textarea:focus {
     @apply border-slate-400;
   }
   textarea { @apply min-h-24 resize-y; }
 
-  table { @apply w-full border-collapse text-left text-sm; }
-  th { @apply px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500; }
+  table { @apply w-full min-w-[40rem] border-collapse text-left text-sm; }
+  th { @apply whitespace-nowrap px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500; }
   td { @apply border-t border-line px-3 py-3 align-middle; }
+}
+
+@layer utilities {
+  .page-title { @apply text-2xl font-bold tracking-tight text-navy sm:text-3xl; }
+  .break-any { overflow-wrap: anywhere; }
 }

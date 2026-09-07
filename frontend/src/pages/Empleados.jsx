@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Badge, Button, Empty, Field, FormGrid, Modal, Pager, Panel, downloadBlob } from '../components/ui';
+import { Alert, Badge, Button, Empty, Field, FormGrid, Modal, Pager, Panel, StackTable, downloadBlob } from '../components/ui';
 
 const empty = {
   codigoEmpleado: '', tipoDocumento: 'DNI', numeroDocumento: '', nombres: '',
@@ -119,7 +119,7 @@ export function Empleados() {
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Directorio · Consultora Contable Andina</p>
-          <h1 className="mt-1 text-3xl font-bold text-navy">Personal</h1>
+          <h1 className="page-title mt-1">Personal</h1>
           <p className="mt-2 text-sm text-muted">Alta de colaboradores, edición y carga masiva Excel.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -139,23 +139,35 @@ export function Empleados() {
       <Alert ok>{ok}</Alert>
       <Panel padded={false}>
         {rows.length === 0 ? <Empty text="Sin empleados." /> : (
-          <div className="overflow-x-auto">
-            <table>
-              <thead><tr><th>Código</th><th>Nombre</th><th>Área</th><th>Cargo</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.idEmpleado}>
-                    <td>{r.codigoEmpleado}</td>
-                    <td>{r.nombreCompleto}</td>
-                    <td>{r.area}</td>
-                    <td>{r.cargo}</td>
-                    <td><Badge value={r.estado} /></td>
-                    <td><Button variant="secondary" onClick={() => abrir(r)}>Editar</Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <StackTable
+            cards={rows.map((r) => (
+              <div key={r.idEmpleado} className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-navy">{r.nombreCompleto}</p>
+                  <p className="text-xs text-muted">{r.codigoEmpleado} · {r.area} · {r.cargo}</p>
+                  <div className="mt-2"><Badge value={r.estado} /></div>
+                </div>
+                <Button variant="secondary" className="shrink-0 px-3 py-2" onClick={() => abrir(r)}>Editar</Button>
+              </div>
+            ))}
+            table={(
+              <table>
+                <thead><tr><th>Código</th><th>Nombre</th><th>Área</th><th>Cargo</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.idEmpleado}>
+                      <td>{r.codigoEmpleado}</td>
+                      <td>{r.nombreCompleto}</td>
+                      <td>{r.area}</td>
+                      <td>{r.cargo}</td>
+                      <td><Badge value={r.estado} /></td>
+                      <td><Button variant="secondary" onClick={() => abrir(r)}>Editar</Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          />
         )}
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </Panel>

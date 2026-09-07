@@ -89,7 +89,7 @@ export function HoraExtraNueva() {
       <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Trámites</p>
-          <h1 className="mt-1 text-3xl font-bold text-navy">Nueva solicitud</h1>
+          <h1 className="page-title mt-1">Nueva solicitud</h1>
           <p className="mt-2 text-sm text-muted">Al guardar se instancia el circuito configurado para horas extras.</p>
         </div>
         <div className="flex flex-wrap gap-2">

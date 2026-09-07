@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Badge, Button, Empty, Field, FormGrid, Modal, PageHeader, Pager, Panel } from '../components/ui';
+import { Alert, Badge, Button, Empty, Field, FormGrid, Modal, PageHeader, Pager, Panel, StackTable } from '../components/ui';
 
 const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: 'Andina2026', activo: true };
 
@@ -63,31 +63,52 @@ export function Usuarios() {
       <Alert>{error}</Alert>
       <Panel padded={false}>
         {rows.length === 0 ? <Empty text="Sin usuarios." /> : (
-          <div className="overflow-x-auto">
-            <table>
-              <thead><tr><th>Usuario</th><th>Nombre</th><th>Perfil</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.idUsuario}>
-                    <td>{r.nombreUsuario}</td>
-                    <td>{r.nombreCompleto}</td>
-                    <td>{r.perfil || r.rol}</td>
-                    <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
-                    <td>
-                      {esAdmin && (
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="secondary" onClick={() => { setEditId(r.idUsuario); setForm({ ...empty, ...r, password: '' }); setOpen(true); }}>Editar</Button>
-                          <Button variant="secondary" onClick={() => http.patch(`/api/usuarios/${r.idUsuario}/estado?activo=${!r.activo}`).then(load)}>
-                            {r.activo ? 'Desactivar' : 'Activar'}
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <StackTable
+            cards={rows.map((r) => (
+              <div key={r.idUsuario} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-navy">{r.nombreCompleto}</p>
+                    <p className="text-xs text-muted">{r.nombreUsuario} · {r.perfil || r.rol}</p>
+                    <div className="mt-2"><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></div>
+                  </div>
+                </div>
+                {esAdmin && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button variant="secondary" className="px-3 py-2" onClick={() => { setEditId(r.idUsuario); setForm({ ...empty, ...r, password: '' }); setOpen(true); }}>Editar</Button>
+                    <Button variant="secondary" className="px-3 py-2" onClick={() => http.patch(`/api/usuarios/${r.idUsuario}/estado?activo=${!r.activo}`).then(load)}>
+                      {r.activo ? 'Desactivar' : 'Activar'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+            table={(
+              <table>
+                <thead><tr><th>Usuario</th><th>Nombre</th><th>Perfil</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.idUsuario}>
+                      <td>{r.nombreUsuario}</td>
+                      <td>{r.nombreCompleto}</td>
+                      <td>{r.perfil || r.rol}</td>
+                      <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                      <td>
+                        {esAdmin && (
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="secondary" onClick={() => { setEditId(r.idUsuario); setForm({ ...empty, ...r, password: '' }); setOpen(true); }}>Editar</Button>
+                            <Button variant="secondary" onClick={() => http.patch(`/api/usuarios/${r.idUsuario}/estado?activo=${!r.activo}`).then(load)}>
+                              {r.activo ? 'Desactivar' : 'Activar'}
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          />
         )}
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </Panel>

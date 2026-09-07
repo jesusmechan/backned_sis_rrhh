@@ -8,7 +8,7 @@ public final class AuthDtos {
     private AuthDtos() {}
 
     public record LoginRequest(
-            @NotBlank @Schema(example = "cmendoza") String nombreUsuario,
+            @NotBlank @Schema(example = "jesus.mechan") String nombreUsuario,
             @NotBlank @Schema(example = "Andina2026") String password
     ) {}
 

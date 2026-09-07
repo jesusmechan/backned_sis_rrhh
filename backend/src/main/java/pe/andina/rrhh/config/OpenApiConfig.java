@@ -23,7 +23,7 @@ public class OpenApiConfig {
                         .description("""
                                 API del Sistema de Gestión de Recursos Humanos — Consultora Contable Andina S.A.C.
 
-                                1. Ejecuta **POST /api/auth/login** (usuario seed: `cmendoza` / `Andina2026`).
+                                1. Ejecuta **POST /api/auth/login** (usuario de prueba: `jesus.mechan` / `Andina2026`).
                                 2. Copia el `accessToken`.
                                 3. Pulsa **Authorize** y pégalo (sin la palabra Bearer).
                                 """))

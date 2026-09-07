@@ -1,22 +1,14 @@
 -- =============================================================================
--- Sistema de Gestión de Recursos Humanos
--- Consultora Contable Andina S.A.C.
--- Base de datos: PostgreSQL 16+
--- Origen: Plan de Toma de Requerimientos v1.0 (Agosto 2026)
+-- Instalación completa de rrhh_andina: esquema + datos iniciales.
+-- PostgreSQL 16+. Origen: Plan de Toma de Requerimientos v1.0 (Agosto 2026).
 --
--- Flujo de aprobación (RG-06, RRN-02, RC-02):
---   La solicitud NO guarda al aprobador.
---   El circuito se configura por tipo de trámite y se ejecuta paso a paso.
---     1) configuracion_aprobacion          -> cabecera del flujo
---     2) configuracion_aprobacion_detalle  -> pasos configurados
---     3) solicitud_paso_aprobacion         -> pasos reales de cada solicitud
+-- pgAdmin:
+--   1. 00_create_database.sql   Query Tool sobre "postgres" (Auto commit)
+--   2. 01_install.sql           Query Tool sobre "rrhh_andina", F5
+--   3. 02_reset.sql             Solo si quieres volver a dejar 3 cuentas limpias
 --
--- pgAdmin — orden de ejecución:
---   00_create_database.sql  (Query Tool sobre "postgres")
---   01_schema.sql           (Query Tool sobre "rrhh_andina", F5)
---   02_seed.sql             (misma conexión, F5)
---   03_validar_flujo.sql    (misma conexión, F5)
--- Este archivo se puede volver a ejecutar: limpia el esquema public y lo recrea.
+-- Este archivo se puede repetir: borra el esquema public y lo recrea.
+-- Contraseña de las 3 cuentas: Andina2026. Guía: docs/PRUEBAS.md
 -- =============================================================================
 
 DROP SCHEMA IF EXISTS public CASCADE;
@@ -1288,3 +1280,271 @@ COMMENT ON VIEW v_reporte_permisos IS 'CU-16: Fuente para reporte de permisos.';
 COMMENT ON VIEW v_reporte_horas_extras IS 'CU-17: Fuente para reporte de horas extras.';
 COMMENT ON VIEW v_reporte_asistencia IS 'CU-18: Fuente para reporte de asistencia.';
 COMMENT ON VIEW v_reporte_usuarios IS 'CU-19: Fuente para reporte de usuarios.';
+
+-- =============================================================================
+-- Datos iniciales (catálogos, menú, 3 cuentas, flujos)
+-- =============================================================================
+
+INSERT INTO area (nombre, descripcion) VALUES
+    ('Gerencia', 'Dirección general de la consultora'),
+    ('Recursos Humanos', 'Administración del personal y procesos internos'),
+    ('Contabilidad', 'Servicios contables a clientes'),
+    ('Tributario', 'Asesoría tributaria y cumplimiento fiscal'),
+    ('Administración', 'Soporte administrativo y operaciones internas');
+
+INSERT INTO cargo (nombre, descripcion) VALUES
+    ('Gerente General', 'Representante legal y sponsor de la organización'),
+    ('Jefe de Recursos Humanos', 'Responsable de la gestión del personal'),
+    ('Jefe de Contabilidad', 'Responsable del área contable'),
+    ('Contador', 'Ejecución de labores contables'),
+    ('Analista Contable', 'Análisis y registro de operaciones contables'),
+    ('Asistente Contable', 'Apoyo operativo del área contable'),
+    ('Analista Tributario', 'Análisis de obligaciones tributarias'),
+    ('Asistente Tributario', 'Apoyo operativo del área tributaria'),
+    ('Asistente Administrativo', 'Soporte administrativo interno'),
+    ('Asistente de Recepción', 'Atención y apoyo operativo general'),
+    ('Jefe de Tributario', 'Responsable del área tributaria'),
+    ('Asistente de Recursos Humanos', 'Apoyo operativo de RR. HH.');
+
+INSERT INTO horario_laboral (nombre, hora_ingreso, hora_salida, minutos_refrigerio) VALUES
+    ('Jornada administrativa', '09:00', '18:00', 60),
+    ('Jornada gerencial', '09:00', '18:30', 60);
+
+INSERT INTO tipo_permiso (codigo, nombre, requiere_sustento) VALUES
+    ('PARTICULAR', 'Permiso particular', FALSE),
+    ('SALUD', 'Permiso por salud', TRUE),
+    ('COMISION', 'Comisión de servicios', FALSE),
+    ('CAPACITACION', 'Capacitación', FALSE),
+    ('DUELO', 'Permiso por duelo', TRUE),
+    ('VACACIONES', 'Vacaciones', FALSE);
+
+INSERT INTO parametro_sistema (clave, valor, descripcion) VALUES
+    ('max_horas_extras_diarias', '4', 'Máximo de horas extras permitidas por día (RRN-03)'),
+    ('max_horas_extras_semanales', '12', 'Máximo de horas extras permitidas por semana'),
+    ('zona_horaria', 'America/Lima', 'Zona horaria oficial de las marcaciones'),
+    ('empresa_razon_social', 'Consultora Contable Andina S.A.C.', 'Razón social de la empresa'),
+    ('empresa_ruc', '20601234567', 'RUC de demostración');
+
+INSERT INTO rol (codigo, nombre, descripcion) VALUES
+    ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría'),
+    ('RRHH', 'Responsable de RR. HH.', 'Gestiona personal, supervisa solicitudes y genera reportes'),
+    ('APROBADOR', 'Aprobador', 'Revisa, aprueba o rechaza permisos y horas extras'),
+    ('EMPLEADO', 'Empleado', 'Registra asistencia, permisos y horas extras propias');
+
+INSERT INTO permiso_funcional (codigo, nombre, modulo) VALUES
+    ('PERSONAL_REGISTRAR', 'Registrar trabajador', 'PERSONAL'),
+    ('PERSONAL_ACTUALIZAR', 'Actualizar trabajador', 'PERSONAL'),
+    ('PERSONAL_CONSULTAR', 'Consultar trabajador', 'PERSONAL'),
+    ('PERSONAL_CARGAR_EXCEL', 'Cargar trabajadores desde Excel', 'PERSONAL'),
+    ('PERMISO_REGISTRAR', 'Registrar solicitud de permiso', 'PERMISOS'),
+    ('PERMISO_CONSULTAR_PROPIO', 'Consultar estado de permiso propio', 'PERMISOS'),
+    ('PERMISO_APROBAR', 'Aprobar o rechazar permiso', 'PERMISOS'),
+    ('PERMISO_GESTIONAR', 'Gestionar solicitudes de permisos', 'PERMISOS'),
+    ('HEXTRA_REGISTRAR', 'Registrar horas extras', 'HORAS_EXTRAS'),
+    ('HEXTRA_CONSULTAR_PROPIO', 'Consultar solicitud de horas extras propia', 'HORAS_EXTRAS'),
+    ('HEXTRA_APROBAR', 'Aprobar o rechazar horas extras', 'HORAS_EXTRAS'),
+    ('HEXTRA_GESTIONAR', 'Supervisar horas extras', 'HORAS_EXTRAS'),
+    ('ASISTENCIA_MARCAR', 'Registrar marcación de asistencia', 'ASISTENCIA'),
+    ('ASISTENCIA_CONSULTAR_PROPIA', 'Consultar historial de asistencia propio', 'ASISTENCIA'),
+    ('ASISTENCIA_GESTIONAR', 'Gestionar registros de asistencia', 'ASISTENCIA'),
+    ('USUARIO_GESTIONAR', 'Gestionar usuarios y roles', 'USUARIOS'),
+    ('REPORTE_PERMISOS', 'Generar reporte de permisos', 'REPORTES'),
+    ('REPORTE_HORAS_EXTRAS', 'Generar reporte de horas extras', 'REPORTES'),
+    ('REPORTE_ASISTENCIA', 'Generar reporte de asistencia', 'REPORTES'),
+    ('REPORTE_USUARIOS', 'Generar reporte de usuarios', 'REPORTES'),
+    ('AUDITORIA_CONSULTAR', 'Consultar auditoría y trazabilidad', 'AUDITORIA'),
+    ('FLUJO_CONFIGURAR', 'Configurar flujos de aprobación', 'APROBACIONES');
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+CROSS JOIN permiso_funcional p
+WHERE r.codigo = 'ADMIN';
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN (
+    'PERSONAL_REGISTRAR', 'PERSONAL_ACTUALIZAR', 'PERSONAL_CONSULTAR', 'PERSONAL_CARGAR_EXCEL',
+    'PERMISO_CONSULTAR_PROPIO', 'PERMISO_GESTIONAR',
+    'HEXTRA_CONSULTAR_PROPIO', 'HEXTRA_GESTIONAR',
+    'ASISTENCIA_CONSULTAR_PROPIA', 'ASISTENCIA_GESTIONAR',
+    'REPORTE_PERMISOS', 'REPORTE_HORAS_EXTRAS', 'REPORTE_ASISTENCIA', 'REPORTE_USUARIOS',
+    'AUDITORIA_CONSULTAR', 'FLUJO_CONFIGURAR'
+)
+WHERE r.codigo = 'RRHH';
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN (
+    'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
+    'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
+    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA'
+)
+WHERE r.codigo = 'APROBADOR';
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN (
+    'PERMISO_REGISTRAR', 'PERMISO_CONSULTAR_PROPIO',
+    'HEXTRA_REGISTRAR', 'HEXTRA_CONSULTAR_PROPIO',
+    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA'
+)
+WHERE r.codigo = 'EMPLEADO';
+
+INSERT INTO menu_item (codigo, etiqueta, ruta, icono, grupo, descripcion, orden) VALUES
+    ('INICIO', 'Inicio', '/', 'Home', 'Operación', 'Resumen de la sesión y accesos del perfil.', 10),
+    ('BANDEJA', 'Bandeja', '/bandeja', 'Inbox', 'Operación', 'Atender y seguir solicitudes del circuito.', 20),
+    ('PERMISOS', 'Permisos', '/permisos', 'ClipboardCheck', 'Operación', 'Registrar y seguir solicitudes de permiso.', 30),
+    ('HORAS_EXTRAS', 'Horas extras', '/horas-extras', 'Clock3', 'Operación', 'Registrar y consultar tiempo extra.', 40),
+    ('MARCAR', 'Marcar', '/marcar', 'LogIn', 'Operación', 'Registrar entrada o salida del día.', 50),
+    ('ASISTENCIA', 'Asistencia', '/asistencia', 'Fingerprint', 'Operación', 'Consultar el historial de marcaciones.', 60),
+    ('PERFIL', 'Mi perfil', '/perfil', 'User', 'Operación', 'Ficha de personal y datos de la cuenta.', 70),
+    ('PERSONAL', 'Personal', '/empleados', 'Users', 'Administración', 'Directorio, alta y carga de colaboradores.', 80),
+    ('USUARIOS', 'Usuarios', '/usuarios', 'UserCog', 'Administración', 'Cuentas de acceso y asignación de perfil.', 90),
+    ('MENU', 'Menú', '/menu', 'List', 'Administración', 'Mantenedor de opciones de menú por perfil.', 95),
+    ('FLUJOS', 'Flujos', '/flujos', 'GitBranch', 'Administración', 'Circuitos de aprobación.', 100),
+    ('REPORTES', 'Reportes', '/reportes', 'FileSpreadsheet', 'Control', 'Exportar permisos, asistencia y personal.', 110),
+    ('AUDITORIA', 'Auditoría', '/auditoria', 'Shield', 'Control', 'Trazabilidad de operaciones.', 120);
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+CROSS JOIN rol r
+WHERE r.codigo = 'ADMIN';
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'RRHH'
+WHERE m.codigo IN (
+    'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
+    'PERSONAL', 'USUARIOS', 'FLUJOS', 'REPORTES', 'AUDITORIA'
+);
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'APROBADOR'
+WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL');
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'EMPLEADO'
+WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL');
+
+-- Organigrama: Juan (empleado) → Jesús Pantoja (jefe) → Jesús Mechan (admin).
+INSERT INTO empleado (
+    codigo_empleado, tipo_documento, numero_documento,
+    nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
+    correo_institucional, telefono, direccion, fecha_ingreso,
+    id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
+) VALUES
+    ('AND-001', 'DNI', '70123456', 'Jesús', 'Mechan', 'Gonzales', '1994-03-12', 'M',
+     'jesus.mechan@andina.pe', '999111001', 'Av. Javier Prado 1200, San Isidro', '2021-11-08',
+     (SELECT id_area FROM area WHERE nombre = 'Gerencia'),
+     (SELECT id_cargo FROM cargo WHERE nombre = 'Gerente General'),
+     (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada gerencial'),
+     'PLANILLA', 'ACTIVO', NULL);
+
+INSERT INTO empleado (
+    codigo_empleado, tipo_documento, numero_documento,
+    nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
+    correo_institucional, telefono, direccion, fecha_ingreso,
+    id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
+) VALUES
+    ('AND-002', 'DNI', '70234567', 'Jesús', 'Pantoja', 'Pantoja', '1990-07-21', 'M',
+     'jesus.pantoja@andina.pe', '999111002', 'Av. Arequipa 890, Lince', '2019-07-10',
+     (SELECT id_area FROM area WHERE nombre = 'Contabilidad'),
+     (SELECT id_cargo FROM cargo WHERE nombre = 'Jefe de Contabilidad'),
+     (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
+     'PLANILLA', 'ACTIVO',
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+
+INSERT INTO empleado (
+    codigo_empleado, tipo_documento, numero_documento,
+    nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
+    correo_institucional, telefono, direccion, fecha_ingreso,
+    id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
+) VALUES
+    ('AND-003', 'DNI', '70345678', 'Juan', 'Espinoza', '', '1998-05-04', 'M',
+     'juan.espinoza@andina.pe', '999111003', 'Av. Universitaria 880, Los Olivos', '2025-06-02',
+     (SELECT id_area FROM area WHERE nombre = 'Contabilidad'),
+     (SELECT id_cargo FROM cargo WHERE nombre = 'Asistente Contable'),
+     (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
+     'PLANILLA', 'ACTIVO',
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-002'));
+
+INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, correo, password_hash, activo)
+SELECT e.id_empleado, r.id_rol, v.nombre_usuario, e.correo_institucional,
+       crypt('Andina2026', gen_salt('bf')), TRUE
+FROM (VALUES
+    ('AND-001', 'jesus.mechan',  'ADMIN'),
+    ('AND-002', 'jesus.pantoja', 'APROBADOR'),
+    ('AND-003', 'juan.espinoza', 'EMPLEADO')
+) AS v(codigo_empleado, nombre_usuario, codigo_rol)
+JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
+JOIN rol r ON r.codigo = v.codigo_rol;
+
+INSERT INTO configuracion_aprobacion (codigo, nombre, tipo_origen, id_tipo_permiso, descripcion) VALUES
+    ('CFG-PERMISO-DEFAULT', 'Permiso genérico', 'PERMISO', NULL,
+     'Flujo por defecto si un tipo de permiso no tiene circuito propio.'),
+    ('CFG-PERMISO-PARTICULAR', 'Permiso particular', 'PERMISO',
+     (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'PARTICULAR'),
+     'Solo jefe inmediato.'),
+    ('CFG-PERMISO-SALUD', 'Permiso por salud', 'PERMISO',
+     (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'SALUD'),
+     'Jefe inmediato y luego RR. HH.'),
+    ('CFG-PERMISO-VACACIONES', 'Vacaciones', 'PERMISO',
+     (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'VACACIONES'),
+     'Jefe inmediato, RR. HH. y Gerencia.'),
+    ('CFG-PERMISO-CAPACITACION', 'Capacitación', 'PERMISO',
+     (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'CAPACITACION'),
+     'Jefe inmediato y RR. HH.'),
+    ('CFG-PERMISO-COMISION', 'Comisión de servicios', 'PERMISO',
+     (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'COMISION'),
+     'Jefe inmediato y rol aprobador.'),
+    ('CFG-PERMISO-DUELO', 'Permiso por duelo', 'PERMISO',
+     (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'DUELO'),
+     'Jefe inmediato y RR. HH.'),
+    ('CFG-HEXTRA', 'Horas extras', 'HORA_EXTRA', NULL,
+     'Jefe inmediato y validación de RR. HH.');
+
+INSERT INTO configuracion_aprobacion_detalle (
+    id_configuracion, numero_paso, nombre_paso, tipo_aprobador, id_rol, id_usuario, es_obligatorio
+)
+SELECT c.id_configuracion, v.numero_paso, v.nombre_paso, v.tipo_aprobador::tipo_aprobador,
+       r.id_rol, u.id_usuario, v.es_obligatorio
+FROM (VALUES
+    ('CFG-PERMISO-DEFAULT', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-PERMISO-PARTICULAR', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-PERMISO-SALUD', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-PERMISO-SALUD', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
+    ('CFG-PERMISO-VACACIONES', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
+    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'USUARIO', NULL, 'jesus.mechan', TRUE),
+    ('CFG-PERMISO-CAPACITACION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
+    ('CFG-PERMISO-COMISION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-PERMISO-COMISION', 2, 'Aprobación de jefatura', 'ROL', 'APROBADOR', NULL, TRUE),
+    ('CFG-PERMISO-DUELO', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-PERMISO-DUELO', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
+    ('CFG-HEXTRA', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
+    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE)
+) AS v(codigo, numero_paso, nombre_paso, tipo_aprobador, codigo_rol, nombre_usuario, es_obligatorio)
+JOIN configuracion_aprobacion c ON c.codigo = v.codigo
+LEFT JOIN rol r ON r.codigo = v.codigo_rol
+LEFT JOIN usuario u ON u.nombre_usuario = v.nombre_usuario;
+
+INSERT INTO auditoria (id_usuario, accion, entidad, id_entidad, detalle)
+SELECT id_usuario, 'INICIALIZAR_BD', 'SISTEMA', NULL,
+       jsonb_build_object(
+           'origen', '01_install.sql',
+           'empresa', 'Consultora Contable Andina S.A.C.',
+           'colaboradores', 3
+       )
+FROM usuario
+WHERE nombre_usuario = 'jesus.mechan';

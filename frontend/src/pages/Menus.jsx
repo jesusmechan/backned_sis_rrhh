@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { MENU_ICON_OPTIONS, menuIcon } from '../layout/icons';
-import { Alert, Badge, Button, Empty, Field, FormGrid, Modal, PageHeader, Pager, Panel } from '../components/ui';
+import { Alert, Badge, Button, Empty, Field, FormGrid, Modal, PageHeader, Pager, Panel, StackTable } from '../components/ui';
 
 const GRUPOS = ['Operación', 'Administración', 'Control'];
 const empty = {
@@ -117,52 +117,76 @@ export function Menus() {
       <Alert ok>{ok}</Alert>
       <Panel padded={false}>
         {rows.length === 0 ? <Empty text="Sin opciones de menú." /> : (
-          <div className="overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Orden</th>
-                  <th>Opción</th>
-                  <th>Ruta</th>
-                  <th>Grupo</th>
-                  <th>Perfiles</th>
-                  <th>Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const Icon = menuIcon(r.icono);
-                  return (
-                    <tr key={r.idMenu}>
-                      <td>{r.orden}</td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <span className="grid h-8 w-8 place-items-center rounded-md bg-slate-100 text-navy">
-                            <Icon size={15} />
-                          </span>
-                          <div>
-                            <p className="font-medium text-navy">{r.etiqueta}</p>
-                            <p className="text-xs text-muted">{r.codigo}</p>
+          <StackTable
+            cards={rows.map((r) => {
+              const Icon = menuIcon(r.icono);
+              return (
+                <div key={r.idMenu} className="px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-navy">
+                      <Icon size={15} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-navy">{r.etiqueta}</p>
+                      <p className="text-xs text-muted">{r.codigo} · {r.ruta} · {r.grupo}</p>
+                      <p className="mt-1 text-xs text-muted">{(r.perfiles || []).join(', ') || 'Sin perfiles'}</p>
+                      <div className="mt-2"><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button variant="secondary" className="px-3 py-2" onClick={() => abrir(r)}>Editar</Button>
+                    <Button variant="secondary" className="px-3 py-2" onClick={() => eliminar(r)}>Eliminar</Button>
+                  </div>
+                </div>
+              );
+            })}
+            table={(
+              <table>
+                <thead>
+                  <tr>
+                    <th>Orden</th>
+                    <th>Opción</th>
+                    <th>Ruta</th>
+                    <th>Grupo</th>
+                    <th>Perfiles</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const Icon = menuIcon(r.icono);
+                    return (
+                      <tr key={r.idMenu}>
+                        <td>{r.orden}</td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <span className="grid h-8 w-8 place-items-center rounded-md bg-slate-100 text-navy">
+                              <Icon size={15} />
+                            </span>
+                            <div>
+                              <p className="font-medium text-navy">{r.etiqueta}</p>
+                              <p className="text-xs text-muted">{r.codigo}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>{r.ruta}</td>
-                      <td>{r.grupo}</td>
-                      <td>{(r.perfiles || []).join(', ') || '—'}</td>
-                      <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
-                      <td>
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                          <Button variant="secondary" onClick={() => eliminar(r)}>Eliminar</Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td>{r.ruta}</td>
+                        <td>{r.grupo}</td>
+                        <td>{(r.perfiles || []).join(', ') || '—'}</td>
+                        <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                        <td>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
+                            <Button variant="secondary" onClick={() => eliminar(r)}>Eliminar</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          />
         )}
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </Panel>

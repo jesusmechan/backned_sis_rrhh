@@ -29,19 +29,31 @@ public class AprobacionController {
     }
 
     @GetMapping("/bandeja")
-    @Operation(summary = "Bandeja de pasos pendientes del usuario, paginada")
+    @Operation(summary = "Bandeja del usuario: pendientes o seguimiento, paginada")
     public PageResponse<BandejaItem> bandeja(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String tipo,
-            @RequestParam(required = false) String q) {
-        var data = solicitudService.bandeja();
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String vista,
+            @RequestParam(required = false) String estado) {
+        var data = solicitudService.bandeja(vista);
         if (tipo != null && !tipo.isBlank()) {
             data = data.stream().filter(item -> tipo.equalsIgnoreCase(item.tipoSolicitud())).toList();
         }
+        if (estado != null && !estado.isBlank()) {
+            var estados = java.util.Arrays.stream(estado.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .map(String::toUpperCase)
+                    .collect(java.util.stream.Collectors.toSet());
+            data = data.stream()
+                    .filter(item -> item.estadoSolicitud() != null && estados.contains(item.estadoSolicitud().toUpperCase()))
+                    .toList();
+        }
         return PageResponses.of(
                 PageResponses.search(data, q, item -> PageResponses.text(
-                        item.solicitante(), item.tipoSolicitud(), item.tipoTramite(), item.motivo())),
+                        item.solicitante(), item.tipoSolicitud(), item.tipoTramite(), item.motivo(), item.estadoSolicitud())),
                 page, size);
     }
 

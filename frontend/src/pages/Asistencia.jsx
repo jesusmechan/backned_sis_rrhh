@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, Download, Search, Timer } from 'lucide-react';
 import { emptyPage, http, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Button, Empty, Pager, Panel, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Button, Empty, Pager, Panel, StackTable, downloadBlob } from '../components/ui';
 
 function sameMonth(iso, d = new Date()) {
   const x = new Date(iso);
@@ -133,7 +133,7 @@ export function Asistencia() {
             Presencia y control horario · Consultora Contable Andina
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-bold text-navy">Asistencia</h1>
+            <h1 className="page-title">Asistencia</h1>
             <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium capitalize text-sky-800">
               Periodo {periodo}
             </span>
@@ -167,13 +167,13 @@ export function Asistencia() {
             Supervisión de equipo ({equipoTotal})
           </button>
         )}
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="flex w-full min-w-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap">
           <select value={tipoFiltro} onChange={(e) => { setTipoFiltro(e.target.value); setPage(1); }}>
             <option value="">Tipo</option>
             <option value="INGRESO">Entrada</option>
             <option value="SALIDA">Salida</option>
           </select>
-          <div className="relative">
+          <div className="relative min-w-0 flex-1 sm:min-w-52">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="pl-8" placeholder="Buscar colaborador..." value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
           </div>
@@ -183,54 +183,71 @@ export function Asistencia() {
 
       <Panel padded={false}>
         {rows.length === 0 ? <Empty text="Sin marcaciones en esta vista." /> : (
-          <div className="overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Colaborador</th>
-                  <th>Tipo</th>
-                  <th>Fecha y hora</th>
-                  <th>Origen</th>
-                  <th>Estado</th>
-                  <th>Observación</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.idMarcacion}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <Avatar name={r.empleado} />
-                        <div>
-                          <p className="font-medium text-navy">{r.empleado}</p>
-                          <p className="text-xs text-muted">#{r.idEmpleado} · {r.tipo}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
-                        {r.tipo}
-                      </span>
-                    </td>
-                    <td>
-                      <p>{formatStamp(r.fechaHora)}</p>
-                      <p className="text-xs text-muted">Hora del registro</p>
-                    </td>
-                    <td>
-                      <p className="text-sm">{r.origen || 'WEB'}</p>
-                      <p className="text-xs text-muted">{browser}</p>
-                    </td>
-                    <td>
-                      <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800">
-                        {r.tipo === 'INGRESO' ? 'Entrada registrada' : 'Salida registrada'}
-                      </span>
-                    </td>
-                    <td className="text-sm text-muted">{r.observacion || 'Jornada ordinaria'}</td>
+          <StackTable
+            cards={rows.map((r) => (
+              <div key={r.idMarcacion} className="flex gap-3 px-4 py-3">
+                <Avatar name={r.empleado} />
+                <div className="min-w-0">
+                  <p className="font-medium text-navy">{r.empleado}</p>
+                  <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                      {r.tipo}
+                    </span>
+                    <span className="text-xs text-muted">{r.origen || 'WEB'} · {r.observacion || 'Jornada ordinaria'}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            table={(
+              <table>
+                <thead>
+                  <tr>
+                    <th>Colaborador</th>
+                    <th>Tipo</th>
+                    <th>Fecha y hora</th>
+                    <th>Origen</th>
+                    <th>Estado</th>
+                    <th>Observación</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.idMarcacion}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={r.empleado} />
+                          <div>
+                            <p className="font-medium text-navy">{r.empleado}</p>
+                            <p className="text-xs text-muted">#{r.idEmpleado} · {r.tipo}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                          {r.tipo}
+                        </span>
+                      </td>
+                      <td>
+                        <p>{formatStamp(r.fechaHora)}</p>
+                        <p className="text-xs text-muted">Hora del registro</p>
+                      </td>
+                      <td>
+                        <p className="text-sm">{r.origen || 'WEB'}</p>
+                        <p className="text-xs text-muted">{browser}</p>
+                      </td>
+                      <td>
+                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800">
+                          {r.tipo === 'INGRESO' ? 'Entrada registrada' : 'Salida registrada'}
+                        </span>
+                      </td>
+                      <td className="text-sm text-muted">{r.observacion || 'Jornada ordinaria'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          />
         )}
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </Panel>

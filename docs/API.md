@@ -33,7 +33,7 @@ Query comunes: `page`, `size`, `q` (búsqueda de texto).
 | GET | `/api/usuarios` | `q` |
 | GET | `/api/permisos` | `estado`, `q` |
 | GET | `/api/horas-extras` | `estado`, `q` |
-| GET | `/api/bandeja` | `tipo`, `q` |
+| GET | `/api/bandeja` | `tipo`, `q`, `vista=SEGUIMIENTO`, `estado` |
 | GET | `/api/asistencias` | `idEmpleado`, `desde`, `hasta`, `tipo`, `q` |
 | GET | `/api/flujos` | `q` |
 | GET | `/api/auditoria` | `q` |
@@ -54,7 +54,7 @@ Para combos (empleado, jefe) use `page=1&size=100`.
 **Login**
 
 ```json
-{ "nombreUsuario": "cmendoza", "password": "Andina2026" }
+{ "nombreUsuario": "jesus.mechan", "password": "Andina2026" }
 ```
 
 **Respuesta**
@@ -67,13 +67,13 @@ Para combos (empleado, jefe) use `page=1&size=100`.
   "expiresIn": 900,
   "usuario": {
     "idUsuario": 3,
-    "nombreUsuario": "cmendoza",
-    "correo": "carlos.mendoza@andina.pe",
-    "rol": "APROBADOR",
-    "perfil": "Aprobador",
-    "idRol": 3,
-    "idEmpleado": 3,
-    "nombreCompleto": "Carlos Alberto Mendoza Paredes",
+    "nombreUsuario": "jesus.mechan",
+    "correo": "jesus.mechan@andina.pe",
+    "rol": "ADMIN",
+    "perfil": "Administrador",
+    "idRol": 1,
+    "idEmpleado": 1,
+    "nombreCompleto": "Jesús Mechan Gonzales",
     "permisos": ["PERMISO_APROBAR", "ASISTENCIA_MARCAR"],
     "menu": [
       { "grupo": "Operación", "items": [{ "codigo": "BANDEJA", "etiqueta": "Bandeja", "ruta": "/bandeja", "icono": "Inbox" }] }
@@ -105,27 +105,13 @@ Los permisos funcionales del rol también viajan como authorities.
 | APROBADOR | Bandeja y decisión de pasos |
 | EMPLEADO | Solicitudes y marcaciones propias |
 
-Contraseña de todos los usuarios seed: **Andina2026**.
+Contraseña de todos: **Andina2026**. Recorrido: [PRUEBAS.md](PRUEBAS.md).
 
 | Usuario | Rol | Colaborador |
 |---|---|---|
-| `ediaz` | ADMIN | Elena Díaz Salazar |
-| `mquispe` | RRHH | María Elena Quispe Rojas |
-| `csilva` | RRHH | Carmen Silva Ortiz |
-| `cmendoza` | APROBADOR | Carlos Mendoza (jefe Contabilidad) |
-| `sparedes` | APROBADOR | Silvia Paredes (jefa Tributario) |
-| `rsalas` | APROBADOR | Roberto Salas (Gerente General) |
-| `atorres` | EMPLEADO | Ana Lucía Torres |
-| `lvargas` | EMPLEADO | Luis Vargas |
-| `pramos` | EMPLEADO | Patricia Ramos |
-| `jhuaman` | EMPLEADO | Jorge Huamán |
-| `msoto` | EMPLEADO | Miguel Soto |
-| `rflores` | EMPLEADO | Rosa Flores |
-| `dleon` | EMPLEADO | Diego León |
-| `vchavez` | EMPLEADO | Valeria Chávez |
-| `baguilar` | EMPLEADO | Bruno Aguilar |
-| `lbenavides` | EMPLEADO | Lucía Benavides |
-| `hpalomino` | EMPLEADO | Héctor Palomino |
+| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales |
+| `jesus.pantoja` | APROBADOR | Jesús Pantoja Pantoja |
+| `juan.espinoza` | EMPLEADO | Juan Espinoza |
 
 ## Catálogos
 
@@ -274,7 +260,7 @@ Misma convención que permisos.
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/bandeja` | Pasos `EN_CURSO` paginados (`tipo`, `q`) |
+| GET | `/api/bandeja` | Por defecto pasos `EN_CURSO` asignados. `vista=SEGUIMIENTO` lista solicitudes creadas o ya decididas por el usuario (`tipo`, `q`, `estado`) |
 | POST | `/api/pasos/{id}/aprobar` | Aprobar el paso |
 | POST | `/api/pasos/{id}/rechazar` | Rechazar (cierra la solicitud) |
 

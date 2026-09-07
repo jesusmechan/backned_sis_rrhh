@@ -129,8 +129,8 @@ export function Flujograma({ pasos, roles, usuarios }) {
     return <p className="text-sm text-muted">Agregue un paso para ver el flujograma.</p>;
   }
   return (
-    <div className="overflow-x-auto rounded-lg bg-slate-50 px-4 py-6">
-      <div className="mx-auto flex w-max min-w-[28rem] flex-col items-center px-36">
+    <div className="-mx-1 overflow-x-auto rounded-lg bg-slate-50 px-3 py-5 sm:mx-0 sm:px-4 sm:py-6">
+      <div className="mx-auto flex w-max min-w-[16rem] flex-col items-center px-2 sm:min-w-[22rem] sm:px-10 lg:min-w-[28rem] lg:px-36">
         <Terminal>Solicitud registrada</Terminal>
         <Down />
         {pasos.map((p, i) => (
@@ -139,7 +139,7 @@ export function Flujograma({ pasos, roles, usuarios }) {
             <Down />
             <div className="relative flex flex-col items-center">
               <Diamond />
-              <div className="absolute left-full top-1/2 flex -translate-y-1/2 items-center gap-2 pl-2">
+              <div className="mt-2 flex items-center gap-2 lg:absolute lg:left-full lg:top-1/2 lg:mt-0 lg:-translate-y-1/2 lg:pl-2">
                 <span className="text-[10px] font-semibold text-red-700">No</span>
                 <div className="h-px w-8 bg-red-300" />
                 <Terminal tone="no">Rechazado</Terminal>

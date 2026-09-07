@@ -61,7 +61,7 @@ export function Perfil() {
   return (
     <div className="mx-auto max-w-4xl">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Cuenta</p>
-      <h1 className="mt-1 text-3xl font-bold text-navy">Mi perfil</h1>
+      <h1 className="page-title mt-1">Mi perfil</h1>
       <p className="mt-2 mb-5 text-sm text-muted">Ficha de personal y datos de acceso de la sesión actual.</p>
       <Alert>{error}</Alert>
 

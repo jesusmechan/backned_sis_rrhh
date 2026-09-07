@@ -7,16 +7,12 @@ PostgreSQL 16+. Los scripts viven en `database/` y se ejecutan desde **pgAdmin**
 | # | Archivo | Dónde | Qué hace |
 |---|---|---|---|
 | 0 | `00_create_database.sql` | Query Tool sobre **postgres** | Crea `rrhh_andina` |
-| 1 | `01_schema.sql` | Query Tool sobre **rrhh_andina** | Tipos, tablas, triggers, vistas |
-| 2 | `02_seed.sql` | Misma conexión | Catálogos, 17 colaboradores, flujos, casos demo |
-| 3 | `03_validar_flujo.sql` | Misma conexión | Pruebas automáticas del circuito (opcional) |
-| 4 | `04_refresh_token.sql` | Misma conexión | Tabla `refresh_token` si la base ya existía |
+| 1 | `01_install.sql` | Query Tool sobre **rrhh_andina** | Esquema, menú, 3 cuentas y flujos |
+| 2 | `02_reset.sql` | Misma conexión | Limpia trámites y deja solo las 3 cuentas |
 
 En el Query Tool del `00`, dejar **Auto commit** activo. `CREATE DATABASE` no puede ir dentro de una transacción.
 
-`01_schema.sql` empieza con `DROP SCHEMA public CASCADE`. Se puede repetir sobre `rrhh_andina` sin tocar otras bases. El `03` también es rerunnable: borra solo solicitudes `[VAL-]`.
-
-Si recreas con el `01` actual, **no** necesitas el `04`: la tabla ya está en el esquema.
+`01_install.sql` empieza con `DROP SCHEMA public CASCADE`. Se puede repetir sobre `rrhh_andina` sin tocar otras bases. Incluye `refresh_token` y el menú.
 
 ## Modelo de aprobación
 
@@ -48,7 +44,7 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 |---|---|
 | `JEFE_INMEDIATO` | Jefe del solicitante (`empleado.id_jefe_inmediato`) |
 | `ROL` | Cualquier usuario activo con ese rol (p. ej. RRHH) |
-| `USUARIO` | Un usuario concreto (p. ej. Gerencia = `rsalas`) |
+| `USUARIO` | Un usuario concreto (p. ej. Gerencia = `jesus.mechan`) |
 
 ### Flujos seed
 
@@ -56,12 +52,12 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 |---|---|---|
 | `CFG-PERMISO-DEFAULT` | Fallback | Jefe |
 | `CFG-PERMISO-PARTICULAR` | Particular | Jefe |
-| `CFG-PERMISO-SALUD` | Salud | Jefe → RRHH |
-| `CFG-PERMISO-VACACIONES` | Vacaciones | Jefe → RRHH → Gerencia (`rsalas`) |
-| `CFG-PERMISO-CAPACITACION` | Capacitación | Jefe → RRHH |
+| `CFG-PERMISO-SALUD` | Salud | Jefe → ADMIN |
+| `CFG-PERMISO-VACACIONES` | Vacaciones | Jefe → ADMIN → Gerencia (`jesus.mechan`) |
+| `CFG-PERMISO-CAPACITACION` | Capacitación | Jefe → ADMIN |
 | `CFG-PERMISO-COMISION` | Comisión | Jefe → rol APROBADOR |
-| `CFG-PERMISO-DUELO` | Duelo | Jefe → RRHH |
-| `CFG-HEXTRA` | Horas extras | Jefe → RRHH |
+| `CFG-PERMISO-DUELO` | Duelo | Jefe → ADMIN |
+| `CFG-HEXTRA` | Horas extras | Jefe → ADMIN |
 
 ## Tablas principales
 
@@ -102,25 +98,17 @@ Hibernate usa `ddl-auto: none`. El esquema lo mantienen solo los scripts SQL.
 | `v_pasos_solicitud` | Historial de pasos por solicitud |
 | `v_reporte_*` | Insumo de reportes |
 
-## Usuarios de demostración
+## Usuarios de prueba
 
-Contraseña de todos: **Andina2026** (hash `pgcrypto` + Blowfish, compatible con BCrypt de Spring).
+Contraseña de todos: **Andina2026**. Guía: [PRUEBAS.md](PRUEBAS.md).
 
 | Código | Usuario | Rol | Área |
 |---|---|---|---|
-| AND-001 | `rsalas` | APROBADOR | Gerencia |
-| AND-002 | `mquispe` | RRHH | Recursos Humanos |
-| AND-003 | `cmendoza` | APROBADOR | Contabilidad |
-| AND-008 | `ediaz` | ADMIN | Administración |
-| AND-012 | `csilva` | RRHH | Recursos Humanos |
-| AND-014 | `sparedes` | APROBADOR | Tributario |
-| AND-004…017 | ver seed | EMPLEADO | varias |
+| AND-001 | `jesus.mechan` | ADMIN | Gerencia |
+| AND-002 | `jesus.pantoja` | APROBADOR | Contabilidad |
+| AND-003 | `juan.espinoza` | EMPLEADO | Contabilidad |
 
-## Prueba `03_validar_flujo.sql`
-
-Genera casos automáticos (`OK` / `FALLO` en Messages) y solicitudes `[VAL-MANUAL]` para recorrer la bandeja a mano.
-
-Para repetir la prueba: vuelve a ejecutar el `03` sobre `rrhh_andina`. No hace falta rerun del `01` ni del `02`.
+Para dejar la base en este estado (sin solicitudes ni marcaciones): ejecuta `database/02_reset.sql`.
 
 ## Conexión de la API
 

@@ -35,7 +35,7 @@ export function Reportes() {
         {TIPOS.map((t) => (
           <Panel key={t.id}>
             <h3 className="text-base font-semibold text-navy">{t.label}</h3>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button onClick={() => bajar(t.id, 'excel')}>Excel</Button>
               <Button variant="secondary" onClick={() => bajar(t.id, 'pdf')}>PDF</Button>
             </div>

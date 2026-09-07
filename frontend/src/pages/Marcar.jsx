@@ -104,7 +104,7 @@ export function Marcar() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Control de jornada</p>
-          <h1 className="mt-1 text-3xl font-bold text-navy">Marcar asistencia</h1>
+          <h1 className="page-title mt-1">Marcar asistencia</h1>
           <p className="mt-2 text-sm text-muted">Elija entrada o salida. Una marca de cada tipo por día hábil.</p>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-line bg-white px-4 py-3 shadow-sm">
@@ -116,9 +116,9 @@ export function Marcar() {
         </div>
       </div>
 
-      <div className="mb-4 overflow-hidden rounded-2xl border border-line bg-navy px-6 py-6 text-white shadow-sm">
+      <div className="mb-4 overflow-hidden rounded-2xl border border-line bg-navy px-4 py-5 text-white shadow-sm sm:px-6 sm:py-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Hora actual</p>
-        <p className="mt-1 font-mono text-5xl font-semibold tracking-tight">
+        <p className="mt-1 font-mono text-4xl font-semibold tracking-tight sm:text-5xl">
           {now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </p>
         <p className="mt-2 text-sm capitalize text-slate-300">
@@ -133,7 +133,7 @@ export function Marcar() {
       )}
 
       <div className="rounded-2xl border border-line bg-white p-5 shadow-sm">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {TIPOS.map((t) => {
             const Icon = t.icon;
             const done = t.id === 'INGRESO' ? entrada : salida;
