@@ -128,6 +128,16 @@ export function StackTable({ cards, table }) {
   );
 }
 
+export function Kpi({ value, label, hint }) {
+  return (
+    <div className="rounded-xl border border-line bg-white p-4">
+      <p className="text-2xl font-bold text-navy">{value}</p>
+      <p className="mt-1 text-sm font-medium text-navy">{label}</p>
+      {hint && <p className="text-xs text-muted">{hint}</p>}
+    </div>
+  );
+}
+
 export function Empty({ text }) {
   return <p className="px-4 py-12 text-center text-sm text-muted">{text}</p>;
 }

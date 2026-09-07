@@ -36,11 +36,18 @@ public class MenuAdminController {
     public PageResponse<MenuAdminResponse> listar(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
-            @RequestParam(required = false) String q) {
-        return PageResponses.of(
-                PageResponses.search(menuAdminService.listar(), q, m ->
-                        PageResponses.text(m.codigo(), m.etiqueta(), m.ruta(), m.grupo(), String.join(" ", m.perfiles()))),
-                page, size);
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String grupo,
+            @RequestParam(required = false) Boolean activo) {
+        var data = PageResponses.search(menuAdminService.listar(), q, m ->
+                PageResponses.text(m.codigo(), m.etiqueta(), m.ruta(), m.grupo(), String.join(" ", m.perfiles())));
+        if (grupo != null && !grupo.isBlank()) {
+            data = data.stream().filter(m -> grupo.equalsIgnoreCase(m.grupo())).toList();
+        }
+        if (activo != null) {
+            data = data.stream().filter(m -> activo.equals(m.activo())).toList();
+        }
+        return PageResponses.of(data, page, size);
     }
 
     @GetMapping("/{id}")

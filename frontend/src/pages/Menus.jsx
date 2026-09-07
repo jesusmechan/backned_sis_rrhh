@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Plus, Search } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { MENU_ICON_OPTIONS, menuIcon } from '../layout/icons';
-import { Alert, Badge, Button, Empty, Field, FormGrid, Modal, PageHeader, Pager, Panel, StackTable } from '../components/ui';
+import { Alert, Badge, Button, Empty, Field, FormGrid, Kpi, Modal, Pager } from '../components/ui';
 
 const GRUPOS = ['Operación', 'Administración', 'Control'];
 const empty = {
@@ -21,21 +22,63 @@ export function Menus() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState('');
+  const [estado, setEstado] = useState('');
+  const [q, setQ] = useState('');
+  const [qDebounced, setQDebounced] = useState('');
+  const [counts, setCounts] = useState({ total: 0, operacion: 0, administracion: 0, control: 0, activos: 0 });
 
-  async function load() {
-    const [data, roles] = await Promise.all([
-      http.page(pagePath('/api/menus', { page, size: PAGE_SIZE })),
-      http.get('/api/catalogos/roles')
+  useEffect(() => {
+    const t = setTimeout(() => setQDebounced(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => {
+    http.get('/api/catalogos/roles')
+      .then(setPerfiles)
+      .catch((e) => setError(e.message));
+  }, []);
+
+  async function loadCounts() {
+    const [all, op, ad, co, act] = await Promise.all([
+      http.page(pagePath('/api/menus', { page: 1, size: 1 })),
+      http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Operación' })),
+      http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Administración' })),
+      http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Control' })),
+      http.page(pagePath('/api/menus', { page: 1, size: 1, activo: true }))
     ]);
-    setRows(data.content || []);
-    setMeta(data);
-    setPerfiles(roles);
+    setCounts({
+      total: all.totalElements || 0,
+      operacion: op.totalElements || 0,
+      administracion: ad.totalElements || 0,
+      control: co.totalElements || 0,
+      activos: act.totalElements || 0
+    });
   }
 
-  useEffect(() => { load().catch((e) => setError(e.message)); }, [page]);
+  async function load() {
+    const data = await http.page(pagePath('/api/menus', {
+      page,
+      size: PAGE_SIZE,
+      q: qDebounced,
+      grupo: tab,
+      activo: estado === '' ? undefined : estado === 'activos'
+    }));
+    setRows(data.content || []);
+    setMeta(data);
+  }
+
+  useEffect(() => {
+    load().catch((e) => setError(e.message));
+  }, [page, qDebounced, tab, estado]);
+
+  useEffect(() => { loadCounts().catch(() => {}); }, []);
+
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   function abrir(row) {
+    setError('');
     if (row) {
       setEditId(row.idMenu);
       setForm({
@@ -67,6 +110,7 @@ export function Menus() {
     e.preventDefault();
     setError('');
     setOk('');
+    setSaving(true);
     const body = {
       codigo: form.codigo,
       etiqueta: form.etiqueta,
@@ -83,20 +127,22 @@ export function Menus() {
       else await http.post('/api/menus', body);
       setOpen(false);
       setOk('Opción de menú guardada');
-      await load();
+      await Promise.all([load(), loadCounts()]);
       await refreshSesion();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
   async function eliminar(row) {
-    if (!window.confirm(`¿Eliminar la opción ${row.etiqueta}?`)) return;
+    if (!window.confirm(`¿Eliminar la opción ${row.etiqueta}? El menú de las cuentas se actualizará al recargar.`)) return;
     setError('');
     try {
       await http.delete(`/api/menus/${row.idMenu}`);
       setOk('Opción eliminada');
-      await load();
+      await Promise.all([load(), loadCounts()]);
       await refreshSesion();
     } catch (err) {
       setError(err.message);
@@ -107,89 +153,109 @@ export function Menus() {
 
   return (
     <div>
-      <PageHeader
-        kicker="Administración"
-        title="Menú"
-        subtitle="Cada opción se asocia a uno o más perfiles. Al iniciar sesión solo se cargan las del perfil de la cuenta."
-        actions={<Button onClick={() => abrir(null)}>Nueva opción</Button>}
-      />
+      <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Administración</p>
+          <h1 className="page-title mt-1">Menú</h1>
+          <p className="mt-2 text-sm text-muted">Cada opción se asocia a uno o más perfiles. Al iniciar sesión solo se cargan las del perfil de la cuenta.</p>
+        </div>
+        <Button onClick={() => abrir(null)}><Plus size={16} /> Nueva opción</Button>
+      </div>
+
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
-      <Panel padded={false}>
-        {rows.length === 0 ? <Empty text="Sin opciones de menú." /> : (
-          <StackTable
-            cards={rows.map((r) => {
-              const Icon = menuIcon(r.icono);
-              return (
-                <div key={r.idMenu} className="px-4 py-3">
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-slate-100 text-navy">
-                      <Icon size={15} />
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <Kpi value={counts.total} label="Opciones" hint="Ítems del menú" />
+        <Kpi value={counts.activos} label="Activas" hint="Visibles para los perfiles asignados" />
+        <Kpi
+          value={`${counts.operacion}/${counts.administracion}/${counts.control}`}
+          label="Por grupo"
+          hint="Operación · Administración · Control"
+        />
+      </div>
+
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap gap-2">
+          {[
+            ['', 'Todos', counts.total],
+            ['Operación', 'Operación', counts.operacion],
+            ['Administración', 'Administración', counts.administracion],
+            ['Control', 'Control', counts.control]
+          ].map(([id, label, n]) => (
+            <button
+              key={id || 'todos'}
+              type="button"
+              onClick={() => { setTab(id); setPage(1); }}
+              className={`rounded-lg px-3 py-1.5 text-sm ${tab === id ? 'bg-navy text-white' : 'border border-line bg-white text-slate-600 hover:bg-slate-50'}`}
+            >
+              {label} ({n})
+            </button>
+          ))}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              className="pl-9"
+              placeholder="Buscar código, etiqueta, ruta o perfil"
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            />
+          </div>
+          <select value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }}>
+            <option value="">Todos los estados</option>
+            <option value="activos">Activas</option>
+            <option value="inactivos">Inactivas</option>
+          </select>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="rounded-xl border border-line bg-white">
+          <Empty text="No hay opciones de menú en este filtro." />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((r) => {
+            const Icon = menuIcon(r.icono);
+            return (
+              <article key={r.idMenu} className="rounded-xl border border-line bg-white p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
+                      <Icon size={16} />
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-navy">{r.etiqueta}</p>
-                      <p className="text-xs text-muted">{r.codigo} · {r.ruta} · {r.grupo}</p>
-                      <p className="mt-1 text-xs text-muted">{(r.perfiles || []).join(', ') || 'Sin perfiles'}</p>
-                      <div className="mt-2"><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-navy">{r.etiqueta}</p>
+                      <p className="text-xs text-muted">{r.codigo} · {r.ruta} · {r.grupo} · orden {r.orden}</p>
+                      {r.descripcion && <p className="mt-2 text-sm text-slate-600">{r.descripcion}</p>}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {(r.perfiles || []).length === 0 ? (
+                          <span className="text-xs text-muted">Sin perfiles</span>
+                        ) : (r.perfiles || []).map((p) => (
+                          <span key={p} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-navy">{p}</span>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button variant="secondary" className="px-3 py-2" onClick={() => abrir(r)}>Editar</Button>
-                    <Button variant="secondary" className="px-3 py-2" onClick={() => eliminar(r)}>Eliminar</Button>
+                  <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                    <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
+                      <Button variant="danger" onClick={() => eliminar(r)}>Eliminar</Button>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-            table={(
-              <table>
-                <thead>
-                  <tr>
-                    <th>Orden</th>
-                    <th>Opción</th>
-                    <th>Ruta</th>
-                    <th>Grupo</th>
-                    <th>Perfiles</th>
-                    <th>Estado</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => {
-                    const Icon = menuIcon(r.icono);
-                    return (
-                      <tr key={r.idMenu}>
-                        <td>{r.orden}</td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <span className="grid h-8 w-8 place-items-center rounded-md bg-slate-100 text-navy">
-                              <Icon size={15} />
-                            </span>
-                            <div>
-                              <p className="font-medium text-navy">{r.etiqueta}</p>
-                              <p className="text-xs text-muted">{r.codigo}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{r.ruta}</td>
-                        <td>{r.grupo}</td>
-                        <td>{(r.perfiles || []).join(', ') || '—'}</td>
-                        <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
-                        <td>
-                          <div className="flex flex-wrap gap-2">
-                            <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                            <Button variant="secondary" onClick={() => eliminar(r)}>Eliminar</Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          />
-        )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </Panel>
+      </div>
 
       {open && (
         <Modal title={editId ? 'Editar opción' : 'Nueva opción'} onClose={() => setOpen(false)}>
@@ -226,8 +292,8 @@ export function Menus() {
             </Field>
             <Field label="Estado">
               <select value={form.activo ? '1' : '0'} onChange={(e) => set('activo', e.target.value === '1')}>
-                <option value="1">ACTIVO</option>
-                <option value="0">INACTIVO</option>
+                <option value="1">Activo</option>
+                <option value="0">Inactivo</option>
               </select>
             </Field>
             <div className="md:col-span-2">
@@ -245,7 +311,9 @@ export function Menus() {
                 ))}
               </div>
             </div>
-            <div className="md:col-span-2"><Button type="submit">Guardar</Button></div>
+            <div className="md:col-span-2">
+              <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Button>
+            </div>
           </FormGrid>
         </Modal>
       )}

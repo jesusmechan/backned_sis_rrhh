@@ -42,11 +42,20 @@ public class UsuarioController {
     public PageResponse<UsuarioResponse> listar(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
-            @RequestParam(required = false) String q) {
-        return PageResponses.of(
-                PageResponses.search(usuarioService.listar(), q, u ->
-                        PageResponses.text(u.nombreUsuario(), u.nombreCompleto(), u.rol(), u.correo())),
-                page, size);
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) String rol) {
+        var data = PageResponses.search(usuarioService.listar(), q, u ->
+                PageResponses.text(u.nombreUsuario(), u.nombreCompleto(), u.rol(), u.perfil(), u.correo()));
+        if (activo != null) {
+            data = data.stream().filter(u -> activo.equals(u.activo())).toList();
+        }
+        if (rol != null && !rol.isBlank()) {
+            data = data.stream()
+                    .filter(u -> rol.equalsIgnoreCase(u.rol()) || rol.equalsIgnoreCase(u.perfil()))
+                    .toList();
+        }
+        return PageResponses.of(data, page, size);
     }
 
     @GetMapping("/{id}")
