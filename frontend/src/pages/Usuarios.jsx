@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
+import { correoAndina, slugCuenta } from './altaShared';
 
 const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: 'Andina2026', activo: true };
 
@@ -16,14 +18,22 @@ function fmtAccess(value) {
 export function Usuarios() {
   const { hasAnyRole } = useAuth();
   const esAdmin = hasAnyRole('ADMIN');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(emptyPage);
   const [page, setPage] = useState(1);
   const [roles, setRoles] = useState([]);
   const [empleados, setEmpleados] = useState([]);
+  const [ocupados, setOcupados] = useState([]);
+  const [catalogosReady, setCatalogosReady] = useState(false);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [open, setOpen] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [userTouched, setUserTouched] = useState(false);
+  const [mailTouched, setMailTouched] = useState(false);
+  const [desdeAlta, setDesdeAlta] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,14 +51,22 @@ export function Usuarios() {
   useEffect(() => {
     Promise.all([
       http.get('/api/catalogos/roles'),
-      http.page(pagePath('/api/empleados', { page: 1, size: SELECT_SIZE }))
+      http.page(pagePath('/api/empleados', { page: 1, size: SELECT_SIZE })),
+      http.page(pagePath('/api/usuarios', { page: 1, size: SELECT_SIZE }))
     ])
-      .then(([rolesData, emp]) => {
+      .then(([rolesData, emp, users]) => {
         setRoles(rolesData);
         setEmpleados(emp.content || []);
+        setOcupados((users.content || []).map((u) => u.idEmpleado).filter(Boolean));
+        setCatalogosReady(true);
       })
       .catch((e) => setError(e.message));
   }, []);
+
+  async function refreshOcupados() {
+    const users = await http.page(pagePath('/api/usuarios', { page: 1, size: SELECT_SIZE }));
+    setOcupados((users.content || []).map((u) => u.idEmpleado).filter(Boolean));
+  }
 
   async function loadCounts() {
     const [all, act, ina] = await Promise.all([
@@ -83,10 +101,38 @@ export function Usuarios() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  function abrir(row) {
+  function rolEmpleadoId(list = roles) {
+    return list.find((r) => r.codigo === 'EMPLEADO')?.id || '';
+  }
+
+  function datosCuenta(emp, prefill = {}) {
+    const nombres = prefill.nombres || emp?.nombres || '';
+    const apellido = prefill.apellidoPaterno || emp?.apellidoPaterno || '';
+    return {
+      nombreUsuario: slugCuenta(nombres, apellido),
+      correo: prefill.correo || emp?.correoInstitucional || correoAndina(nombres, apellido)
+    };
+  }
+
+  function elegirColaborador(id) {
+    const emp = empleados.find((e) => String(e.idEmpleado) === String(id));
+    const auto = datosCuenta(emp);
+    setForm((f) => ({
+      ...f,
+      idEmpleado: id,
+      nombreUsuario: userTouched ? f.nombreUsuario : auto.nombreUsuario,
+      correo: mailTouched ? f.correo : auto.correo
+    }));
+  }
+
+  function abrir(row, prefill) {
     setError('');
+    setShowPass(false);
+    setDesdeAlta(Boolean(prefill?.nuevo || prefill?.idEmpleado));
     if (row) {
       setEditId(row.idUsuario);
+      setUserTouched(true);
+      setMailTouched(true);
       setForm({
         idEmpleado: row.idEmpleado || '',
         idRol: row.idRol || '',
@@ -97,10 +143,29 @@ export function Usuarios() {
       });
     } else {
       setEditId(null);
-      setForm(empty);
+      setUserTouched(false);
+      setMailTouched(false);
+      const idEmpleado = prefill?.idEmpleado || '';
+      const emp = empleados.find((e) => String(e.idEmpleado) === String(idEmpleado));
+      const auto = datosCuenta(emp, prefill || {});
+      setForm({
+        ...empty,
+        idEmpleado,
+        idRol: rolEmpleadoId(),
+        nombreUsuario: auto.nombreUsuario,
+        correo: auto.correo,
+        password: 'Andina2026',
+        activo: true
+      });
     }
     setOpen(true);
   }
+
+  useEffect(() => {
+    if (!catalogosReady || !location.state?.nuevo || !esAdmin) return;
+    abrir(null, location.state);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [catalogosReady, location.state, esAdmin]);
 
   async function guardar(e) {
     e.preventDefault();
@@ -119,7 +184,8 @@ export function Usuarios() {
       else await http.post('/api/usuarios', body);
       setOk(editId ? 'Usuario actualizado' : 'Usuario creado');
       setOpen(false);
-      await Promise.all([load(), loadCounts()]);
+      setDesdeAlta(false);
+      await Promise.all([load(), loadCounts(), refreshOcupados()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -139,6 +205,11 @@ export function Usuarios() {
       setError(err.message);
     }
   }
+
+  const colaboradoresOpciones = empleados.filter((e) =>
+    !ocupados.some((id) => String(id) === String(e.idEmpleado))
+    || String(e.idEmpleado) === String(form.idEmpleado)
+  );
 
   return (
     <div>
@@ -208,32 +279,79 @@ export function Usuarios() {
       </div>
 
       {open && (
-        <Modal title={editId ? 'Editar usuario' : 'Nueva cuenta'} onClose={() => setOpen(false)}>
+        <Modal title={editId ? 'Editar cuenta' : 'Nueva cuenta de acceso'} onClose={() => { setOpen(false); setDesdeAlta(false); }}>
+          {desdeAlta && (
+            <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              El colaborador ya está registrado. Complete la cuenta para que pueda iniciar sesión.
+            </p>
+          )}
+          <Alert>{error}</Alert>
           <FormGrid onSubmit={guardar}>
-            <Field label="Colaborador" full>
-              <select value={form.idEmpleado} onChange={(e) => set('idEmpleado', e.target.value)} required>
+            <Field label="Colaborador" hint={editId ? 'La ficha no se cambia después de crear la cuenta' : 'Solo aparecen quienes aún no tienen usuario'} full>
+              <select
+                value={form.idEmpleado}
+                onChange={(e) => elegirColaborador(e.target.value)}
+                required
+                disabled={Boolean(editId)}
+              >
                 <option value="">Seleccione</option>
-                {empleados.map((e) => <option key={e.idEmpleado} value={e.idEmpleado}>{e.nombreCompleto}</option>)}
+                {colaboradoresOpciones.map((e) => (
+                  <option key={e.idEmpleado} value={e.idEmpleado}>{e.nombreCompleto} · {e.codigoEmpleado}</option>
+                ))}
               </select>
             </Field>
-            <Field label="Usuario"><input value={form.nombreUsuario} onChange={(e) => set('nombreUsuario', e.target.value)} required /></Field>
+            {!editId && colaboradoresOpciones.length === 0 && (
+              <p className="text-sm text-muted md:col-span-2">
+                Todos los colaboradores ya tienen cuenta. Registre primero a la persona en Personal.
+              </p>
+            )}
+            <Field label="Usuario" hint="Se sugiere nombre.apellido">
+              <input
+                value={form.nombreUsuario}
+                onChange={(e) => { setUserTouched(true); set('nombreUsuario', e.target.value.toLowerCase().replace(/\s+/g, '')); }}
+                required
+                autoComplete="off"
+              />
+            </Field>
             <Field label="Perfil">
               <select value={form.idRol} onChange={(e) => set('idRol', e.target.value)} required>
                 <option value="">Seleccione</option>
                 {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre || r.codigo}</option>)}
               </select>
             </Field>
-            <Field label="Correo" full>
-              <input type="email" value={form.correo} onChange={(e) => set('correo', e.target.value)} required />
-            </Field>
-            <Field label="Contraseña" full>
+            <Field label="Correo" hint="Usa el correo institucional del colaborador" full>
               <input
-                type="password"
-                value={form.password}
-                onChange={(e) => set('password', e.target.value)}
-                placeholder={editId ? 'Dejar vacío para no cambiar' : ''}
-                required={!editId}
+                type="email"
+                value={form.correo}
+                onChange={(e) => { setMailTouched(true); set('correo', e.target.value); }}
+                required
+                autoComplete="off"
               />
+            </Field>
+            <Field
+              label="Contraseña"
+              hint={editId ? 'Vacío = no cambia' : 'Contraseña inicial sugerida: Andina2026'}
+              full
+            >
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  className="pr-11"
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  placeholder={editId ? 'Dejar vacío para no cambiar' : ''}
+                  required={!editId}
+                  autoComplete={editId ? 'new-password' : 'off'}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-navy"
+                  onClick={() => setShowPass((v) => !v)}
+                  aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </Field>
             <Field label="Estado">
               <select value={form.activo ? '1' : '0'} onChange={(e) => set('activo', e.target.value === '1')}>
@@ -241,7 +359,8 @@ export function Usuarios() {
                 <option value="0">Inactivo</option>
               </select>
             </Field>
-            <div className="md:col-span-2">
+            <div className="flex flex-wrap justify-end gap-2 md:col-span-2">
+              <Button type="button" variant="secondary" onClick={() => { setOpen(false); setDesdeAlta(false); }}>Cancelar</Button>
               <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Button>
             </div>
           </FormGrid>

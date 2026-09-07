@@ -108,11 +108,12 @@ export function Modal({ title, children, onClose }) {
   );
 }
 
-export function Field({ label, children, full }) {
+export function Field({ label, children, full, hint }) {
   return (
     <label className={cn('flex flex-col gap-1.5', full && 'md:col-span-2')}>
       <span className="text-xs font-medium text-slate-500">{label}</span>
       {children}
+      {hint && <span className="text-[11px] text-muted">{hint}</span>}
     </label>
   );
 }

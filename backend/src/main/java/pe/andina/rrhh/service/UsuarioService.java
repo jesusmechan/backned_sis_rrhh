@@ -93,6 +93,11 @@ public class UsuarioService {
         u.setNombreUsuario(r.nombreUsuario());
         u.setCorreo(r.correo());
         if (r.idEmpleado() != null) {
+            usuarioRepository.findByEmpleado_IdEmpleado(r.idEmpleado()).ifPresent(existente -> {
+                if (u.getIdUsuario() == null || !existente.getIdUsuario().equals(u.getIdUsuario())) {
+                    throw ApiException.conflict("Ese colaborador ya tiene una cuenta");
+                }
+            });
             u.setEmpleado(empleadoRepository.findById(r.idEmpleado())
                     .orElseThrow(() -> ApiException.badRequest("Trabajador no existe")));
         } else {
