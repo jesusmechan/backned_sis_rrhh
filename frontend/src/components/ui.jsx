@@ -1,4 +1,22 @@
+import { Children, isValidElement } from 'react';
 import { Search } from 'lucide-react';
+
+function findControl(children) {
+  let found = null;
+  Children.forEach(children, (child) => {
+    if (found || !isValidElement(child)) return;
+    if (typeof child.type === 'string' && ['input', 'select', 'textarea'].includes(child.type)) {
+      found = child;
+      return;
+    }
+    if (child.props?.children) found = findControl(child.props.children);
+  });
+  return found;
+}
+
+function isBlank(value) {
+  return value == null || String(value).trim() === '';
+}
 
 export function cn(...parts) {
   return parts.filter(Boolean).join(' ');
@@ -93,11 +111,8 @@ export function Alert({ children, ok }) {
 
 export function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-900/40 p-0 sm:place-items-center sm:p-4" onClick={onClose}>
-      <div
-        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-xl bg-white shadow-lg sm:rounded-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-900/40 p-0 sm:place-items-center sm:p-4">
+      <div className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-xl bg-white shadow-lg sm:rounded-xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-4 sm:px-6">
           <h3 className="min-w-0 text-base font-semibold text-navy sm:text-lg">{title}</h3>
           <Button variant="secondary" type="button" className="shrink-0 px-3 py-2" onClick={onClose}>Cerrar</Button>
@@ -108,10 +123,22 @@ export function Modal({ title, children, onClose }) {
   );
 }
 
-export function Field({ label, children, full, hint }) {
+export function Field({ label, children, full, hint, required: requiredProp }) {
+  const control = findControl(children);
+  const required = requiredProp ?? Boolean(control?.props?.required);
+  const select = control?.type === 'select';
+  const empty = required && isBlank(control?.props?.value);
+  const requiredText = select ? 'Debe seleccionar este campo' : 'Debe ingresar este campo';
+
   return (
     <label className={cn('flex flex-col gap-1.5', full && 'md:col-span-2')}>
-      <span className="text-xs font-medium text-slate-500">{label}</span>
+      <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="text-xs font-medium text-slate-500">
+          {label}
+          {required && <span className="ml-1 text-red-600">*</span>}
+        </span>
+        {empty && <span className="text-[11px] font-medium text-red-600">{requiredText}</span>}
+      </span>
       {children}
       {hint && <span className="text-[11px] text-muted">{hint}</span>}
     </label>
