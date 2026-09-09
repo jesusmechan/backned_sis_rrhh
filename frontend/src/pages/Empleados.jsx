@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, Plus, Upload } from 'lucide-react';
 import { api, emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
 import { correoAndina, hoyISO, siguienteCodigo } from './altaShared';
+import { address, documentNumber, email, isEmail, isEmployeeCode, isLetters, letters, phone } from '../lib/input';
 
 const CONTRATO = {
   PLANILLA: 'Planilla',
@@ -118,15 +119,14 @@ export function Empleados() {
 
   function setNombre(k, v) {
     setForm((f) => {
-      const next = { ...f, [k]: v };
+      const next = { ...f, [k]: letters(v) };
       if (!emailTouched) next.correoInstitucional = correoAndina(next.nombres, next.apellidoPaterno);
       return next;
     });
   }
 
   function setDocumento(value) {
-    const next = form.tipoDocumento === 'DNI' ? value.replace(/\D/g, '').slice(0, 8) : value.slice(0, 20);
-    set('numeroDocumento', next);
+    set('numeroDocumento', documentNumber(form.tipoDocumento, value));
   }
 
   function irCrearCuenta(emp) {
@@ -183,8 +183,17 @@ export function Empleados() {
       if (!form.codigoEmpleado.trim() || !form.numeroDocumento.trim() || !form.nombres.trim() || !form.apellidoPaterno.trim() || !form.apellidoMaterno.trim()) {
         return 'Complete código, documento y apellidos.';
       }
+      if (!isEmployeeCode(form.codigoEmpleado.trim())) {
+        return 'El código debe tener el formato AND-001 (letras, guion y dígitos).';
+      }
       if (form.tipoDocumento === 'DNI' && form.numeroDocumento.length !== 8) {
         return 'El DNI debe tener 8 dígitos.';
+      }
+      if (form.tipoDocumento !== 'DNI' && form.numeroDocumento.length < 8) {
+        return 'El documento debe tener al menos 8 caracteres.';
+      }
+      if (![form.nombres, form.apellidoPaterno, form.apellidoMaterno].every(isLetters)) {
+        return 'Nombres y apellidos solo admiten letras.';
       }
     }
     if (n === 2) {
@@ -194,6 +203,11 @@ export function Empleados() {
     }
     if (n === 3) {
       if (!form.correoInstitucional.trim()) return 'Indique el correo institucional.';
+      if (!isEmail(form.correoInstitucional)) return 'Indique un correo institucional válido.';
+      if (form.correoPersonal && !isEmail(form.correoPersonal)) return 'Indique un correo personal válido.';
+      if (form.telefono && (form.telefono.length < 7 || form.telefono.length > 9)) {
+        return 'El teléfono debe tener entre 7 y 9 dígitos.';
+      }
     }
     return '';
   }
@@ -217,18 +231,18 @@ export function Empleados() {
     setError('');
     setSaving(true);
     const body = {
-      codigoEmpleado: form.codigoEmpleado,
+      codigoEmpleado: form.codigoEmpleado.trim(),
       tipoDocumento: form.tipoDocumento || 'DNI',
-      numeroDocumento: form.numeroDocumento,
-      nombres: form.nombres,
-      apellidoPaterno: form.apellidoPaterno,
-      apellidoMaterno: form.apellidoMaterno || '',
+      numeroDocumento: form.numeroDocumento.trim(),
+      nombres: form.nombres.trim(),
+      apellidoPaterno: form.apellidoPaterno.trim(),
+      apellidoMaterno: (form.apellidoMaterno || '').trim(),
       fechaNacimiento: form.fechaNacimiento || null,
       sexo: form.sexo,
-      correoInstitucional: form.correoInstitucional,
-      correoPersonal: form.correoPersonal || null,
-      telefono: form.telefono || null,
-      direccion: form.direccion || null,
+      correoInstitucional: form.correoInstitucional.trim(),
+      correoPersonal: form.correoPersonal.trim() || null,
+      telefono: form.telefono.trim() || null,
+      direccion: form.direccion.trim() || null,
       fechaIngreso: form.fechaIngreso,
       fechaCese: form.fechaCese || null,
       idArea: Number(form.idArea),
@@ -399,8 +413,8 @@ export function Empleados() {
           <FormGrid onSubmit={guardar}>
             {step === 1 && (
               <>
-                <Field label="Código" hint="Se sugiere el siguiente código libre">
-                  <input value={form.codigoEmpleado} onChange={(e) => set('codigoEmpleado', e.target.value.toUpperCase())} required />
+                <Field label="Código" hint="Letras, números y guion. Ej. AND-004">
+                  <input value={form.codigoEmpleado} onChange={(e) => set('codigoEmpleado', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20))} required />
                 </Field>
                 <Field label="Tipo de documento">
                   <select
@@ -410,7 +424,7 @@ export function Empleados() {
                       setForm((f) => ({
                         ...f,
                         tipoDocumento: tipo,
-                        numeroDocumento: tipo === 'DNI' ? f.numeroDocumento.replace(/\D/g, '').slice(0, 8) : f.numeroDocumento
+                        numeroDocumento: documentNumber(tipo, f.numeroDocumento)
                       }));
                     }}
                   >
@@ -419,7 +433,7 @@ export function Empleados() {
                     <option value="PASAPORTE">Pasaporte</option>
                   </select>
                 </Field>
-                <Field label="Número de documento" hint={form.tipoDocumento === 'DNI' ? '8 dígitos' : 'Hasta 20 caracteres'}>
+                <Field label="Número de documento" hint={form.tipoDocumento === 'DNI' ? 'Solo 8 dígitos' : 'Solo letras y números'}>
                   <input
                     inputMode={form.tipoDocumento === 'DNI' ? 'numeric' : 'text'}
                     value={form.numeroDocumento}
@@ -434,10 +448,18 @@ export function Empleados() {
                     <option value="F">Femenino</option>
                   </select>
                 </Field>
-                <Field label="Nombres"><input value={form.nombres} onChange={(e) => setNombre('nombres', e.target.value)} required /></Field>
-                <Field label="Apellido paterno"><input value={form.apellidoPaterno} onChange={(e) => setNombre('apellidoPaterno', e.target.value)} required /></Field>
-                <Field label="Apellido materno" full><input value={form.apellidoMaterno} onChange={(e) => set('apellidoMaterno', e.target.value)} required /></Field>
-                <Field label="Nacimiento"><input type="date" value={form.fechaNacimiento} onChange={(e) => set('fechaNacimiento', e.target.value)} /></Field>
+                <Field label="Nombres" hint="Solo letras">
+                  <input value={form.nombres} onChange={(e) => setNombre('nombres', e.target.value)} required />
+                </Field>
+                <Field label="Apellido paterno" hint="Solo letras">
+                  <input value={form.apellidoPaterno} onChange={(e) => setNombre('apellidoPaterno', e.target.value)} required />
+                </Field>
+                <Field label="Apellido materno" hint="Solo letras" full>
+                  <input value={form.apellidoMaterno} onChange={(e) => set('apellidoMaterno', letters(e.target.value))} required />
+                </Field>
+                <Field label="Nacimiento">
+                  <DatePicker value={form.fechaNacimiento} onChange={(v) => set('fechaNacimiento', v)} max={hoyISO()} />
+                </Field>
               </>
             )}
             {step === 2 && (
@@ -468,7 +490,7 @@ export function Empleados() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Contrato">
+                <Field label="Contrato" hint="La modalidad colaborador/practicante se define en Contratos">
                   <select value={form.tipoContrato} onChange={(e) => set('tipoContrato', e.target.value)}>
                     <option value="PLANILLA">Planilla</option>
                     <option value="RECIBO_HONORARIOS">Recibo por honorarios</option>
@@ -482,8 +504,14 @@ export function Empleados() {
                     <option value="CESADO">Cesado</option>
                   </select>
                 </Field>
-                <Field label="Ingreso"><input type="date" value={form.fechaIngreso} onChange={(e) => set('fechaIngreso', e.target.value)} required /></Field>
-                {editId && <Field label="Cese"><input type="date" value={form.fechaCese} onChange={(e) => set('fechaCese', e.target.value)} /></Field>}
+                <Field label="Ingreso">
+                  <DatePicker value={form.fechaIngreso} onChange={(v) => set('fechaIngreso', v)} required />
+                </Field>
+                {editId && (
+                  <Field label="Cese">
+                    <DatePicker value={form.fechaCese} onChange={(v) => set('fechaCese', v)} />
+                  </Field>
+                )}
               </>
             )}
             {step === 3 && (
@@ -492,15 +520,19 @@ export function Empleados() {
                   <input
                     type="email"
                     value={form.correoInstitucional}
-                    onChange={(e) => { setEmailTouched(true); set('correoInstitucional', e.target.value); }}
+                    onChange={(e) => { setEmailTouched(true); set('correoInstitucional', email(e.target.value)); }}
                     required
                   />
                 </Field>
-                <Field label="Correo personal">
-                  <input type="email" value={form.correoPersonal} onChange={(e) => set('correoPersonal', e.target.value)} />
+                <Field label="Correo personal" hint="Opcional">
+                  <input type="email" value={form.correoPersonal} onChange={(e) => set('correoPersonal', email(e.target.value))} />
                 </Field>
-                <Field label="Teléfono"><input type="tel" value={form.telefono} onChange={(e) => set('telefono', e.target.value)} /></Field>
-                <Field label="Dirección" full><input value={form.direccion} onChange={(e) => set('direccion', e.target.value)} /></Field>
+                <Field label="Teléfono" hint="Solo dígitos, 7 a 9">
+                  <input type="tel" inputMode="numeric" value={form.telefono} onChange={(e) => set('telefono', phone(e.target.value))} />
+                </Field>
+                <Field label="Dirección" full>
+                  <input value={form.direccion} onChange={(e) => set('direccion', address(e.target.value))} />
+                </Field>
                 {!editId && (
                   <label className="flex items-start gap-2 rounded-lg border border-line px-3 py-2 text-sm md:col-span-2">
                     <input type="checkbox" className="mt-0.5" checked={crearCuenta} onChange={(e) => setCrearCuenta(e.target.checked)} />

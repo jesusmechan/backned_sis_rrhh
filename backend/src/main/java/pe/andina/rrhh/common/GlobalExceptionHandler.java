@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .map(err -> err.getDefaultMessage() != null ? err.getDefaultMessage() : "Datos inválidos")
                 .orElse("Datos inválidos");
         return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", message));
     }

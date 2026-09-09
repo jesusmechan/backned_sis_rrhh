@@ -43,6 +43,7 @@ export function Perfil() {
   const { usuario } = useAuth();
   const [cuenta, setCuenta] = useState(null);
   const [ficha, setFicha] = useState(null);
+  const [vacaciones, setVacaciones] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -51,6 +52,11 @@ export function Perfil() {
       setCuenta(me);
       if (me.idEmpleado) {
         setFicha(await http.get(`/api/empleados/${me.idEmpleado}`));
+        try {
+          setVacaciones(await http.get(`/api/contratos/saldo-vacaciones?idEmpleado=${me.idEmpleado}`));
+        } catch {
+          setVacaciones(null);
+        }
       }
     }
     load().catch((e) => setError(e.message));
@@ -116,11 +122,25 @@ export function Perfil() {
               <Item label="Horario" value={ficha.horario} />
               <Item label="Jefe inmediato" value={ficha.jefeInmediato} />
               <Item label="Tipo de contrato" value={CONTRATO[ficha.tipoContrato] || ficha.tipoContrato} />
+              <Item label="Modalidad" value={vacaciones?.modalidad === 'PRACTICANTE' ? 'Practicante' : vacaciones?.modalidad === 'COLABORADOR' ? 'Colaborador' : '—'} />
               <Item label="Estado" value={ficha.estado} />
               <Item label="Fecha de ingreso" value={formatDate(ficha.fechaIngreso)} />
               <Item label="Fecha de cese" value={formatDate(ficha.fechaCese)} />
             </div>
           </Panel>
+
+          {vacaciones && (
+            <Panel title="Vacaciones" className="mb-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Item label="Días disponibles" value={`${vacaciones.diasDisponibles}`} />
+                <Item label="Días ganados" value={`${vacaciones.diasGanados} (${vacaciones.tasaMensual} por mes)`} />
+                <Item label="Días usados" value={`${vacaciones.diasUsados}`} />
+                <Item label="Meses de vínculo" value={`${vacaciones.mesesCompletos}`} />
+                <Item label="Acumula desde" value={formatDate(vacaciones.fechaInicioAcumulacion)} />
+                <Item label="Modalidad" value={vacaciones.modalidad === 'PRACTICANTE' ? 'Practicante' : 'Colaborador'} />
+              </div>
+            </Panel>
+          )}
         </>
       ) : !error && (
         <Panel className="mb-4">

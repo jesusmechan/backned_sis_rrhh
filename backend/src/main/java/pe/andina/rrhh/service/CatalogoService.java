@@ -54,7 +54,10 @@ public class CatalogoService {
 
     @Transactional(readOnly = true)
     public List<IdNombre> horarios() {
-        return horarioRepository.findAll().stream().map(h -> new IdNombre(h.getIdHorario(), h.getNombre())).toList();
+        return horarioRepository.findAll().stream()
+                .map(h -> new IdNombre(h.getIdHorario(),
+                        h.getNombre() + " · " + h.getHoraIngreso() + "–" + h.getHoraSalida()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

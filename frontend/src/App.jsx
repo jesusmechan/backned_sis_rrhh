@@ -22,6 +22,7 @@ import { Auditoria } from './pages/Auditoria';
 import { AccesoRestringido } from './pages/AccesoRestringido';
 import { Perfil } from './pages/Perfil';
 import { Menus } from './pages/Menus';
+import { Contratos } from './pages/Contratos';
 
 function Private({ children, path }) {
   const { isAuth, canAccess, hasAnyRole } = useAuth();
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="marcar" element={<Private path="/marcar"><Marcar /></Private>} />
         <Route path="asistencia" element={<Private path="/asistencia"><Asistencia /></Private>} />
         <Route path="empleados" element={<Private path="/empleados"><Empleados /></Private>} />
+        <Route path="contratos" element={<Private path="/contratos"><Contratos /></Private>} />
         <Route path="usuarios" element={<Private path="/usuarios"><Usuarios /></Private>} />
         <Route path="menu" element={<Private path="/menu"><Menus /></Private>} />
         <Route path="flujos" element={<Private path="/flujos"><Flujos /></Private>} />

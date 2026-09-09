@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Button, Field } from '../components/ui';
+import { username } from '../lib/input';
 
 export function Login() {
   const { login } = useAuth();
@@ -34,7 +35,7 @@ export function Login() {
         <Alert>{error}</Alert>
         <div className="grid gap-4">
           <Field label="Usuario">
-            <input value={nombreUsuario} onChange={(e) => setNombreUsuario(e.target.value)} required autoComplete="username" />
+            <input value={nombreUsuario} onChange={(e) => setNombreUsuario(username(e.target.value))} required autoComplete="username" />
           </Field>
           <Field label="Contraseña">
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />

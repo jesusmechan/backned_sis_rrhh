@@ -27,6 +27,8 @@ import pe.andina.rrhh.repo.EmpleadoRepository;
 import pe.andina.rrhh.repo.HorarioLaboralRepository;
 import pe.andina.rrhh.security.SecurityUtils;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -44,6 +46,7 @@ public class CargaExcelService {
     private final HorarioLaboralRepository horarioRepository;
     private final CargaMasivaRepository cargaRepository;
     private final CargaMasivaDetalleRepository detalleRepository;
+    private final Validator validator;
 
     public CargaExcelService(EmpleadoService empleadoService,
                              EmpleadoRepository empleadoRepository,
@@ -51,7 +54,8 @@ public class CargaExcelService {
                              CargoRepository cargoRepository,
                              HorarioLaboralRepository horarioRepository,
                              CargaMasivaRepository cargaRepository,
-                             CargaMasivaDetalleRepository detalleRepository) {
+                             CargaMasivaDetalleRepository detalleRepository,
+                             Validator validator) {
         this.empleadoService = empleadoService;
         this.empleadoRepository = empleadoRepository;
         this.areaRepository = areaRepository;
@@ -59,6 +63,7 @@ public class CargaExcelService {
         this.horarioRepository = horarioRepository;
         this.cargaRepository = cargaRepository;
         this.detalleRepository = detalleRepository;
+        this.validator = validator;
     }
 
     public byte[] plantilla() {
@@ -106,6 +111,7 @@ public class CargaExcelService {
                 total++;
                 try {
                     EmpleadoRequest request = mapRow(row, fmt);
+                    validar(request);
                     boolean existe = empleadoRepository.findByCodigoEmpleado(request.codigoEmpleado()).isPresent();
                     if (existe) {
                         Integer id = empleadoRepository.findByCodigoEmpleado(request.codigoEmpleado()).orElseThrow().getIdEmpleado();
@@ -161,17 +167,17 @@ public class CargaExcelService {
                 .filter(h -> h.getNombre().equalsIgnoreCase(horarioNombre)).findFirst()
                 .orElseThrow(() -> ApiException.badRequest("Horario no existe: " + horarioNombre)).getIdHorario();
         return new EmpleadoRequest(
-                cell(row, 0, fmt),
+                cell(row, 0, fmt).toUpperCase(),
                 TipoDocumento.valueOf(orDefault(cell(row, 1, fmt), "DNI")),
-                cell(row, 2, fmt),
+                cell(row, 2, fmt).toUpperCase().replaceAll("[^A-Z0-9]", ""),
                 cell(row, 3, fmt),
                 cell(row, 4, fmt),
                 cell(row, 5, fmt),
                 parseDate(cell(row, 6, fmt)),
                 null,
-                cell(row, 8, fmt),
+                cell(row, 8, fmt).toLowerCase(),
                 null,
-                cell(row, 9, fmt),
+                cell(row, 9, fmt).replaceAll("\\D", ""),
                 null,
                 parseDate(cell(row, 10, fmt)),
                 null,
@@ -180,6 +186,14 @@ public class CargaExcelService {
                 EstadoEmpleado.valueOf(orDefault(cell(row, 15, fmt), "ACTIVO")),
                 null
         );
+    }
+
+    private void validar(EmpleadoRequest request) {
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            ConstraintViolation<EmpleadoRequest> first = violations.iterator().next();
+            throw ApiException.badRequest(first.getMessage());
+        }
     }
 
     private String cell(Row row, int idx, DataFormatter fmt) {

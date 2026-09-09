@@ -5,6 +5,7 @@ import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
 import { correoAndina, slugCuenta } from './altaShared';
+import { email, isEmail, isUsername, username } from '../lib/input';
 
 const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: 'Andina2026', activo: true };
 
@@ -170,6 +171,22 @@ export function Usuarios() {
   async function guardar(e) {
     e.preventDefault();
     setError('');
+    if (!isUsername(form.nombreUsuario)) {
+      setError('El usuario solo admite minúsculas, números, punto o guion bajo, y debe empezar con letra.');
+      return;
+    }
+    if (!isEmail(form.correo)) {
+      setError('Indique un correo válido.');
+      return;
+    }
+    if (!editId && (!form.password || form.password.length < 6)) {
+      setError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (editId && form.password && form.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
     setSaving(true);
     const body = {
       idEmpleado: form.idEmpleado ? Number(form.idEmpleado) : null,
@@ -305,10 +322,10 @@ export function Usuarios() {
                 Todos los colaboradores ya tienen cuenta. Registre primero a la persona en Personal.
               </p>
             )}
-            <Field label="Usuario" hint="Se sugiere nombre.apellido">
+            <Field label="Usuario" hint="Minúsculas, números, punto o guion bajo">
               <input
                 value={form.nombreUsuario}
-                onChange={(e) => { setUserTouched(true); set('nombreUsuario', e.target.value.toLowerCase().replace(/\s+/g, '')); }}
+                onChange={(e) => { setUserTouched(true); set('nombreUsuario', username(e.target.value)); }}
                 required
                 autoComplete="off"
               />
@@ -323,7 +340,7 @@ export function Usuarios() {
               <input
                 type="email"
                 value={form.correo}
-                onChange={(e) => { setMailTouched(true); set('correo', e.target.value); }}
+                onChange={(e) => { setMailTouched(true); set('correo', email(e.target.value)); }}
                 required
                 autoComplete="off"
               />

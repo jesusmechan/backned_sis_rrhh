@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.andina.rrhh.domain.enums.FormatoReporte;
 import pe.andina.rrhh.domain.enums.TipoReporte;
@@ -43,7 +44,12 @@ public class ReporteController {
     public List<HoraExtraResponse> horasExtras() { return reporteService.horasExtras(); }
 
     @GetMapping("/asistencia")
-    public List<MarcacionResponse> asistencia() { return reporteService.asistencia(); }
+    public List<MarcacionResponse> asistencia(
+            @RequestParam(required = false) Integer idEmpleado,
+            @RequestParam(required = false) java.time.LocalDate desde,
+            @RequestParam(required = false) java.time.LocalDate hasta) {
+        return reporteService.asistencia(idEmpleado, desde, hasta);
+    }
 
     @GetMapping("/usuarios")
     public List<UsuarioResponse> usuarios() { return reporteService.usuarios(); }

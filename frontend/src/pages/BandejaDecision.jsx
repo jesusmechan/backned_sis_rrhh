@@ -5,6 +5,7 @@ import { http, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Avatar, Badge, Button, Field } from '../components/ui';
 import { ORIGEN, PasosInstancia } from './flujoShared';
 import { TIPO, factsOf, fmtDateTime, solicitudPath } from './bandejaShared';
+import { text } from '../lib/input';
 
 export function BandejaDecision() {
   const { idPaso, tipo, id } = useParams();
@@ -163,7 +164,7 @@ export function BandejaDecision() {
                 <Field label="Comentario">
                   <textarea
                     value={comentario}
-                    onChange={(e) => setComentario(e.target.value)}
+                    onChange={(e) => setComentario(text(e.target.value, 400))}
                     placeholder="Obligatorio al rechazar"
                   />
                 </Field>

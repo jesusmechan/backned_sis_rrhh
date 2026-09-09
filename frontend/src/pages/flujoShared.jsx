@@ -245,7 +245,7 @@ export function toPayload(form) {
     activo: form.activo !== false,
     pasos: form.pasos.map((p, i) => ({
       numeroPaso: i + 1,
-      nombrePaso: p.nombrePaso,
+      nombrePaso: (p.nombrePaso || '').trim(),
       tipoAprobador: p.tipoAprobador,
       idRol: p.tipoAprobador === 'ROL' && p.idRol ? Number(p.idRol) : null,
       idUsuario: p.tipoAprobador === 'USUARIO' && p.idUsuario ? Number(p.idUsuario) : null,

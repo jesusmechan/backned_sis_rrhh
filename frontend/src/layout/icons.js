@@ -2,6 +2,7 @@ import {
   ClipboardCheck,
   Clock3,
   FileSpreadsheet,
+  FileText,
   Fingerprint,
   GitBranch,
   Home,
@@ -26,6 +27,7 @@ const ICONS = {
   UserCog,
   GitBranch,
   FileSpreadsheet,
+  FileText,
   Shield,
   List
 };

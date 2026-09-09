@@ -1,10 +1,20 @@
 package pe.andina.rrhh.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import pe.andina.rrhh.domain.enums.EstadoContrato;
 import pe.andina.rrhh.domain.enums.EstadoEmpleado;
 import pe.andina.rrhh.domain.enums.EstadoPasoAprobacion;
 import pe.andina.rrhh.domain.enums.EstadoSolicitud;
+import pe.andina.rrhh.domain.enums.ModalidadContrato;
 import pe.andina.rrhh.domain.enums.SexoEmpleado;
 import pe.andina.rrhh.domain.enums.TipoAprobador;
 import pe.andina.rrhh.domain.enums.TipoContrato;
@@ -25,17 +35,34 @@ public final class AppDtos {
     public record CatalogoItem(Integer id, String codigo, String nombre) {}
 
     public record EmpleadoRequest(
-            @NotBlank String codigoEmpleado,
+            @NotBlank(message = "Indique el código")
+            @Pattern(regexp = "^[A-Z]{2,8}-[0-9]{3,6}$", message = "El código debe tener el formato AND-001")
+            String codigoEmpleado,
             TipoDocumento tipoDocumento,
-            @NotBlank String numeroDocumento,
-            @NotBlank String nombres,
-            @NotBlank String apellidoPaterno,
-            @NotBlank String apellidoMaterno,
+            @NotBlank(message = "Indique el documento")
+            @Pattern(regexp = "^[A-Z0-9]{8,12}$", message = "El documento solo admite letras y números")
+            String numeroDocumento,
+            @NotBlank(message = "Indique los nombres")
+            @Pattern(regexp = "^\\p{L}+(?:[ '\\-]\\p{L}+)*$", message = "Los nombres solo admiten letras")
+            String nombres,
+            @NotBlank(message = "Indique el apellido paterno")
+            @Pattern(regexp = "^\\p{L}+(?:[ '\\-]\\p{L}+)*$", message = "El apellido paterno solo admite letras")
+            String apellidoPaterno,
+            @Pattern(regexp = "^$|^\\p{L}+(?:[ '\\-]\\p{L}+)*$", message = "El apellido materno solo admite letras")
+            String apellidoMaterno,
             LocalDate fechaNacimiento,
             SexoEmpleado sexo,
-            @NotBlank String correoInstitucional,
+            @NotBlank(message = "Indique el correo institucional")
+            @Email(message = "Indique un correo institucional válido")
+            @Size(max = 120)
+            String correoInstitucional,
+            @Email(message = "Indique un correo personal válido")
+            @Size(max = 120)
             String correoPersonal,
+            @Pattern(regexp = "^$|^\\d{7,9}$", message = "El teléfono debe tener entre 7 y 9 dígitos")
             String telefono,
+            @Size(max = 200)
+            @Pattern(regexp = "^[\\p{L}0-9\\s.,#\\-/°]*$", message = "La dirección contiene caracteres no permitidos")
             String direccion,
             @NotNull LocalDate fechaIngreso,
             LocalDate fechaCese,
@@ -78,9 +105,14 @@ public final class AppDtos {
 
     public record UsuarioRequest(
             Integer idEmpleado,
-            @NotNull Integer idRol,
-            @NotBlank String nombreUsuario,
-            @NotBlank String correo,
+            @NotNull(message = "Seleccione el perfil") Integer idRol,
+            @NotBlank(message = "Indique el usuario")
+            @Pattern(regexp = "^[a-z][a-z0-9._]{2,59}$", message = "El usuario solo admite minúsculas, números, punto o guion bajo")
+            String nombreUsuario,
+            @NotBlank(message = "Indique el correo")
+            @Email(message = "Indique un correo válido")
+            String correo,
+            @Pattern(regexp = "^$|^.{6,80}$", message = "La contraseña debe tener al menos 6 caracteres")
             String password,
             Boolean activo
     ) {}
@@ -112,12 +144,20 @@ public final class AppDtos {
     ) {}
 
     public record MenuAdminRequest(
-            @NotBlank String codigo,
-            @NotBlank String etiqueta,
-            @NotBlank String ruta,
-            @NotBlank String icono,
-            @NotBlank String grupo,
-            String descripcion,
+            @NotBlank(message = "Indique el código")
+            @Pattern(regexp = "^[A-Z][A-Z0-9_-]{1,39}$", message = "El código solo admite mayúsculas, números y guion")
+            String codigo,
+            @NotBlank(message = "Indique la etiqueta")
+            @Pattern(regexp = "^[\\p{L}0-9 ._-]{2,80}$", message = "La etiqueta solo admite letras y números")
+            String etiqueta,
+            @NotBlank(message = "Indique la ruta")
+            @Pattern(regexp = "^/[a-z0-9/_-]*$", message = "La ruta debe iniciar con / y usar minúsculas, números, guion o barra")
+            String ruta,
+            @NotBlank(message = "Seleccione el icono") String icono,
+            @NotBlank(message = "Seleccione el grupo") String grupo,
+            @Size(max = 200) String descripcion,
+            @Min(value = 0, message = "El orden debe ser un número")
+            @Max(value = 9999, message = "El orden no puede superar 9999")
             Integer orden,
             Boolean activo,
             List<Integer> idPerfiles
@@ -152,12 +192,14 @@ public final class AppDtos {
 
     public record PermisoRequest(
             Integer idEmpleado,
-            @NotNull Integer idTipoPermiso,
-            @NotNull LocalDate fechaInicio,
-            @NotNull LocalDate fechaFin,
+            @NotNull(message = "Seleccione el tipo de permiso") Integer idTipoPermiso,
+            @NotNull(message = "Indique la fecha de inicio") LocalDate fechaInicio,
+            @NotNull(message = "Indique la fecha de fin") LocalDate fechaFin,
             LocalTime horaInicio,
             LocalTime horaFin,
-            @NotBlank String motivo
+            @NotBlank(message = "Indique el motivo")
+            @Size(min = 5, max = 400, message = "El motivo debe tener entre 5 y 400 caracteres")
+            String motivo
     ) {}
 
     public record PermisoResponse(
@@ -179,11 +221,16 @@ public final class AppDtos {
 
     public record HoraExtraRequest(
             Integer idEmpleado,
-            @NotNull LocalDate fecha,
-            @NotNull LocalTime horaInicio,
-            @NotNull LocalTime horaFin,
-            @NotNull BigDecimal cantidadHoras,
-            @NotBlank String motivo
+            @NotNull(message = "Indique la fecha") LocalDate fecha,
+            @NotNull(message = "Indique la hora de inicio") LocalTime horaInicio,
+            @NotNull(message = "Indique la hora de fin") LocalTime horaFin,
+            @NotNull(message = "Indique la cantidad de horas")
+            @DecimalMin(value = "0.5", message = "La cantidad mínima es 0.5 horas")
+            @DecimalMax(value = "8", message = "La cantidad máxima es 8 horas")
+            BigDecimal cantidadHoras,
+            @NotBlank(message = "Indique el motivo")
+            @Size(min = 5, max = 400, message = "El motivo debe tener entre 5 y 400 caracteres")
+            String motivo
     ) {}
 
     public record HoraExtraResponse(
@@ -215,7 +262,11 @@ public final class AppDtos {
             String comentario
     ) {}
 
-    public record DecisionRequest(@NotBlank String comentario) {}
+    public record DecisionRequest(
+            @NotBlank(message = "Indique el comentario")
+            @Size(max = 400, message = "El comentario no puede superar 400 caracteres")
+            String comentario
+    ) {}
 
     public record BandejaItem(
             Integer idPasoSolicitud,
@@ -252,18 +303,24 @@ public final class AppDtos {
     ) {}
 
     public record FlujoRequest(
-            @NotBlank String codigo,
-            @NotBlank String nombre,
-            @NotNull TipoOrigenFlujo tipoOrigen,
+            @NotBlank(message = "Indique el código")
+            @Pattern(regexp = "^[A-Z][A-Z0-9_-]{1,39}$", message = "El código solo admite mayúsculas, números y guion")
+            String codigo,
+            @NotBlank(message = "Indique el nombre")
+            @Pattern(regexp = "^[\\p{L}0-9 ._-]{2,120}$", message = "El nombre solo admite letras y números")
+            String nombre,
+            @NotNull(message = "Seleccione el origen") TipoOrigenFlujo tipoOrigen,
             Integer idTipoPermiso,
-            String descripcion,
+            @Size(max = 200) String descripcion,
             Boolean activo,
-            List<FlujoPasoRequest> pasos
+            @Valid List<FlujoPasoRequest> pasos
     ) {}
 
     public record FlujoPasoRequest(
             @NotNull Integer numeroPaso,
-            @NotBlank String nombrePaso,
+            @NotBlank(message = "Indique el nombre del paso")
+            @Pattern(regexp = "^[\\p{L}0-9 ._-]{2,80}$", message = "El nombre del paso solo admite letras y números")
+            String nombrePaso,
             @NotNull TipoAprobador tipoAprobador,
             Integer idRol,
             Integer idUsuario,
@@ -316,6 +373,47 @@ public final class AppDtos {
     ) {}
 
     public record CargaFilaResponse(Integer numeroFila, String resultado, String mensaje) {}
+
+    public record ContratoRequest(
+            Integer idEmpleado,
+            @NotNull ModalidadContrato modalidad,
+            @NotNull Integer idHorario,
+            @NotNull LocalDate fechaInicio,
+            LocalDate fechaFin,
+            EstadoContrato estado,
+            @Size(max = 400, message = "Las observaciones no pueden superar 400 caracteres")
+            String observaciones
+    ) {}
+
+    public record ContratoResponse(
+            Integer idContrato,
+            String codigo,
+            Integer idEmpleado,
+            String empleado,
+            String codigoEmpleado,
+            ModalidadContrato modalidad,
+            Integer idHorario,
+            String horario,
+            String horaIngreso,
+            String horaSalida,
+            LocalDate fechaInicio,
+            LocalDate fechaFin,
+            EstadoContrato estado,
+            String observaciones,
+            VacacionSaldoResponse vacaciones
+    ) {}
+
+    public record VacacionSaldoResponse(
+            Integer idEmpleado,
+            String empleado,
+            ModalidadContrato modalidad,
+            LocalDate fechaInicioAcumulacion,
+            int mesesCompletos,
+            BigDecimal tasaMensual,
+            BigDecimal diasGanados,
+            BigDecimal diasUsados,
+            BigDecimal diasDisponibles
+    ) {}
 
     public record PageResponse<T>(
             List<T> content,

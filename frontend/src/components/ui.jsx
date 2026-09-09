@@ -5,6 +5,10 @@ function findControl(children) {
   let found = null;
   Children.forEach(children, (child) => {
     if (found || !isValidElement(child)) return;
+    if (child.type?.isFieldControl) {
+      found = child;
+      return;
+    }
     if (typeof child.type === 'string' && ['input', 'select', 'textarea'].includes(child.type)) {
       found = child;
       return;
@@ -126,12 +130,14 @@ export function Modal({ title, children, onClose }) {
 export function Field({ label, children, full, hint, required: requiredProp }) {
   const control = findControl(children);
   const required = requiredProp ?? Boolean(control?.props?.required);
-  const select = control?.type === 'select';
+  const select = control?.type === 'select' || control?.type?.isFieldControl;
   const empty = required && isBlank(control?.props?.value);
   const requiredText = select ? 'Debe seleccionar este campo' : 'Debe ingresar este campo';
 
+  const Tag = control?.type?.isFieldControl ? 'div' : 'label';
+
   return (
-    <label className={cn('flex flex-col gap-1.5', full && 'md:col-span-2')}>
+    <Tag className={cn('flex flex-col gap-1.5', full && 'md:col-span-2')}>
       <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-xs font-medium text-slate-500">
           {label}
@@ -141,7 +147,7 @@ export function Field({ label, children, full, hint, required: requiredProp }) {
       </span>
       {children}
       {hint && <span className="text-[11px] text-muted">{hint}</span>}
-    </label>
+    </Tag>
   );
 }
 
@@ -231,6 +237,8 @@ export function Pager({ page = 1, totalPages = 1, totalElements = 0, size = 10, 
     </div>
   );
 }
+
+export { DatePicker } from './DatePicker';
 
 export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);

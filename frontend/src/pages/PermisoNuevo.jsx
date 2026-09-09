@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE, toTime } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Button, Field } from '../components/ui';
+import { Alert, Button, DatePicker, Field } from '../components/ui';
+import { text } from '../lib/input';
 
 const empty = {
   idEmpleado: '', idTipoPermiso: '', fechaInicio: '', fechaFin: '', horaInicio: '', horaFin: '', motivo: ''
@@ -14,8 +15,9 @@ export function PermisoNuevo() {
   const { usuario, hasAnyRole } = useAuth();
   const puedeElegirEmpleado = hasAnyRole('ADMIN', 'RRHH');
   const [form, setForm] = useState(empty);
-  const [tipos, setTipos] = useState([]);
   const [empleados, setEmpleados] = useState([]);
+  const [tipos, setTipos] = useState([]);
+  const [saldo, setSaldo] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -35,6 +37,20 @@ export function PermisoNuevo() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const tipoSel = tipos.find((t) => String(t.id) === String(form.idTipoPermiso));
+  const esVacaciones = tipoSel?.codigo === 'VACACIONES';
+  const idEmpleadoSaldo = form.idEmpleado || usuario?.idEmpleado;
+
+  useEffect(() => {
+    if (!esVacaciones || !idEmpleadoSaldo) {
+      setSaldo(null);
+      return;
+    }
+    http.get(`/api/contratos/saldo-vacaciones?idEmpleado=${idEmpleadoSaldo}`)
+      .then(setSaldo)
+      .catch((e) => setError(e.message));
+  }, [esVacaciones, idEmpleadoSaldo]);
+
   async function crear(e) {
     e.preventDefault();
     setError('');
@@ -44,6 +60,10 @@ export function PermisoNuevo() {
     }
     if ((form.horaInicio && !form.horaFin) || (!form.horaInicio && form.horaFin)) {
       setError('Indique hora de inicio y de fin, o deje ambas vacías.');
+      return;
+    }
+    if (form.motivo.trim().length < 5) {
+      setError('El motivo debe tener al menos 5 caracteres.');
       return;
     }
     setSaving(true);
@@ -109,11 +129,26 @@ export function PermisoNuevo() {
               {tipos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
             </select>
           </Field>
+          {esVacaciones && (
+            <div className="rounded-lg border border-line bg-slate-50 px-3 py-2 text-sm md:col-span-2">
+              {saldo ? (
+                <p>
+                  Saldo de vacaciones: <strong>{saldo.diasDisponibles}</strong> días
+                  {' '}({saldo.diasGanados} ganados en {saldo.mesesCompletos} meses · {saldo.tasaMensual} por mes).
+                  {Number(saldo.diasDisponibles) <= 0 && (
+                    <span className="mt-1 block text-red-600">Aún no ha ganado días. No puede registrar vacaciones.</span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-muted">Consultando saldo de vacaciones…</p>
+              )}
+            </div>
+          )}
           <Field label="Desde">
-            <input type="date" value={form.fechaInicio} onChange={(e) => set('fechaInicio', e.target.value)} required />
+            <DatePicker value={form.fechaInicio} onChange={(v) => set('fechaInicio', v)} required />
           </Field>
           <Field label="Hasta">
-            <input type="date" value={form.fechaFin} onChange={(e) => set('fechaFin', e.target.value)} required />
+            <DatePicker value={form.fechaFin} onChange={(v) => set('fechaFin', v)} required min={form.fechaInicio || undefined} />
           </Field>
           <Field label="Hora inicio">
             <input type="time" value={form.horaInicio} onChange={(e) => set('horaInicio', e.target.value)} />
@@ -122,7 +157,7 @@ export function PermisoNuevo() {
             <input type="time" value={form.horaFin} onChange={(e) => set('horaFin', e.target.value)} />
           </Field>
           <Field label="Motivo" full>
-            <textarea value={form.motivo} onChange={(e) => set('motivo', e.target.value)} required minLength={5} placeholder="Mínimo 5 caracteres" />
+            <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={5} placeholder="Mínimo 5 caracteres" />
           </Field>
         </div>
         <p className="mt-4 text-xs text-muted">Las horas son opcionales. Si las indica, deben ir las dos.</p>

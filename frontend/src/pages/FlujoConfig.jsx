@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Badge, Button, Field } from '../components/ui';
 import { APROBADOR, Flujograma, ORIGEN, emptyForm, emptyPaso, toForm, toPayload } from './flujoShared';
+import { code, label, text } from '../lib/input';
 
 export function FlujoConfig() {
   const { id } = useParams();
@@ -136,11 +137,11 @@ export function FlujoConfig() {
           <section className="rounded-xl border border-line bg-white p-5">
             <p className="mb-4 text-sm font-semibold text-navy">Datos del flujo</p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Nombre" full>
-                <input value={form.nombre} onChange={(e) => set('nombre', e.target.value)} required />
+              <Field label="Nombre" hint="Letras y números" full>
+                <input value={form.nombre} onChange={(e) => set('nombre', label(e.target.value, 120))} required />
               </Field>
-              <Field label="Código">
-                <input value={form.codigo} onChange={(e) => set('codigo', e.target.value.toUpperCase())} required />
+              <Field label="Código" hint="Mayúsculas, números y guion">
+                <input value={form.codigo} onChange={(e) => set('codigo', code(e.target.value))} required />
               </Field>
               <Field label="Origen">
                 <select value={form.tipoOrigen} onChange={(e) => set('tipoOrigen', e.target.value)}>
@@ -155,7 +156,7 @@ export function FlujoConfig() {
                 </select>
               </Field>
               <Field label="Descripción" full>
-                <input value={form.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
+                <input value={form.descripcion} onChange={(e) => set('descripcion', text(e.target.value, 200))} />
               </Field>
               <Field label="Estado">
                 <select value={form.activo ? '1' : '0'} onChange={(e) => set('activo', e.target.value === '1')}>
@@ -182,7 +183,7 @@ export function FlujoConfig() {
                 <div key={p.key} className="grid items-end gap-3 rounded-lg border border-line bg-slate-50 p-3 md:grid-cols-[2rem_1fr_1fr_1fr_auto]">
                   <p className="pb-2.5 text-sm font-semibold text-navy">{i + 1}</p>
                   <Field label="Nombre">
-                    <input value={p.nombrePaso} onChange={(e) => setPaso(i, 'nombrePaso', e.target.value)} required />
+                    <input value={p.nombrePaso} onChange={(e) => setPaso(i, 'nombrePaso', label(e.target.value, 80))} required />
                   </Field>
                   <Field label="Aprueba">
                     <select value={p.tipoAprobador} onChange={(e) => setPaso(i, 'tipoAprobador', e.target.value)}>

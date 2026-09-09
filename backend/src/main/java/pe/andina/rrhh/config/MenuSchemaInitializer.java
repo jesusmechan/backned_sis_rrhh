@@ -20,9 +20,22 @@ public class MenuSchemaInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE modalidad_contrato AS ENUM ('COLABORADOR', 'PRACTICANTE');
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+                """);
+        jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE estado_contrato AS ENUM ('VIGENTE', 'FINALIZADO', 'ANULADO');
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+                """);
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.setContinueOnError(true);
         populator.addScript(new ClassPathResource("db/menu.sql"));
+        populator.addScript(new ClassPathResource("db/contratos.sql"));
         populator.execute(jdbcTemplate.getDataSource());
     }
 }

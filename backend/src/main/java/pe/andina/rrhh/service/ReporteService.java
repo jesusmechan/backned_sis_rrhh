@@ -56,7 +56,14 @@ public class ReporteService {
     public List<HoraExtraResponse> horasExtras() { return solicitudService.listarHorasExtras(); }
 
     @Transactional(readOnly = true)
-    public List<MarcacionResponse> asistencia() { return asistenciaService.listar(null, null, null); }
+    public List<MarcacionResponse> asistencia() {
+        return asistenciaService.reporte(null, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MarcacionResponse> asistencia(Integer idEmpleado, java.time.LocalDate desde, java.time.LocalDate hasta) {
+        return asistenciaService.reporte(idEmpleado, desde, hasta);
+    }
 
     @Transactional(readOnly = true)
     public List<UsuarioResponse> usuarios() { return usuarioService.listar(); }
@@ -80,9 +87,10 @@ public class ReporteService {
         return switch (tipo) {
             case TRABAJADORES -> {
                 List<String[]> data = new java.util.ArrayList<>();
-                data.add(new String[]{"Código", "Nombre", "Área", "Cargo", "Estado"});
+                    data.add(new String[]{"Código", "Nombre", "Área", "Cargo", "Contrato", "Estado"});
                 for (EmpleadoResponse e : empleadoService.listar()) {
-                    data.add(new String[]{e.codigoEmpleado(), e.nombreCompleto(), e.area(), e.cargo(), e.estado().name()});
+                    data.add(new String[]{e.codigoEmpleado(), e.nombreCompleto(), e.area(), e.cargo(),
+                            e.tipoContrato() != null ? e.tipoContrato().name() : "", e.estado().name()});
                 }
                 yield data;
             }
@@ -106,10 +114,10 @@ public class ReporteService {
             }
             case ASISTENCIA -> {
                 List<String[]> data = new java.util.ArrayList<>();
-                data.add(new String[]{"Id", "Empleado", "Tipo", "FechaHora", "Origen"});
-                for (MarcacionResponse m : asistenciaService.listar(null, null, null)) {
+                data.add(new String[]{"Id", "Empleado", "Tipo", "Fecha", "Hora", "Origen"});
+                for (MarcacionResponse m : asistenciaService.reporte(null, null, null)) {
                     data.add(new String[]{String.valueOf(m.idMarcacion()), m.empleado(), m.tipo().name(),
-                            String.valueOf(m.fechaHora()), m.origen()});
+                            String.valueOf(m.fecha()), String.valueOf(m.fechaHora()), m.origen()});
                 }
                 yield data;
             }

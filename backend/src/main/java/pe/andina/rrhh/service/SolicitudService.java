@@ -43,6 +43,7 @@ public class SolicitudService {
     private final HistorialSolicitudRepository historialRepository;
     private final TipoPermisoRepository tipoPermisoRepository;
     private final EmpleadoService empleadoService;
+    private final ContratoService contratoService;
     private final EntityManager entityManager;
     private final AuditoriaService auditoriaService;
 
@@ -52,6 +53,7 @@ public class SolicitudService {
                             HistorialSolicitudRepository historialRepository,
                             TipoPermisoRepository tipoPermisoRepository,
                             EmpleadoService empleadoService,
+                            ContratoService contratoService,
                             EntityManager entityManager,
                             AuditoriaService auditoriaService) {
         this.permisoRepository = permisoRepository;
@@ -60,6 +62,7 @@ public class SolicitudService {
         this.historialRepository = historialRepository;
         this.tipoPermisoRepository = tipoPermisoRepository;
         this.empleadoService = empleadoService;
+        this.contratoService = contratoService;
         this.entityManager = entityManager;
         this.auditoriaService = auditoriaService;
     }
@@ -67,10 +70,14 @@ public class SolicitudService {
     @Transactional
     public PermisoResponse crearPermiso(PermisoRequest request) {
         Empleado empleado = resolverEmpleadoSolicitante(request.idEmpleado());
+        var tipo = tipoPermisoRepository.findById(request.idTipoPermiso())
+                .orElseThrow(() -> ApiException.badRequest("Tipo de permiso no existe"));
+        if ("VACACIONES".equalsIgnoreCase(tipo.getCodigo())) {
+            contratoService.validarVacaciones(empleado, request.fechaInicio(), request.fechaFin());
+        }
         SolicitudPermiso s = new SolicitudPermiso();
         s.setEmpleado(empleado);
-        s.setTipoPermiso(tipoPermisoRepository.findById(request.idTipoPermiso())
-                .orElseThrow(() -> ApiException.badRequest("Tipo de permiso no existe")));
+        s.setTipoPermiso(tipo);
         s.setFechaInicio(request.fechaInicio());
         s.setFechaFin(request.fechaFin());
         s.setHoraInicio(request.horaInicio());

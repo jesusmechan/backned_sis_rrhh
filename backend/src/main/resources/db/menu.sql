@@ -28,6 +28,7 @@ FROM (VALUES
     ('ASISTENCIA', 'Asistencia', '/asistencia', 'Fingerprint', 'Operación', 'Consultar el historial de marcaciones.', 60),
     ('PERFIL', 'Mi perfil', '/perfil', 'User', 'Operación', 'Ficha de personal y datos de la cuenta.', 70),
     ('PERSONAL', 'Personal', '/empleados', 'Users', 'Administración', 'Directorio, alta y carga de colaboradores.', 80),
+    ('CONTRATOS', 'Contratos', '/contratos', 'FileText', 'Administración', 'Modalidad, horario y vigencia del vínculo laboral.', 85),
     ('USUARIOS', 'Usuarios', '/usuarios', 'UserCog', 'Administración', 'Cuentas de acceso y asignación de perfil.', 90),
     ('MENU', 'Menú', '/menu', 'List', 'Administración', 'Mantenedor de opciones de menú por perfil.', 95),
     ('FLUJOS', 'Flujos', '/flujos', 'GitBranch', 'Administración', 'Circuitos de aprobación.', 100),
@@ -49,7 +50,7 @@ FROM menu_item m
 JOIN rol r ON r.codigo = 'RRHH'
 WHERE m.codigo IN (
     'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
-    'PERSONAL', 'USUARIOS', 'FLUJOS', 'REPORTES', 'AUDITORIA'
+    'PERSONAL', 'CONTRATOS', 'USUARIOS', 'FLUJOS', 'REPORTES', 'AUDITORIA'
 )
   AND NOT EXISTS (SELECT 1 FROM menu_rol x WHERE x.id_menu = m.id_menu AND x.id_rol = r.id_rol);
 

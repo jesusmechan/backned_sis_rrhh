@@ -97,6 +97,24 @@ public class AsistenciaService {
     }
 
     @Transactional(readOnly = true)
+    public List<MarcacionResponse> reporte(Integer idEmpleado, LocalDate desde, LocalDate hasta) {
+        LocalDate ini = desde != null ? desde : LocalDate.of(2019, 1, 1);
+        LocalDate fin = hasta != null ? hasta : LocalDate.now();
+        if (idEmpleado != null) {
+            return marcacionRepository.findByEmpleado_IdEmpleadoOrderByFechaHoraDesc(idEmpleado).stream()
+                    .filter(m -> {
+                        LocalDate f = m.getFecha() != null ? m.getFecha() : m.getFechaHora().toLocalDate();
+                        return !f.isBefore(ini) && !f.isAfter(fin);
+                    })
+                    .map(DtoMapper::marcacion)
+                    .toList();
+        }
+        return marcacionRepository.findByFechaBetweenOrderByFechaHoraDesc(ini, fin).stream()
+                .map(DtoMapper::marcacion)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public MarcacionResponse obtener(Integer id) {
         Marcacion m = marcacionRepository.findById(id).orElseThrow(() -> ApiException.notFound("Marcación no encontrada"));
         if (!SecurityUtils.isAdminOrRrhh()

@@ -4,6 +4,7 @@ import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { MENU_ICON_OPTIONS, menuIcon } from '../layout/icons';
 import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
+import { code, digits, label, routePath, text } from '../lib/input';
 
 const GRUPOS = ['Operación', 'Administración', 'Control'];
 const empty = {
@@ -232,14 +233,14 @@ export function Menus() {
       {open && (
         <Modal title={editId ? 'Editar opción' : 'Nueva opción'} onClose={() => setOpen(false)}>
           <FormGrid onSubmit={guardar}>
-            <Field label="Código">
-              <input value={form.codigo} onChange={(e) => set('codigo', e.target.value.toUpperCase())} required />
+            <Field label="Código" hint="Mayúsculas, números, guion o guion bajo">
+              <input value={form.codigo} onChange={(e) => set('codigo', code(e.target.value))} required />
             </Field>
-            <Field label="Etiqueta">
-              <input value={form.etiqueta} onChange={(e) => set('etiqueta', e.target.value)} required />
+            <Field label="Etiqueta" hint="Letras y números">
+              <input value={form.etiqueta} onChange={(e) => set('etiqueta', label(e.target.value))} required />
             </Field>
-            <Field label="Ruta">
-              <input value={form.ruta} onChange={(e) => set('ruta', e.target.value)} placeholder="/permisos" required />
+            <Field label="Ruta" hint="Ej. /permisos">
+              <input value={form.ruta} onChange={(e) => set('ruta', routePath(e.target.value))} placeholder="/permisos" required />
             </Field>
             <Field label="Grupo">
               <select value={form.grupo} onChange={(e) => set('grupo', e.target.value)}>
@@ -256,11 +257,11 @@ export function Menus() {
                 </select>
               </div>
             </Field>
-            <Field label="Orden">
-              <input type="number" value={form.orden} onChange={(e) => set('orden', e.target.value)} />
+            <Field label="Orden" hint="Solo números">
+              <input inputMode="numeric" value={form.orden} onChange={(e) => set('orden', digits(e.target.value, 4))} />
             </Field>
             <Field label="Descripción" full>
-              <input value={form.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
+              <input value={form.descripcion} onChange={(e) => set('descripcion', text(e.target.value, 200))} />
             </Field>
             <Field label="Estado">
               <select value={form.activo ? '1' : '0'} onChange={(e) => set('activo', e.target.value === '1')}>

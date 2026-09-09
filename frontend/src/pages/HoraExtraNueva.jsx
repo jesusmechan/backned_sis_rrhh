@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE, toTime } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Button, Field } from '../components/ui';
+import { Alert, Button, DatePicker, Field } from '../components/ui';
+import { decimal, text } from '../lib/input';
 
 const empty = { idEmpleado: '', fecha: '', horaInicio: '', horaFin: '', cantidadHoras: '', motivo: '' };
 
@@ -53,6 +54,10 @@ export function HoraExtraNueva() {
     const horas = Number(form.cantidadHoras);
     if (!horas || horas <= 0 || horas > 8) {
       setError('La cantidad de horas debe ser mayor a 0 y como máximo 8.');
+      return;
+    }
+    if (form.motivo.trim().length < 5) {
+      setError('El motivo debe tener al menos 5 caracteres.');
       return;
     }
     setSaving(true);
@@ -112,10 +117,10 @@ export function HoraExtraNueva() {
             </Field>
           )}
           <Field label="Fecha">
-            <input type="date" value={form.fecha} onChange={(e) => set('fecha', e.target.value)} required />
+            <DatePicker value={form.fecha} onChange={(v) => set('fecha', v)} required />
           </Field>
           <Field label="Cantidad de horas">
-            <input type="number" step="0.5" min="0.5" max="8" value={form.cantidadHoras} onChange={(e) => set('cantidadHoras', e.target.value)} required />
+            <input inputMode="decimal" value={form.cantidadHoras} onChange={(e) => set('cantidadHoras', decimal(e.target.value, 8))} required />
           </Field>
           <Field label="Desde">
             <input type="time" value={form.horaInicio} onChange={(e) => set('horaInicio', e.target.value)} required />
@@ -124,7 +129,7 @@ export function HoraExtraNueva() {
             <input type="time" value={form.horaFin} onChange={(e) => set('horaFin', e.target.value)} required />
           </Field>
           <Field label="Motivo" full>
-            <textarea value={form.motivo} onChange={(e) => set('motivo', e.target.value)} required minLength={5} placeholder="Mínimo 5 caracteres" />
+            <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={5} placeholder="Mínimo 5 caracteres" />
           </Field>
         </div>
         <p className="mt-4 text-xs text-muted">La hora de fin debe ser posterior a la de inicio. Máximo 8 horas por solicitud.</p>
