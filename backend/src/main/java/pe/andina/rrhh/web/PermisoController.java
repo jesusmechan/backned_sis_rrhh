@@ -37,11 +37,10 @@ public class PermisoController {
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) String q) {
-        return PageResponses.of(
-                PageResponses.search(
-                        PageResponses.withEstados(solicitudService.listarPermisos(), estado, PermisoResponse::estado),
-                        q, p -> PageResponses.text(p.empleado(), p.tipoPermiso(), p.motivo())),
-                page, size);
+        return PageResponses.query(solicitudService.listarPermisos())
+                .estados(estado, PermisoResponse::estado)
+                .search(q, p -> PageResponses.text(p.empleado(), p.tipoPermiso(), p.motivo()))
+                .pagina(page, size);
     }
 
     @GetMapping("/{id}")

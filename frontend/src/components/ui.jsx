@@ -1,5 +1,6 @@
 import { Children, isValidElement } from 'react';
-import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Search } from 'lucide-react';
 
 function findControl(children) {
   let found = null;
@@ -52,6 +53,19 @@ export function Button({ children, variant = 'primary', className = '', ...props
   );
 }
 
+export function BackLink({ to, children }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(to)}
+      className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-navy"
+    >
+      <ArrowLeft size={16} /> {children}
+    </button>
+  );
+}
+
 export function PageHeader({ kicker, title, subtitle, actions }) {
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -98,7 +112,19 @@ export function Badge({ value }) {
     INACTIVO: 'bg-red-50 text-danger',
     CESADO: 'bg-red-50 text-danger',
     OBLIGATORIO: 'bg-slate-100 text-navy',
-    OPCIONAL: 'bg-amber-50 text-warn'
+    OPCIONAL: 'bg-amber-50 text-warn',
+    BORRADOR: 'bg-slate-100 text-muted',
+    CALCULADA: 'bg-sky-50 text-sky-700',
+    CERRADA: 'bg-emerald-50 text-ok',
+    CONTABILIZADO: 'bg-emerald-50 text-ok',
+    ABIERTA: 'bg-emerald-50 text-ok',
+    POSTULADO: 'bg-slate-100 text-muted',
+    ENTREVISTA: 'bg-amber-50 text-warn',
+    SELECCIONADO: 'bg-sky-50 text-sky-700',
+    CONTRATADO: 'bg-emerald-50 text-ok',
+    DESCARTADO: 'bg-red-50 text-danger',
+    ANULADA: 'bg-red-50 text-danger',
+    ANULADO: 'bg-red-50 text-danger'
   }[value] || 'bg-slate-100 text-muted';
 
   return <span className={cn('inline-block rounded-md px-2 py-0.5 text-xs font-medium', tone)}>{value || '—'}</span>;
@@ -239,6 +265,7 @@ export function Pager({ page = 1, totalPages = 1, totalElements = 0, size = 10, 
 }
 
 export { DatePicker } from './DatePicker';
+export { TimePicker } from './TimePicker';
 
 export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);

@@ -300,6 +300,11 @@ EMPLEADO ──solicita──► SOLICITUD_PERMISO / SOLICITUD_HORA_EXTRA
 | `estado_paso_aprobacion` | PENDIENTE, EN_CURSO, APROBADO, RECHAZADO, OMITIDO, CANCELADO |
 | `formato_reporte` | EXCEL, PDF |
 | `estado_carga` | PROCESANDO, COMPLETADA, COMPLETADA_CON_ERRORES, FALLIDA |
+| `estado_planilla` | BORRADOR, CALCULADA, CERRADA, ANULADA |
+| `estado_asiento` | BORRADOR, CONTABILIZADO, ANULADO |
+| `estado_evaluacion` | BORRADOR, CERRADA |
+| `estado_convocatoria` | ABIERTA, CERRADA, CANCELADA |
+| `estado_postulacion` | POSTULADO, ENTREVISTA, SELECCIONADO, CONTRATADO, DESCARTADO |
 
 ## 5. Módulos (tablas)
 
@@ -308,8 +313,14 @@ EMPLEADO ──solicita──► SOLICITUD_PERMISO / SOLICITUD_HORA_EXTRA
 | Organización | `area`, `cargo`, `horario_laboral`, `empleado` |
 | Seguridad | `rol`, `permiso_funcional`, `rol_permiso`, `usuario`, `refresh_token` |
 | Menú | `menu_item`, `menu_rol` |
-| Catálogos | `tipo_permiso`, `parametro_sistema` |
+| Catálogos | `tipo_permiso`, `parametro_sistema`, `cuenta_contable` |
 | Flujos | `configuracion_aprobacion`, `configuracion_aprobacion_detalle` |
 | Trámites | `solicitud_permiso`, `solicitud_hora_extra`, `solicitud_paso_aprobacion`, `historial_solicitud` |
 | Asistencia | `marcacion` |
 | Operación | `carga_masiva`, `carga_masiva_detalle`, `reporte_generado`, `auditoria` |
+| Contratos | `contrato` (`remuneracion_basica`, modalidad, horario) |
+| Planillas | `planilla`, `planilla_detalle` |
+| Contabilidad | `asiento_contable`, `asiento_linea` |
+| Desempeño | `evaluacion_desempeno` |
+| Reclutamiento | `convocatoria`, `postulacion` |
+

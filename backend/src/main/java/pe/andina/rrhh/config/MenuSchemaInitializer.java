@@ -32,10 +32,41 @@ public class MenuSchemaInitializer implements ApplicationRunner {
                 EXCEPTION WHEN duplicate_object THEN NULL;
                 END $$;
                 """);
+        jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE estado_planilla AS ENUM ('BORRADOR', 'CALCULADA', 'CERRADA', 'ANULADA');
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+                """);
+        jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE estado_asiento AS ENUM ('BORRADOR', 'CONTABILIZADO', 'ANULADO');
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+                """);
+        jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE estado_evaluacion AS ENUM ('BORRADOR', 'CERRADA');
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+                """);
+        jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE estado_convocatoria AS ENUM ('ABIERTA', 'CERRADA', 'CANCELADA');
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+                """);
+        jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE estado_postulacion AS ENUM ('POSTULADO', 'ENTREVISTA', 'SELECCIONADO', 'CONTRATADO', 'DESCARTADO');
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+                """);
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.setContinueOnError(true);
         populator.addScript(new ClassPathResource("db/menu.sql"));
         populator.addScript(new ClassPathResource("db/contratos.sql"));
+        populator.addScript(new ClassPathResource("db/modulos_rrhh.sql"));
         populator.execute(jdbcTemplate.getDataSource());
     }
 }

@@ -46,13 +46,10 @@ public class AsistenciaController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String q) {
-        var data = asistenciaService.listar(idEmpleado, desde, hasta);
-        if (tipo != null && !tipo.isBlank()) {
-            data = data.stream().filter(m -> tipo.equalsIgnoreCase(m.tipo().name())).toList();
-        }
-        return PageResponses.of(
-                PageResponses.search(data, q, m -> PageResponses.text(m.empleado(), m.origen(), m.observacion())),
-                page, size);
+        return PageResponses.query(asistenciaService.listar(idEmpleado, desde, hasta))
+                .donde(tipo == null || tipo.isBlank() ? null : m -> tipo.equalsIgnoreCase(m.tipo().name()))
+                .search(q, m -> PageResponses.text(m.empleado(), m.origen(), m.observacion()))
+                .pagina(page, size);
     }
 
     @GetMapping("/{id}")

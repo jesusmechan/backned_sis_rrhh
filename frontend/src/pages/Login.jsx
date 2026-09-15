@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Button, Field } from '../components/ui';
 import { username } from '../lib/input';
@@ -9,6 +10,7 @@ export function Login() {
   const navigate = useNavigate();
   const [nombreUsuario, setNombreUsuario] = useState('juan.espinoza');
   const [password, setPassword] = useState('Andina2026');
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +40,24 @@ export function Login() {
             <input value={nombreUsuario} onChange={(e) => setNombreUsuario(username(e.target.value))} required autoComplete="username" />
           </Field>
           <Field label="Contraseña">
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+            <div className="relative">
+              <input
+                type={showPass ? 'text' : 'password'}
+                className="pr-11"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-navy"
+                onClick={() => setShowPass((v) => !v)}
+                aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </Field>
           <Button className="w-full" disabled={loading}>{loading ? 'Ingresando…' : 'Ingresar'}</Button>
         </div>

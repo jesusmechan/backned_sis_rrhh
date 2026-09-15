@@ -44,17 +44,24 @@ public class CatalogoService {
 
     @Transactional(readOnly = true)
     public List<IdNombre> areas() {
-        return areaRepository.findAll().stream().map(a -> new IdNombre(a.getIdArea(), a.getNombre())).toList();
+        return areaRepository.findAll().stream()
+                .filter(a -> Boolean.TRUE.equals(a.getActivo()))
+                .map(a -> new IdNombre(a.getIdArea(), a.getNombre()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<IdNombre> cargos() {
-        return cargoRepository.findAll().stream().map(c -> new IdNombre(c.getIdCargo(), c.getNombre())).toList();
+        return cargoRepository.findAll().stream()
+                .filter(c -> Boolean.TRUE.equals(c.getActivo()))
+                .map(c -> new IdNombre(c.getIdCargo(), c.getNombre()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<IdNombre> horarios() {
         return horarioRepository.findAll().stream()
+                .filter(h -> Boolean.TRUE.equals(h.getActivo()))
                 .map(h -> new IdNombre(h.getIdHorario(),
                         h.getNombre() + " · " + h.getHoraIngreso() + "–" + h.getHoraSalida()))
                 .toList();
@@ -63,7 +70,9 @@ public class CatalogoService {
     @Transactional(readOnly = true)
     public List<CatalogoItem> tiposPermiso() {
         return tipoPermisoRepository.findAll().stream()
-                .map(t -> new CatalogoItem(t.getIdTipoPermiso(), t.getCodigo(), t.getNombre())).toList();
+                .filter(t -> Boolean.TRUE.equals(t.getActivo()))
+                .map(t -> new CatalogoItem(t.getIdTipoPermiso(), t.getCodigo(), t.getNombre()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

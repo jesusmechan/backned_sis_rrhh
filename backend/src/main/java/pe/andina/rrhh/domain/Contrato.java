@@ -55,6 +55,9 @@ public class Contrato {
     @Column(nullable = false)
     private EstadoContrato estado = EstadoContrato.VIGENTE;
 
+    @Column(name = "remuneracion_basica", nullable = false, precision = 12, scale = 2)
+    private java.math.BigDecimal remuneracionBasica = java.math.BigDecimal.ZERO;
+
     @Column(length = 300)
     private String observaciones;
 
@@ -78,6 +81,8 @@ public class Contrato {
     public void setFechaInicio(LocalDate fechaInicio) { this.fechaInicio = fechaInicio; }
     public LocalDate getFechaFin() { return fechaFin; }
     public void setFechaFin(LocalDate fechaFin) { this.fechaFin = fechaFin; }
+    public java.math.BigDecimal getRemuneracionBasica() { return remuneracionBasica; }
+    public void setRemuneracionBasica(java.math.BigDecimal remuneracionBasica) { this.remuneracionBasica = remuneracionBasica; }
     public EstadoContrato getEstado() { return estado; }
     public void setEstado(EstadoContrato estado) { this.estado = estado; }
     public String getObservaciones() { return observaciones; }

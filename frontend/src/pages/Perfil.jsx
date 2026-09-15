@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { http } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Badge, Panel } from '../components/ui';
+import { Alert, Avatar, Badge, Button, Field, Panel } from '../components/ui';
 
 const SEXO = { M: 'Masculino', F: 'Femenino' };
 const CONTRATO = {
@@ -40,11 +42,17 @@ function Item({ label, value }) {
 }
 
 export function Perfil() {
-  const { usuario } = useAuth();
+  const { usuario, canAccess } = useAuth();
   const [cuenta, setCuenta] = useState(null);
   const [ficha, setFicha] = useState(null);
   const [vacaciones, setVacaciones] = useState(null);
   const [error, setError] = useState('');
+  const [ok, setOk] = useState('');
+  const [actual, setActual] = useState('');
+  const [nueva, setNueva] = useState('');
+  const [confirma, setConfirma] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -62,14 +70,42 @@ export function Perfil() {
     load().catch((e) => setError(e.message));
   }, []);
 
+  async function cambiarPassword(e) {
+    e.preventDefault();
+    setError('');
+    setOk('');
+    if (nueva.length < 6) {
+      setError('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (nueva !== confirma) {
+      setError('La confirmación no coincide con la nueva contraseña.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await http.put('/api/usuarios/me/password', { actual, nueva });
+      setOk('Contraseña actualizada.');
+      setActual('');
+      setNueva('');
+      setConfirma('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const nombre = ficha?.nombreCompleto || usuario?.nombreCompleto || usuario?.nombreUsuario;
+  const puedePermiso = canAccess('/permisos');
 
   return (
     <div className="mx-auto max-w-4xl">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Cuenta</p>
       <h1 className="page-title mt-1">Mi perfil</h1>
-      <p className="mt-2 mb-5 text-sm text-muted">Ficha de personal y datos de acceso de la sesión actual.</p>
+      <p className="mt-2 mb-5 text-sm text-muted">Ficha de personal, saldo de vacaciones y cambio de contraseña.</p>
       <Alert>{error}</Alert>
+      <Alert ok>{ok}</Alert>
 
       <Panel className="mb-4">
         <div className="flex flex-wrap items-center gap-4">
@@ -139,6 +175,13 @@ export function Perfil() {
                 <Item label="Acumula desde" value={formatDate(vacaciones.fechaInicioAcumulacion)} />
                 <Item label="Modalidad" value={vacaciones.modalidad === 'PRACTICANTE' ? 'Practicante' : 'Colaborador'} />
               </div>
+              {puedePermiso && Number(vacaciones.diasDisponibles) > 0 && (
+                <div className="mt-4">
+                  <Link to="/permisos/nuevo" state={{ vacaciones: true }}>
+                    <Button type="button">Solicitar vacaciones</Button>
+                  </Link>
+                </div>
+              )}
             </Panel>
           )}
         </>
@@ -148,7 +191,7 @@ export function Perfil() {
         </Panel>
       )}
 
-      <Panel title="Acceso al sistema">
+      <Panel title="Acceso al sistema" className="mb-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Item label="Usuario" value={cuenta?.nombreUsuario || usuario?.nombreUsuario} />
           <Item label="Correo de cuenta" value={cuenta?.correo || usuario?.correo} />
@@ -156,6 +199,54 @@ export function Perfil() {
           <Item label="Código de perfil" value={cuenta?.rol || usuario?.rol} />
           <Item label="Último acceso" value={formatDateTime(cuenta?.ultimoAcceso)} />
         </div>
+      </Panel>
+
+      <Panel title="Cambiar contraseña">
+        <form className="grid gap-4 sm:grid-cols-2" onSubmit={cambiarPassword}>
+          <Field label="Contraseña actual" full>
+            <div className="relative">
+              <input
+                type={showPass ? 'text' : 'password'}
+                className="pr-11"
+                value={actual}
+                onChange={(e) => setActual(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-navy"
+                onClick={() => setShowPass((v) => !v)}
+                aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </Field>
+          <Field label="Nueva contraseña">
+            <input
+              type={showPass ? 'text' : 'password'}
+              value={nueva}
+              onChange={(e) => setNueva(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+            />
+          </Field>
+          <Field label="Confirmar nueva">
+            <input
+              type={showPass ? 'text' : 'password'}
+              value={confirma}
+              onChange={(e) => setConfirma(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+            />
+          </Field>
+          <div className="flex items-end sm:col-span-2">
+            <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Actualizar contraseña'}</Button>
+          </div>
+        </form>
       </Panel>
     </div>
   );

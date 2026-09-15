@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Avatar, Badge, Button, Empty, FilterBar, Kpi, KpiRow, Pager, SearchField, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, Kpi, KpiRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
+import { useQuerySearch } from '../lib/useQuerySearch';
 import { TIPO, fmtDateTime } from './bandejaShared';
+import { text } from '../lib/input';
 
 export function Bandeja() {
   const navigate = useNavigate();
@@ -14,19 +16,17 @@ export function Bandeja() {
   const [meta, setMeta] = useState(emptyPage);
   const [page, setPage] = useState(1);
   const [counts, setCounts] = useState({ total: 0, permiso: 0, hora: 0, seguimiento: 0 });
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
+  const [q, setQ, qDebounced] = useQuerySearch();
   const [tipo, setTipo] = useState('');
   const [estadoSeguimiento, setEstadoSeguimiento] = useState('');
   const [checked, setChecked] = useState({});
   const [error, setError] = useState('');
   const [ok, setOk] = useState(location.state?.ok || '');
   const [saving, setSaving] = useState(false);
+  const [bulk, setBulk] = useState(null);
+  const [bulkComment, setBulkComment] = useState('');
 
-  useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
+  useEffect(() => { setPage(1); }, [qDebounced]);
 
   useEffect(() => {
     if (location.state?.ok) {
@@ -77,22 +77,33 @@ export function Bandeja() {
 
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
-  async function masiva() {
+  async function ejecutarMasiva() {
     const ids = Object.entries(checked).filter(([, v]) => v).map(([id]) => Number(id));
-    if (!ids.length) return;
-    if (!window.confirm(`¿Aprobar ${ids.length} paso(s)?`)) return;
+    if (!ids.length || !bulk) return;
+    const comentario = bulkComment.trim() || (bulk === 'aprobar' ? 'Aprobación masiva' : '');
+    if (bulk === 'rechazar' && comentario.length < 3) {
+      setError('Indique el motivo del rechazo (mínimo 3 caracteres).');
+      return;
+    }
     setError('');
     setOk('');
     setSaving(true);
+    let okCount = 0;
     try {
       for (const id of ids) {
-        await http.post(`/api/pasos/${id}/aprobar`, { comentario: 'Aprobación masiva' });
+        await http.post(`/api/pasos/${id}/${bulk}`, { comentario });
+        okCount += 1;
       }
-      setOk(`${ids.length} paso(s) aprobado(s)`);
+      setOk(bulk === 'aprobar'
+        ? `${okCount} paso(s) aprobado(s)`
+        : `${okCount} solicitud(es) rechazada(s)`);
       setChecked({});
+      setBulk(null);
+      setBulkComment('');
       await Promise.all([loadPendientes(), loadCounts()]);
     } catch (e) {
-      setError(e.message);
+      setError(okCount ? `${okCount} procesado(s). Luego falló: ${e.message}` : e.message);
+      await Promise.all([loadPendientes(), loadCounts()]);
     } finally {
       setSaving(false);
     }
@@ -159,9 +170,14 @@ export function Bandeja() {
           </select>
         )}
         {tab === 'pendientes' && (
-          <Button onClick={masiva} disabled={saving || !seleccionados}>
-            Aprobar seleccionadas{seleccionados ? ` (${seleccionados})` : ''}
-          </Button>
+          <>
+            <Button onClick={() => { setError(''); setBulk('aprobar'); setBulkComment('Aprobación masiva'); }} disabled={saving || !seleccionados}>
+              Aprobar seleccionadas{seleccionados ? ` (${seleccionados})` : ''}
+            </Button>
+            <Button variant="danger" onClick={() => { setError(''); setBulk('rechazar'); setBulkComment(''); }} disabled={saving || !seleccionados}>
+              Rechazar seleccionadas{seleccionados ? ` (${seleccionados})` : ''}
+            </Button>
+          </>
         )}
         <Button variant="secondary" onClick={exportar}><Download size={14} /> Exportar</Button>
       </FilterBar>
@@ -240,6 +256,31 @@ export function Bandeja() {
       <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </div>
+
+      {bulk && (
+        <Modal title={bulk === 'aprobar' ? 'Aprobar seleccionadas' : 'Rechazar seleccionadas'} onClose={() => !saving && setBulk(null)}>
+          <p className="text-sm text-slate-600">
+            {bulk === 'aprobar'
+              ? `Se aprobará el paso actual de ${seleccionados} solicitud(es).`
+              : `Se rechazarán ${seleccionados} solicitud(es) y el flujo se cierra.`}
+          </p>
+          <div className="mt-4">
+            <Field label="Comentario" required={bulk === 'rechazar'}>
+              <textarea
+                value={bulkComment}
+                onChange={(e) => setBulkComment(text(e.target.value, 400))}
+                placeholder={bulk === 'rechazar' ? 'Obligatorio, mínimo 3 caracteres' : 'Opcional'}
+              />
+            </Field>
+          </div>
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => setBulk(null)}>Cancelar</Button>
+            <Button type="button" variant={bulk === 'rechazar' ? 'danger' : 'primary'} disabled={saving} onClick={ejecutarMasiva}>
+              {saving ? 'Procesando…' : bulk === 'aprobar' ? 'Aprobar' : 'Rechazar'}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -5,7 +5,6 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.common.ApiException;
 import pe.andina.rrhh.domain.Empleado;
 import pe.andina.rrhh.domain.Marcacion;
-import pe.andina.rrhh.domain.enums.TipoMarcacion;
 import pe.andina.rrhh.dto.AppDtos.MarcacionRequest;
 import pe.andina.rrhh.dto.AppDtos.MarcacionResponse;
 import pe.andina.rrhh.repo.MarcacionRepository;
@@ -24,31 +23,26 @@ public class AsistenciaService {
     private static final ZoneId LIMA = ZoneId.of("America/Lima");
     private final MarcacionRepository marcacionRepository;
     private final EmpleadoService empleadoService;
+    private final EmpleadoScope empleadoScope;
     private final AuditoriaService auditoriaService;
 
     public AsistenciaService(MarcacionRepository marcacionRepository,
                              EmpleadoService empleadoService,
+                             EmpleadoScope empleadoScope,
                              AuditoriaService auditoriaService) {
         this.marcacionRepository = marcacionRepository;
         this.empleadoService = empleadoService;
+        this.empleadoScope = empleadoScope;
         this.auditoriaService = auditoriaService;
     }
 
     @Transactional
     public MarcacionResponse marcar(MarcacionRequest request) {
         UsuarioPrincipal me = SecurityUtils.current();
-        Empleado empleado;
         String origen = request.origen() != null ? request.origen() : "WEB";
-        if (SecurityUtils.isAdminOrRrhh() && request.idEmpleado() != null) {
-            empleado = empleadoService.buscar(request.idEmpleado());
-            if (request.origen() == null) {
-                origen = "MANUAL";
-            }
-        } else {
-            if (me.getIdEmpleado() == null) {
-                throw ApiException.badRequest("El usuario no está asociado a un trabajador");
-            }
-            empleado = empleadoService.buscar(me.getIdEmpleado());
+        Empleado empleado = empleadoScope.resolverSolicitante(request.idEmpleado());
+        if (SecurityUtils.isAdminOrRrhh() && request.idEmpleado() != null && request.origen() == null) {
+            origen = "MANUAL";
         }
         OffsetDateTime fechaHora = request.fechaHora() != null ? request.fechaHora() : OffsetDateTime.now();
         LocalDate fecha = fechaHora.atZoneSameInstant(LIMA).toLocalDate();
@@ -117,10 +111,7 @@ public class AsistenciaService {
     @Transactional(readOnly = true)
     public MarcacionResponse obtener(Integer id) {
         Marcacion m = marcacionRepository.findById(id).orElseThrow(() -> ApiException.notFound("Marcación no encontrada"));
-        if (!SecurityUtils.isAdminOrRrhh()
-                && !m.getEmpleado().getIdEmpleado().equals(SecurityUtils.current().getIdEmpleado())) {
-            throw ApiException.forbidden("No puede consultar la asistencia de otro trabajador");
-        }
+        empleadoScope.assertMismaPersona(m.getEmpleado().getIdEmpleado());
         return DtoMapper.marcacion(m);
     }
 

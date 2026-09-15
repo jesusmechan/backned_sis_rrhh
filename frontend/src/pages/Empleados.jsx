@@ -4,6 +4,7 @@ import { Download, Plus, Upload } from 'lucide-react';
 import { api, emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Avatar, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
 import { correoAndina, hoyISO, siguienteCodigo } from './altaShared';
+import { useQuerySearch } from '../lib/useQuerySearch';
 import { address, documentNumber, email, isEmail, isEmployeeCode, isLetters, letters, phone } from '../lib/input';
 
 const CONTRATO = {
@@ -41,14 +42,10 @@ export function Empleados() {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('');
   const [idArea, setIdArea] = useState('');
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
+  const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, activos: 0, inactivos: 0, cesados: 0 });
 
-  useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
+  useEffect(() => { setPage(1); }, [qDebounced]);
 
   useEffect(() => {
     Promise.all([

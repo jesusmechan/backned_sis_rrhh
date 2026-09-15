@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.common.ApiException;
 import pe.andina.rrhh.domain.Usuario;
+import pe.andina.rrhh.dto.AppDtos.CambioPasswordRequest;
 import pe.andina.rrhh.dto.AppDtos.UsuarioRequest;
 import pe.andina.rrhh.dto.AppDtos.UsuarioResponse;
 import pe.andina.rrhh.repo.EmpleadoRepository;
@@ -73,6 +74,20 @@ public class UsuarioService {
         Usuario u = buscar(id);
         aplicar(u, request, false);
         auditoriaService.registrar(SecurityUtils.current().getUsuario(), "ACTUALIZAR", "USUARIO", id, u.getNombreUsuario());
+        return DtoMapper.usuario(u);
+    }
+
+    @Transactional
+    public UsuarioResponse cambiarPassword(CambioPasswordRequest request) {
+        Usuario u = buscar(SecurityUtils.current().getIdUsuario());
+        if (!passwordEncoder.matches(request.actual(), u.getPasswordHash())) {
+            throw ApiException.badRequest("La contraseña actual no es correcta");
+        }
+        if (request.nueva().equals(request.actual())) {
+            throw ApiException.badRequest("La nueva contraseña debe ser distinta a la actual");
+        }
+        u.setPasswordHash(passwordEncoder.encode(request.nueva()));
+        auditoriaService.registrar(u, "CAMBIAR_PASSWORD", "USUARIO", u.getIdUsuario(), null);
         return DtoMapper.usuario(u);
     }
 

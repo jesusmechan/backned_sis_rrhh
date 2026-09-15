@@ -1,22 +1,8 @@
+import { fmtDate, fmtTime } from '../lib/format';
+
+export { fmtDate, fmtDateTime, fmtTime, hhmm } from '../lib/format';
+
 export const TIPO = { PERMISO: 'Permiso', HORA_EXTRA: 'Horas extras' };
-
-export function fmtDate(value) {
-  if (!value) return '—';
-  const d = String(value).length <= 10 ? new Date(`${value}T00:00:00`) : new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-export function fmtDateTime(value) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
-export function fmtTime(value) {
-  return value ? String(value).slice(0, 5) : '—';
-}
 
 export function solicitudPath(tipoSolicitud, id) {
   return tipoSolicitud === 'HORA_EXTRA' ? `/api/horas-extras/${id}` : `/api/permisos/${id}`;

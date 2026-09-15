@@ -121,7 +121,18 @@ export function Inicio() {
 
     setLoading(true);
     load();
-    return () => { cancelled = true; };
+    function onVis() {
+      if (document.visibilityState === 'visible') load(false);
+    }
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    const poll = setInterval(() => load(false), 60000);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onVis);
+      clearInterval(poll);
+    };
   }, [usuario?.idEmpleado, canInbox, canPermisos, canHextras, canAsistencia, canPersonal, canUsuarios]);
 
   const ingreso = hoy.find((m) => m.tipo === 'INGRESO');

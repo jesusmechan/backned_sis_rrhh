@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, Download, Timer } from 'lucide-react';
 import { emptyPage, http, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Button, Empty, FilterBar, Pager, Panel, SearchField, StackTable, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Button, DatePicker, Empty, Field, FilterBar, Modal, Pager, Panel, SearchField, StackTable, TimePicker, downloadBlob } from '../components/ui';
+import { useQuerySearch } from '../lib/useQuerySearch';
 
 function sameMonth(iso, d = new Date()) {
   const x = new Date(iso);
@@ -39,6 +40,16 @@ function formatStamp(iso) {
   return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+function limaDate(iso) {
+  if (!iso) return '';
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+}
+
+function limaTime(iso) {
+  if (!iso) return '';
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+}
+
 export function Asistencia() {
   const { usuario, hasAnyRole } = useAuth();
   const canSupervise = hasAnyRole('ADMIN', 'RRHH');
@@ -51,9 +62,14 @@ export function Asistencia() {
   const [error, setError] = useState('');
   const [tab, setTab] = useState('mias');
   const [tipoFiltro, setTipoFiltro] = useState('');
-  const [q, setQ] = useState('');
+  const [q, setQ, qDebounced] = useQuerySearch();
   const [page, setPage] = useState(1);
+  const [edit, setEdit] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [ok, setOk] = useState('');
   const pageSize = 7;
+
+  useEffect(() => { setPage(1); }, [qDebounced]);
 
   function monthRange() {
     const d = new Date();
@@ -91,7 +107,7 @@ export function Asistencia() {
       page,
       size: pageSize,
       tipo: tipoFiltro,
-      q,
+      q: qDebounced,
       idEmpleado: tab === 'mias' ? usuario?.idEmpleado : undefined
     }));
     setRows(data.content);
@@ -99,7 +115,7 @@ export function Asistencia() {
   }
 
   useEffect(() => { loadMetrics().catch((e) => setError(e.message)); }, []);
-  useEffect(() => { loadTable().catch((e) => setError(e.message)); }, [page, tab, tipoFiltro, q]);
+  useEffect(() => { loadTable().catch((e) => setError(e.message)); }, [page, tab, tipoFiltro, qDebounced]);
 
   const monthMine = mineRows.filter((r) => sameMonth(r.fechaHora));
   const dias = new Set(monthMine.filter((r) => r.tipo === 'INGRESO').map((r) => new Date(r.fechaHora).toDateString())).size;
@@ -118,6 +134,43 @@ export function Asistencia() {
       downloadBlob(blob, 'asistencia.xlsx');
     } catch (e) {
       setError(e.message);
+    }
+  }
+
+  function abrirCorreccion(r) {
+    setError('');
+    setOk('');
+    setEdit({
+      idMarcacion: r.idMarcacion,
+      empleado: r.empleado,
+      tipo: r.tipo,
+      fecha: limaDate(r.fechaHora),
+      hora: limaTime(r.fechaHora),
+      observacion: r.observacion || ''
+    });
+  }
+
+  async function guardarCorreccion(e) {
+    e.preventDefault();
+    if (!edit?.fecha || !edit?.hora) {
+      setError('Indique fecha y hora de la marcación.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await http.put(`/api/asistencias/${edit.idMarcacion}`, {
+        tipo: edit.tipo,
+        fechaHora: `${edit.fecha}T${edit.hora}:00-05:00`,
+        observacion: edit.observacion.trim() || 'Corrección de marcación'
+      });
+      setOk('Marcación corregida.');
+      setEdit(null);
+      await Promise.all([loadMetrics(), loadTable()]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -146,6 +199,7 @@ export function Asistencia() {
       </div>
 
       <Alert>{error}</Alert>
+      <Alert ok>{ok}</Alert>
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric icon={<CalendarDays size={16} />} label="Días asistidos" value={`${dias} / ${habiles}`} hint="días hábiles del mes" pct={habiles ? (dias / habiles) * 100 : 0} />
@@ -178,14 +232,17 @@ export function Asistencia() {
             cards={rows.map((r) => (
               <div key={r.idMarcacion} className="flex gap-3 px-4 py-3">
                 <Avatar name={r.empleado} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="font-medium text-navy">{r.empleado}</p>
                   <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
                       {r.tipo}
                     </span>
                     <span className="text-xs text-muted">{r.origen || 'WEB'} · {r.observacion || 'Jornada ordinaria'}</span>
+                    {canSupervise && (
+                      <Button variant="secondary" className="ml-auto px-3 py-1.5 text-xs" onClick={() => abrirCorreccion(r)}>Corregir</Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -200,6 +257,7 @@ export function Asistencia() {
                     <th>Origen</th>
                     <th>Estado</th>
                     <th>Observación</th>
+                    {canSupervise && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -233,6 +291,11 @@ export function Asistencia() {
                         </span>
                       </td>
                       <td className="text-sm text-muted">{r.observacion || 'Jornada ordinaria'}</td>
+                      {canSupervise && (
+                        <td>
+                          <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrirCorreccion(r)}>Corregir</Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -242,6 +305,31 @@ export function Asistencia() {
         )}
         <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
       </Panel>
+
+      {edit && (
+        <Modal title="Corregir marcación" onClose={() => !saving && setEdit(null)}>
+          <p className="mb-4 text-sm text-slate-600">{edit.empleado} · {edit.tipo}</p>
+          <form className="grid gap-4 sm:grid-cols-2" onSubmit={guardarCorreccion}>
+            <Field label="Fecha">
+              <DatePicker value={edit.fecha} onChange={(v) => setEdit((f) => ({ ...f, fecha: v }))} required />
+            </Field>
+            <Field label="Hora">
+              <TimePicker value={edit.hora} onChange={(v) => setEdit((f) => ({ ...f, hora: v }))} required />
+            </Field>
+            <Field label="Observación" full>
+              <input
+                value={edit.observacion}
+                onChange={(e) => setEdit((f) => ({ ...f, observacion: e.target.value.slice(0, 200) }))}
+                placeholder="Motivo de la corrección"
+              />
+            </Field>
+            <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">
+              <Button type="button" variant="secondary" disabled={saving} onClick={() => setEdit(null)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Guardar corrección'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

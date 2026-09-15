@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { http, pagePath, SELECT_SIZE, toTime } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Button, DatePicker, Field } from '../components/ui';
+import { Alert, BackLink, Button, DatePicker, Field, TimePicker } from '../components/ui';
+import { useDuplicarPrefill } from '../lib/useDuplicarPrefill';
 import { text } from '../lib/input';
 
 const empty = {
@@ -12,14 +12,16 @@ const empty = {
 
 export function PermisoNuevo() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { usuario, hasAnyRole } = useAuth();
   const puedeElegirEmpleado = hasAnyRole('ADMIN', 'RRHH');
-  const [form, setForm] = useState(empty);
+  const [form, setForm] = useDuplicarPrefill(empty);
   const [empleados, setEmpleados] = useState([]);
   const [tipos, setTipos] = useState([]);
   const [saldo, setSaldo] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const prefillVacaciones = Boolean(location.state?.vacaciones);
 
   useEffect(() => {
     Promise.all([
@@ -31,6 +33,10 @@ export function PermisoNuevo() {
       .then(([t, emp]) => {
         setTipos(t);
         setEmpleados(emp.content || []);
+        if (prefillVacaciones) {
+          const vac = (t || []).find((x) => x.codigo === 'VACACIONES');
+          if (vac) setForm((f) => ({ ...f, idTipoPermiso: String(vac.id) }));
+        }
       })
       .catch((e) => setError(e.message));
   }, [puedeElegirEmpleado]);
@@ -90,13 +96,7 @@ export function PermisoNuevo() {
 
   return (
     <form onSubmit={crear}>
-      <button
-        type="button"
-        onClick={() => navigate('/permisos')}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-navy"
-      >
-        <ArrowLeft size={16} /> Permisos
-      </button>
+      <BackLink to="/permisos">Permisos</BackLink>
 
       <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -151,10 +151,10 @@ export function PermisoNuevo() {
             <DatePicker value={form.fechaFin} onChange={(v) => set('fechaFin', v)} required min={form.fechaInicio || undefined} />
           </Field>
           <Field label="Hora inicio">
-            <input type="time" value={form.horaInicio} onChange={(e) => set('horaInicio', e.target.value)} />
+            <TimePicker value={form.horaInicio} onChange={(v) => set('horaInicio', v)} />
           </Field>
           <Field label="Hora fin">
-            <input type="time" value={form.horaFin} onChange={(e) => set('horaFin', e.target.value)} />
+            <TimePicker value={form.horaFin} onChange={(v) => set('horaFin', v)} />
           </Field>
           <Field label="Motivo" full>
             <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={5} placeholder="Mínimo 5 caracteres" />

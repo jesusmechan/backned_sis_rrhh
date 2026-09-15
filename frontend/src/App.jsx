@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from './auth/AuthContext';
 import { AppShell } from './layout/AppShell';
 import { Login } from './pages/Login';
@@ -23,6 +24,20 @@ import { AccesoRestringido } from './pages/AccesoRestringido';
 import { Perfil } from './pages/Perfil';
 import { Menus } from './pages/Menus';
 import { Contratos } from './pages/Contratos';
+import { Planillas } from './pages/Planillas';
+import { PlanillaDetalle } from './pages/PlanillaDetalle';
+import { Contabilidad } from './pages/Contabilidad';
+import { Desempeno } from './pages/Desempeno';
+import { Reclutamiento } from './pages/Reclutamiento';
+import { Maestros } from './pages/Maestros';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function Private({ children, path }) {
   const { isAuth, canAccess, hasAnyRole } = useAuth();
@@ -35,7 +50,9 @@ function Private({ children, path }) {
 export default function App() {
   const { isAuth } = useAuth();
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route path="/login" element={isAuth ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<Private><AppShell /></Private>}>
         <Route index element={<Inicio />} />
@@ -53,6 +70,12 @@ export default function App() {
         <Route path="asistencia" element={<Private path="/asistencia"><Asistencia /></Private>} />
         <Route path="empleados" element={<Private path="/empleados"><Empleados /></Private>} />
         <Route path="contratos" element={<Private path="/contratos"><Contratos /></Private>} />
+        <Route path="maestros" element={<Private path="/maestros"><Maestros /></Private>} />
+        <Route path="planillas" element={<Private path="/planillas"><Planillas /></Private>} />
+        <Route path="planillas/:id" element={<Private path="/planillas"><PlanillaDetalle /></Private>} />
+        <Route path="contabilidad" element={<Private path="/contabilidad"><Contabilidad /></Private>} />
+        <Route path="desempeno" element={<Private path="/desempeno"><Desempeno /></Private>} />
+        <Route path="reclutamiento" element={<Private path="/reclutamiento"><Reclutamiento /></Private>} />
         <Route path="usuarios" element={<Private path="/usuarios"><Usuarios /></Private>} />
         <Route path="menu" element={<Private path="/menu"><Menus /></Private>} />
         <Route path="flujos" element={<Private path="/flujos"><Flujos /></Private>} />
@@ -63,5 +86,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }

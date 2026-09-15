@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public final class PageResponses {
@@ -74,5 +75,63 @@ public final class PageResponses {
                     return value != null && wanted.contains(value.name());
                 })
                 .toList();
+    }
+
+    public static <T> List<T> withEstadosTexto(List<T> items, String estado, Function<T, String> estadoOf) {
+        if (estado == null || estado.isBlank()) {
+            return items;
+        }
+        Set<String> wanted = Arrays.stream(estado.split(","))
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .map(part -> part.toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        if (wanted.isEmpty()) {
+            return items;
+        }
+        return items.stream()
+                .filter(item -> {
+                    String value = estadoOf.apply(item);
+                    return value != null && wanted.contains(value.toUpperCase(Locale.ROOT));
+                })
+                .toList();
+    }
+
+    public static <T> Query<T> query(List<T> items) {
+        return new Query<>(items);
+    }
+
+    public static final class Query<T> {
+        private List<T> items;
+
+        private Query(List<T> items) {
+            this.items = items == null ? List.of() : items;
+        }
+
+        public Query<T> search(String q, Function<T, String> haystack) {
+            items = PageResponses.search(items, q, haystack);
+            return this;
+        }
+
+        public Query<T> estados(String estado, Function<T, Enum<?>> estadoOf) {
+            items = PageResponses.withEstados(items, estado, estadoOf);
+            return this;
+        }
+
+        public Query<T> estadosTexto(String estado, Function<T, String> estadoOf) {
+            items = PageResponses.withEstadosTexto(items, estado, estadoOf);
+            return this;
+        }
+
+        public Query<T> donde(Predicate<T> filtro) {
+            if (filtro != null) {
+                items = items.stream().filter(filtro).toList();
+            }
+            return this;
+        }
+
+        public PageResponse<T> pagina(Integer page, Integer size) {
+            return PageResponses.of(items, page, size);
+        }
     }
 }

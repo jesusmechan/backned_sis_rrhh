@@ -1,59 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
 import { Alert, Avatar, Badge, Button, Empty, FilterBar, Kpi, KpiRow, Pager, SearchField } from '../components/ui';
-import { fmtDate, fmtTime } from './bandejaShared';
+import { useSolicitudList } from '../lib/useSolicitudList';
+import { fmtDate, fmtTime } from '../lib/format';
 
 export function Permisos() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
-  const [counts, setCounts] = useState({ total: 0, pendientes: 0, aprobados: 0, rechazados: 0 });
-  const [tab, setTab] = useState('todas');
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
-  const [error, setError] = useState('');
-  const [ok, setOk] = useState(location.state?.ok || '');
-
-  useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
-
-  useEffect(() => {
-    if (location.state?.ok) navigate(location.pathname, { replace: true, state: {} });
-  }, []);
-
-  async function loadCounts() {
-    const [all, pend, apr, rec] = await Promise.all([
-      http.page(pagePath('/api/permisos', { page: 1, size: 1 })),
-      http.page(pagePath('/api/permisos', { page: 1, size: 1, estado: 'PENDIENTE' })),
-      http.page(pagePath('/api/permisos', { page: 1, size: 1, estado: 'APROBADO' })),
-      http.page(pagePath('/api/permisos', { page: 1, size: 1, estado: 'RECHAZADO' }))
-    ]);
-    setCounts({
-      total: all.totalElements || 0,
-      pendientes: pend.totalElements || 0,
-      aprobados: apr.totalElements || 0,
-      rechazados: rec.totalElements || 0
-    });
-  }
-
-  async function load() {
-    const estado = tab === 'todas' ? '' : tab;
-    const data = await http.page(pagePath('/api/permisos', { page, size: PAGE_SIZE, estado, q: qDebounced }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, tab, qDebounced]);
-
-  useEffect(() => { loadCounts().catch(() => {}); }, []);
+  const { rows, meta, setPage, tab, setTab, counts, q, setQ, error, ok } = useSolicitudList('/api/permisos');
 
   return (
     <div>

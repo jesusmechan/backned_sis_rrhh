@@ -29,10 +29,9 @@ public class AuditoriaController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String q) {
-        return PageResponses.of(
-                PageResponses.search(consultaService.auditoria(), q, a ->
-                        PageResponses.text(a.usuario(), a.accion(), a.entidad(), a.detalle())),
-                page, size);
+        return PageResponses.query(consultaService.auditoria())
+                .search(q, a -> PageResponses.text(a.usuario(), a.accion(), a.entidad(), a.detalle()))
+                .pagina(page, size);
     }
 
     @GetMapping("/trazabilidad")
@@ -40,9 +39,8 @@ public class AuditoriaController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String q) {
-        return PageResponses.of(
-                PageResponses.search(consultaService.trazabilidad(), q, h ->
-                        PageResponses.text(h.accion(), h.usuario(), h.comentario(), h.estadoAnterior(), h.estadoNuevo())),
-                page, size);
+        return PageResponses.query(consultaService.trazabilidad())
+                .search(q, h -> PageResponses.text(h.accion(), h.usuario(), h.comentario(), h.estadoAnterior(), h.estadoNuevo()))
+                .pagina(page, size);
     }
 }

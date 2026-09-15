@@ -34,13 +34,14 @@ public class FlujoController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String q,
-            @RequestParam(required = false) String tipoOrigen) {
-        var data = PageResponses.search(flujoService.listar(), q, f ->
-                PageResponses.text(f.codigo(), f.nombre(), f.tipoOrigen(), f.tipoPermiso()));
-        if (tipoOrigen != null && !tipoOrigen.isBlank()) {
-            data = data.stream().filter(f -> tipoOrigen.equalsIgnoreCase(String.valueOf(f.tipoOrigen()))).toList();
-        }
-        return PageResponses.of(data, page, size);
+            @RequestParam(required = false) String tipoOrigen,
+            @RequestParam(required = false) Boolean activo) {
+        return PageResponses.query(flujoService.listar())
+                .search(q, f -> PageResponses.text(f.codigo(), f.nombre(), f.tipoOrigen(), f.tipoPermiso(), f.descripcion()))
+                .donde(tipoOrigen == null || tipoOrigen.isBlank() ? null
+                        : f -> tipoOrigen.equalsIgnoreCase(String.valueOf(f.tipoOrigen())))
+                .donde(activo == null ? null : f -> activo.equals(f.activo()))
+                .pagina(page, size);
     }
 
     @GetMapping("/{id}")

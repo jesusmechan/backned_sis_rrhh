@@ -37,11 +37,10 @@ public class HoraExtraController {
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) String q) {
-        return PageResponses.of(
-                PageResponses.search(
-                        PageResponses.withEstados(solicitudService.listarHorasExtras(), estado, HoraExtraResponse::estado),
-                        q, h -> PageResponses.text(h.empleado(), h.motivo())),
-                page, size);
+        return PageResponses.query(solicitudService.listarHorasExtras())
+                .estados(estado, HoraExtraResponse::estado)
+                .search(q, h -> PageResponses.text(h.empleado(), h.motivo()))
+                .pagina(page, size);
     }
 
     @GetMapping("/{id}")

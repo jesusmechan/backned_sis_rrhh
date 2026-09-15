@@ -5,6 +5,7 @@ import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
 import { correoAndina, slugCuenta } from './altaShared';
+import { useQuerySearch } from '../lib/useQuerySearch';
 import { email, isEmail, isUsername, username } from '../lib/input';
 
 const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: 'Andina2026', activo: true };
@@ -40,14 +41,10 @@ export function Usuarios() {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('');
   const [rol, setRol] = useState('');
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
+  const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, activos: 0, inactivos: 0 });
 
-  useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
+  useEffect(() => { setPage(1); }, [qDebounced]);
 
   useEffect(() => {
     Promise.all([

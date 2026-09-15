@@ -47,22 +47,11 @@ public class EmpleadoController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) Integer idArea) {
-        var data = PageResponses.search(empleadoService.listar(), q, e ->
-                PageResponses.text(e.codigoEmpleado(), e.nombreCompleto(), e.area(), e.cargo(), e.estado(), e.numeroDocumento()));
-        if (estado != null && !estado.isBlank()) {
-            var estados = java.util.Arrays.stream(estado.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isBlank())
-                    .map(String::toUpperCase)
-                    .collect(java.util.stream.Collectors.toSet());
-            data = data.stream()
-                    .filter(e -> e.estado() != null && estados.contains(e.estado().name()))
-                    .toList();
-        }
-        if (idArea != null) {
-            data = data.stream().filter(e -> idArea.equals(e.idArea())).toList();
-        }
-        return PageResponses.of(data, page, size);
+        return PageResponses.query(empleadoService.listar())
+                .search(q, e -> PageResponses.text(e.codigoEmpleado(), e.nombreCompleto(), e.area(), e.cargo(), e.estado(), e.numeroDocumento()))
+                .estados(estado, EmpleadoResponse::estado)
+                .donde(idArea == null ? null : e -> idArea.equals(e.idArea()))
+                .pagina(page, size);
     }
 
     @GetMapping("/{id}")

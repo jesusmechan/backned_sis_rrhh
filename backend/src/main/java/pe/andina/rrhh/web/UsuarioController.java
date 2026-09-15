@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pe.andina.rrhh.common.PageResponses;
+import pe.andina.rrhh.dto.AppDtos.CambioPasswordRequest;
 import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.dto.AppDtos.UsuarioRequest;
 import pe.andina.rrhh.dto.AppDtos.UsuarioResponse;
@@ -36,6 +37,12 @@ public class UsuarioController {
         return usuarioService.yo();
     }
 
+    @PutMapping("/me/password")
+    @Operation(summary = "Cambiar la contraseña de la sesión actual")
+    public UsuarioResponse cambiarPassword(@Valid @RequestBody CambioPasswordRequest request) {
+        return usuarioService.cambiarPassword(request);
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
     @Operation(summary = "Listar usuarios paginado")
@@ -45,17 +52,12 @@ public class UsuarioController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean activo,
             @RequestParam(required = false) String rol) {
-        var data = PageResponses.search(usuarioService.listar(), q, u ->
-                PageResponses.text(u.nombreUsuario(), u.nombreCompleto(), u.rol(), u.perfil(), u.correo()));
-        if (activo != null) {
-            data = data.stream().filter(u -> activo.equals(u.activo())).toList();
-        }
-        if (rol != null && !rol.isBlank()) {
-            data = data.stream()
-                    .filter(u -> rol.equalsIgnoreCase(u.rol()) || rol.equalsIgnoreCase(u.perfil()))
-                    .toList();
-        }
-        return PageResponses.of(data, page, size);
+        return PageResponses.query(usuarioService.listar())
+                .search(q, u -> PageResponses.text(u.nombreUsuario(), u.nombreCompleto(), u.rol(), u.perfil(), u.correo()))
+                .donde(activo == null ? null : u -> activo.equals(u.activo()))
+                .donde(rol == null || rol.isBlank() ? null : u ->
+                        rol.equalsIgnoreCase(u.rol()) || rol.equalsIgnoreCase(u.perfil()))
+                .pagina(page, size);
     }
 
     @GetMapping("/{id}")

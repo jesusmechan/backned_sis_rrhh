@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { http, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, Field } from '../components/ui';
+import { http } from '../api/client';
+import { Alert, Avatar, BackLink, Badge, Button, Field } from '../components/ui';
+import { SolicitudHistorial } from '../components/solicitud/SolicitudHistorial';
 import { ORIGEN, PasosInstancia } from './flujoShared';
-import { TIPO, factsOf, fmtDateTime, solicitudPath } from './bandejaShared';
+import { TIPO, factsOf, solicitudPath } from './bandejaShared';
 import { text } from '../lib/input';
 
 export function BandejaDecision() {
@@ -32,11 +32,7 @@ export function BandejaDecision() {
         let bandejaItem = null;
 
         if (deciding) {
-          const b = await http.page(pagePath('/api/bandeja', { page: 1, size: SELECT_SIZE }));
-          bandejaItem = (b.content || []).find((r) => String(r.idPasoSolicitud) === String(idPaso));
-          if (!bandejaItem) {
-            throw new Error('Este paso ya no está en su bandeja o no le corresponde.');
-          }
+          bandejaItem = await http.get(`/api/pasos/${idPaso}`);
           tipoSolicitud = bandejaItem.tipoSolicitud;
           idSolicitud = bandejaItem.idSolicitud;
         } else {
@@ -105,13 +101,7 @@ export function BandejaDecision() {
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => navigate('/bandeja')}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-navy"
-      >
-        <ArrowLeft size={16} /> Bandeja
-      </button>
+      <BackLink to="/bandeja">Bandeja</BackLink>
 
       <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -188,26 +178,7 @@ export function BandejaDecision() {
               <p className="mb-3 text-sm font-semibold text-navy">Circuito</p>
               <PasosInstancia pasos={detalle.pasos || []} />
             </section>
-            <section className="rounded-xl border border-line bg-white p-5">
-              <p className="mb-3 text-sm font-semibold text-navy">Historial</p>
-              {historial.length === 0 ? (
-                <p className="text-sm text-muted">Sin movimientos.</p>
-              ) : (
-                <ul className="space-y-3">
-                  {historial.map((h) => (
-                    <li key={h.idHistorial} className="text-sm text-slate-600">
-                      <p>
-                        <span className="font-medium text-navy">{h.accion}</span>
-                        {h.estadoNuevo ? ` → ${h.estadoNuevo}` : ''}
-                        {h.usuario ? ` · ${h.usuario}` : ''}
-                      </p>
-                      <p className="text-xs text-muted">{fmtDateTime(h.fechaHora)}</p>
-                      {h.comentario && <p className="mt-0.5 text-xs">{h.comentario}</p>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <SolicitudHistorial historial={historial} />
           </div>
         </div>
       )}

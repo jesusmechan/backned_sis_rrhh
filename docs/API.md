@@ -38,6 +38,11 @@ Query comunes: `page`, `size`, `q` (búsqueda de texto).
 | GET | `/api/flujos` | `q` |
 | GET | `/api/auditoria` | `q` |
 | GET | `/api/trazabilidad` | `q` |
+| GET | `/api/planillas` | `estado`, `q` |
+| GET | `/api/asientos` | `estado`, `q` |
+| GET | `/api/evaluaciones` | `q` |
+| GET | `/api/convocatorias` | `estado`, `q` |
+| GET | `/api/maestros/areas` | `q`, `activo` |
 
 No se paginan catálogos, detalle por id, historial de una solicitud, ni reportes Excel/PDF/JSON.
 
@@ -126,6 +131,41 @@ Auth: cualquier usuario autenticado.
 | GET | `/api/catalogos/roles` |
 | GET | `/api/catalogos/permisos-funcionales` |
 | GET | `/api/catalogos/parametros` |
+
+## Maestros
+
+Auth: **ADMIN** o **RRHH**. Alta y edición de catálogos. No hay borrado físico: se desactiva el registro para no romper las fichas que ya lo usan. `VACACIONES` no puede desactivarse ni cambiar de código.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET/POST | `/api/maestros/areas` | Áreas |
+| PUT | `/api/maestros/areas/{id}` | Actualizar área |
+| GET/POST | `/api/maestros/cargos` | Cargos |
+| PUT | `/api/maestros/cargos/{id}` | Actualizar cargo |
+| GET/POST | `/api/maestros/horarios` | Horarios laborales |
+| PUT | `/api/maestros/horarios/{id}` | Actualizar horario |
+| GET/POST | `/api/maestros/tipos-permiso` | Tipos de permiso |
+| PUT | `/api/maestros/tipos-permiso/{id}` | Actualizar tipo |
+| GET/POST | `/api/maestros/parametros` | Parámetros (`tasa_onp`, topes de HE, etc.) |
+| PUT | `/api/maestros/parametros/{clave}` | Cambiar valor |
+| GET/POST | `/api/maestros/cuentas` | Plan de cuentas usado al cerrar planilla |
+| PUT | `/api/maestros/cuentas/{id}` | Actualizar cuenta |
+
+Query: `page`, `size`, `q`, `activo` (excepto parámetros).
+
+**Área / cargo**
+
+```json
+{ "nombre": "Auditoría", "descripcion": "Control interno", "activo": true }
+```
+
+**Horario**
+
+```json
+{ "nombre": "Turno tarde", "horaIngreso": "14:00", "horaSalida": "22:00", "minutosRefrigerio": 45, "activo": true }
+```
+
+El cierre de planilla toma código y nombre de la cuenta activa según `uso` (`SUELDOS`, `ESSALUD_GASTO`, `ONP_POR_PAGAR`, `ESSALUD_POR_PAGAR`, `REMU_POR_PAGAR`, `DESC_AUSENCIAS`). Si la cuenta está inactiva se usan los códigos PCGE de respaldo.
 
 ## Personal
 
@@ -389,3 +429,26 @@ Archivo `backend/.env` (se carga al arrancar):
 | `DB_PASSWORD` | Contraseña |
 | `JWT_SECRET` | Firma de los tokens |
 | `CORS_ORIGINS` | Orígenes permitidos, separados por coma |
+
+## Planillas y remuneraciones
+
+El cálculo usa la remuneración básica del contrato vigente, las horas extras **aprobadas** del mes (`valor hora = básico / 240 × 1.25`) y los permisos aprobados que no son vacaciones (descuento a `básico / 30` por día). Los colaboradores tienen ONP (13 %) y EsSalud (9 %); los practicantes solo subvención. Al cerrar se genera el asiento con las cuentas del maestro (`uso` SUELDOS, ESSALUD_GASTO, ONP_POR_PAGAR, ESSALUD_POR_PAGAR, REMU_POR_PAGAR, DESC_AUSENCIAS; respaldo 6211 / 6271 / 4031 / 4032 / 4111 / 4699).
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| GET | `/api/planillas` | ADMIN, RRHH | Lista periodos |
+| POST | `/api/planillas` | ADMIN, RRHH | Abre periodo `anio` + `mes` |
+| GET | `/api/planillas/{id}` | ADMIN, RRHH | Boletas del periodo |
+| POST | `/api/planillas/{id}/calcular` | ADMIN, RRHH | Recalcula boletas |
+| POST | `/api/planillas/{id}/cerrar` | ADMIN, RRHH | Cierra y contabiliza |
+| GET | `/api/asientos` | ADMIN, RRHH | Asientos de planilla |
+| GET | `/api/asientos/{id}` | ADMIN, RRHH | Detalle con líneas |
+| GET | `/api/evaluaciones` | Autenticado | Lista (el empleado solo ve las suyas) |
+| POST | `/api/evaluaciones` | RRHH, ADMIN, APROBADOR | Registrar evaluación 1–5 |
+| GET | `/api/convocatorias` | ADMIN, RRHH | Convocatorias |
+| POST | `/api/convocatorias` | ADMIN, RRHH | Publicar |
+| PUT | `/api/convocatorias/{id}` | ADMIN, RRHH | Actualizar |
+| GET | `/api/convocatorias/{id}/postulaciones` | ADMIN, RRHH | Postulantes |
+| POST | `/api/convocatorias/{id}/postulaciones` | ADMIN, RRHH | Registrar postulante |
+| PUT | `/api/convocatorias/postulaciones/{id}` | ADMIN, RRHH | Cambiar estado del postulante |
+

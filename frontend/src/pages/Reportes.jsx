@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Button, DatePicker, Empty, FilterBar, PageHeader, Panel, SearchField, StackTable, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Badge, Button, DatePicker, Empty, FilterBar, PageHeader, Panel, SearchField, StackTable, downloadBlob } from '../components/ui';
+import { useQuerySearch } from '../lib/useQuerySearch';
+import { fmtDate, fmtTime } from './bandejaShared';
 
 const TIPOS = [
   { id: 'ASISTENCIA', label: 'Asistencia', hint: 'Todas las marcaciones de ingreso y salida' },
@@ -10,6 +12,14 @@ const TIPOS = [
   { id: 'HORAS_EXTRAS', label: 'Horas extras', hint: 'Tiempo extra registrado' },
   { id: 'USUARIOS', label: 'Usuarios', hint: 'Cuentas de acceso' }
 ];
+
+const PATHS = {
+  ASISTENCIA: '/api/reportes/asistencia',
+  TRABAJADORES: '/api/reportes/trabajadores',
+  PERMISOS: '/api/reportes/permisos',
+  HORAS_EXTRAS: '/api/reportes/horas-extras',
+  USUARIOS: '/api/reportes/usuarios'
+};
 
 function monthStart() {
   const d = new Date();
@@ -28,6 +38,14 @@ function formatStamp(iso) {
   });
 }
 
+function haystack(vista, r) {
+  if (vista === 'ASISTENCIA') return `${r.empleado || ''} ${r.origen || ''} ${r.observacion || ''}`;
+  if (vista === 'TRABAJADORES') return `${r.nombreCompleto || ''} ${r.codigoEmpleado || ''} ${r.area || ''} ${r.cargo || ''}`;
+  if (vista === 'PERMISOS') return `${r.empleado || ''} ${r.tipoPermiso || ''} ${r.motivo || ''} ${r.estado || ''}`;
+  if (vista === 'HORAS_EXTRAS') return `${r.empleado || ''} ${r.motivo || ''} ${r.estado || ''}`;
+  return `${r.nombreUsuario || ''} ${r.nombreCompleto || ''} ${r.correo || ''} ${r.perfil || ''} ${r.rol || ''}`;
+}
+
 export function Reportes() {
   const [error, setError] = useState('');
   const [empleados, setEmpleados] = useState([]);
@@ -36,7 +54,8 @@ export function Reportes() {
   const [desde, setDesde] = useState(monthStart());
   const [hasta, setHasta] = useState(todayIso());
   const [tipo, setTipo] = useState('');
-  const [q, setQ] = useState('');
+  const [vista, setVista] = useState('ASISTENCIA');
+  const [q, setQ] = useQuerySearch();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,32 +64,34 @@ export function Reportes() {
       .catch((e) => setError(e.message));
   }, []);
 
-  async function loadAsistencias() {
-    setError('');
-    setLoading(true);
-    try {
-      const data = await http.get(pagePath('/api/reportes/asistencia', {
-        idEmpleado: idEmpleado || undefined,
-        desde,
-        hasta
-      }));
-      setRows(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadAsistencias();
-  }, [idEmpleado, desde, hasta]);
+    let cancelled = false;
+    async function load() {
+      setError('');
+      setLoading(true);
+      try {
+        const path = vista === 'ASISTENCIA'
+          ? pagePath(PATHS.ASISTENCIA, { idEmpleado: idEmpleado || undefined, desde, hasta })
+          : PATHS[vista];
+        const data = await http.get(path);
+        if (!cancelled) setRows(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e.message);
+          setRows([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [vista, idEmpleado, desde, hasta]);
 
   const visibles = rows.filter((r) => {
-    if (tipo && r.tipo !== tipo) return false;
+    if (vista === 'ASISTENCIA' && tipo && r.tipo !== tipo) return false;
     if (!q.trim()) return true;
-    const hay = `${r.empleado || ''} ${r.origen || ''} ${r.observacion || ''}`.toLowerCase();
-    return hay.includes(q.trim().toLowerCase());
+    return haystack(vista, r).toLowerCase().includes(q.trim().toLowerCase());
   });
 
   async function bajar(tipoRep, formato) {
@@ -83,119 +104,231 @@ export function Reportes() {
     }
   }
 
+  const actual = TIPOS.find((t) => t.id === vista) || TIPOS[0];
+
   return (
     <div>
       <PageHeader
         kicker="Control"
         title="Reportes"
-        subtitle="Consulta de asistencias de todos los trabajadores y exportación Excel/PDF."
+        subtitle="Consulte en pantalla y exporte Excel o PDF."
       />
       <Alert>{error}</Alert>
 
+      <FilterBar>
+        <select className="w-auto" value={vista} onChange={(e) => setVista(e.target.value)}>
+          {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        {vista === 'ASISTENCIA' && (
+          <>
+            <select className="w-auto" value={idEmpleado} onChange={(e) => setIdEmpleado(e.target.value)}>
+              <option value="">Todos los trabajadores</option>
+              {empleados.map((e) => (
+                <option key={e.idEmpleado} value={e.idEmpleado}>{e.nombreCompleto}</option>
+              ))}
+            </select>
+            <DatePicker value={desde} onChange={setDesde} />
+            <DatePicker value={hasta} onChange={setHasta} min={desde || undefined} />
+            <select className="w-auto" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              <option value="">Tipo</option>
+              <option value="INGRESO">Ingreso</option>
+              <option value="SALIDA">Salida</option>
+            </select>
+          </>
+        )}
+        <SearchField placeholder="Buscar en la vista" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Button variant="secondary" onClick={() => bajar(vista, 'excel')}><Download size={14} /> Excel</Button>
+        <Button variant="secondary" onClick={() => bajar(vista, 'pdf')}>PDF</Button>
+      </FilterBar>
+
       <section className="mb-8">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-navy">Asistencias de trabajadores</h2>
-            <p className="text-sm text-muted">Ingresos y salidas del periodo. {visibles.length} registro{visibles.length === 1 ? '' : 's'}.</p>
-          </div>
-          <Button variant="secondary" onClick={() => bajar('ASISTENCIA', 'excel')}>
-            <Download size={14} /> Excel
-          </Button>
+        <div className="mb-3">
+          <h2 className="text-base font-semibold text-navy">{actual.label}</h2>
+          <p className="text-sm text-muted">{actual.hint}. {visibles.length} registro{visibles.length === 1 ? '' : 's'}.</p>
         </div>
-
-        <FilterBar>
-          <select className="w-auto" value={idEmpleado} onChange={(e) => setIdEmpleado(e.target.value)}>
-            <option value="">Todos los trabajadores</option>
-            {empleados.map((e) => (
-              <option key={e.idEmpleado} value={e.idEmpleado}>{e.nombreCompleto}</option>
-            ))}
-          </select>
-          <DatePicker value={desde} onChange={setDesde} />
-          <DatePicker value={hasta} onChange={setHasta} min={desde || undefined} />
-          <select className="w-auto" value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            <option value="">Tipo</option>
-            <option value="INGRESO">Ingreso</option>
-            <option value="SALIDA">Salida</option>
-          </select>
-          <SearchField placeholder="Buscar trabajador u origen" value={q} onChange={(e) => setQ(e.target.value)} />
-        </FilterBar>
-
         <Panel padded={false}>
           {loading ? (
-            <Empty text="Cargando marcaciones…" />
+            <Empty text="Cargando…" />
           ) : visibles.length === 0 ? (
-            <Empty text="No hay asistencias en este periodo." />
+            <Empty text="No hay datos para esta vista." />
           ) : (
-            <StackTable
-              cards={visibles.map((r) => (
-                <div key={r.idMarcacion} className="flex gap-3 px-4 py-3">
-                  <Avatar name={r.empleado} />
-                  <div className="min-w-0">
-                    <p className="font-medium text-navy">{r.empleado}</p>
-                    <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
-                        {r.tipo}
-                      </span>
-                      <span className="text-xs text-muted">{r.origen || 'WEB'}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              table={(
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Trabajador</th>
-                      <th>Tipo</th>
-                      <th>Fecha y hora</th>
-                      <th>Origen</th>
-                      <th>Observación</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibles.map((r) => (
-                      <tr key={r.idMarcacion}>
-                        <td>
-                          <div className="flex items-center gap-3">
-                            <Avatar name={r.empleado} />
-                            <div>
-                              <p className="font-medium text-navy">{r.empleado}</p>
-                              <p className="text-xs text-muted">#{r.idEmpleado}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
-                            {r.tipo}
-                          </span>
-                        </td>
-                        <td>{formatStamp(r.fechaHora)}</td>
-                        <td>{r.origen || 'WEB'}</td>
-                        <td className="text-sm text-muted">{r.observacion || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            />
+            <PreviewTable vista={vista} rows={visibles} />
           )}
         </Panel>
       </section>
-
-      <h2 className="mb-3 text-base font-semibold text-navy">Exportar</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {TIPOS.map((t) => (
-          <Panel key={t.id}>
-            <h3 className="text-base font-semibold text-navy">{t.label}</h3>
-            <p className="mt-1 text-sm text-muted">{t.hint}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button onClick={() => bajar(t.id, 'excel')}>Excel</Button>
-              <Button variant="secondary" onClick={() => bajar(t.id, 'pdf')}>PDF</Button>
-            </div>
-          </Panel>
-        ))}
-      </div>
     </div>
+  );
+}
+
+function PreviewTable({ vista, rows }) {
+  if (vista === 'ASISTENCIA') {
+    return (
+      <StackTable
+        cards={rows.map((r) => (
+          <div key={r.idMarcacion} className="flex gap-3 px-4 py-3">
+            <Avatar name={r.empleado} />
+            <div className="min-w-0">
+              <p className="font-medium text-navy">{r.empleado}</p>
+              <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                  {r.tipo}
+                </span>
+                <span className="text-xs text-muted">{r.origen || 'WEB'}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Trabajador</th>
+                <th>Tipo</th>
+                <th>Fecha y hora</th>
+                <th>Origen</th>
+                <th>Observación</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idMarcacion}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={r.empleado} />
+                      <div>
+                        <p className="font-medium text-navy">{r.empleado}</p>
+                        <p className="text-xs text-muted">#{r.idEmpleado}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                      {r.tipo}
+                    </span>
+                  </td>
+                  <td>{formatStamp(r.fechaHora)}</td>
+                  <td>{r.origen || 'WEB'}</td>
+                  <td className="text-sm text-muted">{r.observacion || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      />
+    );
+  }
+
+  if (vista === 'TRABAJADORES') {
+    return (
+      <StackTable
+        cards={rows.map((r) => (
+          <div key={r.idEmpleado} className="px-4 py-3">
+            <p className="font-medium text-navy">{r.nombreCompleto}</p>
+            <p className="text-xs text-muted">{r.codigoEmpleado} · {r.area} · {r.cargo}</p>
+          </div>
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Trabajador</th>
+                <th>Área</th>
+                <th>Cargo</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idEmpleado}>
+                  <td>
+                    <p className="font-medium text-navy">{r.nombreCompleto}</p>
+                    <p className="text-xs text-muted">{r.codigoEmpleado}</p>
+                  </td>
+                  <td>{r.area || '—'}</td>
+                  <td>{r.cargo || '—'}</td>
+                  <td><Badge value={r.estado} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      />
+    );
+  }
+
+  if (vista === 'PERMISOS' || vista === 'HORAS_EXTRAS') {
+    return (
+      <StackTable
+        cards={rows.map((r) => (
+          <div key={r.idSolicitudPermiso || r.idSolicitudHoraExtra} className="px-4 py-3">
+            <p className="font-medium text-navy">{r.empleado}</p>
+            <p className="text-xs text-muted">
+              {vista === 'PERMISOS' ? `${r.tipoPermiso} · ${fmtDate(r.fechaInicio)} – ${fmtDate(r.fechaFin)}` : `${fmtDate(r.fecha)} · ${r.cantidadHoras} h`}
+            </p>
+            <div className="mt-2"><Badge value={r.estado} /></div>
+          </div>
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>{vista === 'PERMISOS' ? 'Tipo' : 'Horas'}</th>
+                <th>Periodo</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idSolicitudPermiso || r.idSolicitudHoraExtra}>
+                  <td>{r.empleado}</td>
+                  <td>{vista === 'PERMISOS' ? r.tipoPermiso : `${r.cantidadHoras} h`}</td>
+                  <td>
+                    {vista === 'PERMISOS'
+                      ? `${fmtDate(r.fechaInicio)} – ${fmtDate(r.fechaFin)}`
+                      : `${fmtDate(r.fecha)} ${fmtTime(r.horaInicio)}–${fmtTime(r.horaFin)}`}
+                  </td>
+                  <td><Badge value={r.estado} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      />
+    );
+  }
+
+  return (
+    <StackTable
+      cards={rows.map((r) => (
+        <div key={r.idUsuario} className="px-4 py-3">
+          <p className="font-medium text-navy">{r.nombreUsuario}</p>
+          <p className="text-xs text-muted">{r.nombreCompleto} · {r.perfil || r.rol}</p>
+        </div>
+      ))}
+      table={(
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Nombre</th>
+              <th>Perfil</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.idUsuario}>
+                <td>{r.nombreUsuario}</td>
+                <td>{r.nombreCompleto || '—'}</td>
+                <td>{r.perfil || r.rol}</td>
+                <td><Badge value={r.activo === false ? 'INACTIVO' : 'ACTIVO'} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    />
   );
 }

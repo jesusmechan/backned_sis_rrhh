@@ -3,17 +3,18 @@ import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Avatar, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
 import { hoyISO } from './altaShared';
-import { text } from '../lib/input';
+import { useQuerySearch } from '../lib/useQuerySearch';
+import { decimal, text } from '../lib/input';
+import { fmtDate as formatDate, fmtMoney } from '../lib/format';
 
 const MODALIDAD = { COLABORADOR: 'Colaborador', PRACTICANTE: 'Practicante' };
 
 const empty = {
-  idEmpleado: '', modalidad: 'COLABORADOR', idHorario: '', fechaInicio: '', fechaFin: '', estado: 'VIGENTE', observaciones: ''
+  idEmpleado: '', modalidad: 'COLABORADOR', idHorario: '', fechaInicio: '', fechaFin: '', remuneracionBasica: '', estado: 'VIGENTE', observaciones: ''
 };
 
 function fmtDate(value) {
-  if (!value) return 'Sin término';
-  return new Date(`${value}T00:00:00`).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+  return formatDate(value, 'Sin término');
 }
 
 export function Contratos() {
@@ -30,14 +31,10 @@ export function Contratos() {
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('');
   const [modalidad, setModalidad] = useState('');
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
+  const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, vigentes: 0, colaboradores: 0, practicantes: 0 });
 
-  useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
+  useEffect(() => { setPage(1); }, [qDebounced]);
 
   useEffect(() => {
     Promise.all([
@@ -115,6 +112,7 @@ export function Contratos() {
         idHorario: row.idHorario || '',
         fechaInicio: row.fechaInicio || '',
         fechaFin: row.fechaFin || '',
+        remuneracionBasica: row.remuneracionBasica != null ? String(row.remuneracionBasica) : '',
         estado: row.estado || 'VIGENTE',
         observaciones: row.observaciones || ''
       });
@@ -143,6 +141,7 @@ export function Contratos() {
       idHorario: Number(form.idHorario),
       fechaInicio: form.fechaInicio,
       fechaFin: form.fechaFin || null,
+      remuneracionBasica: form.remuneracionBasica ? Number(form.remuneracionBasica) : 0,
       estado: form.estado,
       observaciones: form.observaciones || null
     };
@@ -213,6 +212,7 @@ export function Contratos() {
                     </p>
                     <p className="mt-1 text-xs text-muted">
                       {fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin)}
+                      {r.remuneracionBasica ? ` · ${fmtMoney(r.remuneracionBasica)}` : ''}
                     </p>
                     {r.vacaciones && (
                       <p className="mt-1 text-xs text-slate-600">
@@ -269,6 +269,9 @@ export function Contratos() {
             </Field>
             <Field label="Fin" hint={form.modalidad === 'PRACTICANTE' ? 'Obligatorio para prácticas' : 'Vacío = indefinido'}>
               <DatePicker value={form.fechaFin} onChange={(v) => set('fechaFin', v)} required={form.modalidad === 'PRACTICANTE'} min={form.fechaInicio || undefined} />
+            </Field>
+            <Field label="Remuneración básica" hint="Soles mensuales. Se usa en la planilla.">
+              <input inputMode="decimal" value={form.remuneracionBasica} onChange={(e) => set('remuneracionBasica', decimal(e.target.value, 99999))} required />
             </Field>
             <Field label="Estado">
               <select value={form.estado} onChange={(e) => set('estado', e.target.value)}>

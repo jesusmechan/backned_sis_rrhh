@@ -66,6 +66,16 @@ export function asignado(paso, roles, usuarios) {
   return 'Jefe del solicitante';
 }
 
+export function codigoDesdeNombre(nombre) {
+  const slug = String(nombre || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug ? `CFG-${slug}`.slice(0, 40) : '';
+}
+
 function Down({ label, tone = 'neutral' }) {
   const line = tone === 'ok' ? 'bg-emerald-400' : 'bg-slate-300';
   const tip = tone === 'ok' ? 'border-t-emerald-400' : 'border-t-slate-300';
@@ -159,33 +169,31 @@ export function Flujograma({ pasos, roles, usuarios }) {
 }
 
 export function FlujogramaCompact({ pasos, roles, usuarios }) {
-  if (!pasos?.length) return <p className="text-sm text-muted">Sin pasos.</p>;
+  if (!pasos?.length) return <p className="text-sm text-muted">Sin pasos configurados.</p>;
   return (
-    <div>
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-        <span className="rounded-full border border-line bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-navy">Solicitud</span>
-        <span className="text-slate-300">→</span>
-        {pasos.map((p, i) => {
-          const Icon = APROBADOR[p.tipoAprobador]?.icon || User;
-          return (
-            <div key={p.key || p.numeroPaso || i} className="flex items-center gap-1">
-              <div
-                className="flex items-center gap-1.5 rounded-md border border-line bg-white px-2 py-1"
-                title={`${APROBADOR[p.tipoAprobador]?.label || ''} · ${asignado(p, roles, usuarios)}`}
-              >
+    <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+      <span className="rounded-full border border-line bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-navy">Inicio</span>
+      <span className="text-slate-300">→</span>
+      {pasos.map((p, i) => {
+        const Icon = APROBADOR[p.tipoAprobador]?.icon || User;
+        const quien = asignado(p, roles, usuarios);
+        return (
+          <div key={p.key || p.numeroPaso || i} className="flex items-center gap-1">
+            <div className="rounded-md border border-line bg-white px-2 py-1" title={`${APROBADOR[p.tipoAprobador]?.label || ''} · ${quien}`}>
+              <div className="flex items-center gap-1.5">
                 <span className="grid h-5 w-5 place-items-center rounded bg-navy text-[10px] font-semibold text-white">
                   {p.numeroPaso || i + 1}
                 </span>
                 <Icon size={12} className="text-slate-400" />
-                <span className="max-w-[8rem] truncate text-[11px] font-medium text-navy">{p.nombrePaso || 'Sin nombre'}</span>
+                <span className="max-w-[9rem] truncate text-[11px] font-medium text-navy">{p.nombrePaso || 'Sin nombre'}</span>
               </div>
-              <span className="text-slate-300">→</span>
+              <p className="mt-0.5 max-w-[10rem] truncate pl-7 text-[10px] text-muted">{quien}</p>
             </div>
-          );
-        })}
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-ok">Aprobado</span>
-      </div>
-      <p className="mt-2 text-[11px] text-muted">Si un paso rechaza, la solicitud termina rechazada.</p>
+            <span className="text-slate-300">→</span>
+          </div>
+        );
+      })}
+      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-ok">Aprobado</span>
     </div>
   );
 }

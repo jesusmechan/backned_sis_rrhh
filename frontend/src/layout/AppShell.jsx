@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, CircleHelp, LogOut, Menu, PanelLeftClose, Search, X } from 'lucide-react';
+import { http, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Avatar } from '../components/ui';
+import { Avatar, Button, Modal } from '../components/ui';
 import { menuIcon } from './icons';
 
 const SIDEBAR_KEY = 'andina.sidebar';
 const GROUPS_KEY = 'andina.menu.groups';
+const SEARCH_PATHS = ['/bandeja', '/permisos', '/horas-extras', '/empleados', '/usuarios', '/contratos', '/maestros', '/asistencia', '/flujos', '/reportes', '/menu'];
 
 function readSidebar() {
   return localStorage.getItem(SIDEBAR_KEY) !== 'hidden';
@@ -88,10 +90,41 @@ function NavItems({ groups, collapsed, onToggle, onNavigate }) {
 export function AppShell() {
   const { usuario, perfil, menu, logout, canAccess } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [sidebar, setSidebar] = useState(readSidebar);
   const [collapsed, setCollapsed] = useState(readCollapsed);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(() => new URLSearchParams(location.search).get('q') || '');
+  const [pendientes, setPendientes] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const canInbox = canAccess('/bandeja');
+
+  useEffect(() => {
+    setQ(new URLSearchParams(location.search).get('q') || '');
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!canInbox) {
+      setPendientes(0);
+      return undefined;
+    }
+    let cancelled = false;
+    async function load() {
+      try {
+        const b = await http.page(pagePath('/api/bandeja', { page: 1, size: 1 }));
+        if (!cancelled) setPendientes(b.totalElements || 0);
+      } catch {
+        if (!cancelled) setPendientes(0);
+      }
+    }
+    load();
+    const t = setInterval(load, 45000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [canInbox, location.pathname]);
 
   function toggleGroup(name) {
     setCollapsed((prev) => {
@@ -119,8 +152,17 @@ export function AppShell() {
 
   function onSearch(e) {
     e.preventDefault();
-    if (canAccess('/bandeja')) navigate('/bandeja');
-    else if (canAccess('/permisos')) navigate('/permisos');
+    const dest = SEARCH_PATHS.find((p) => canAccess(p));
+    if (!dest) return;
+    const query = q.trim();
+    navigate(query ? `${dest}?q=${encodeURIComponent(query)}` : dest);
+    setOpen(false);
+  }
+
+  function confirmLogout() {
+    setLogoutOpen(false);
+    setOpen(false);
+    logout();
   }
 
   return (
@@ -172,11 +214,27 @@ export function AppShell() {
             />
           </form>
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            <button type="button" className="relative hidden rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:inline-flex">
-              <Bell size={18} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-            </button>
-            <button type="button" className="hidden rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:inline-flex">
+            {canInbox && (
+              <button
+                type="button"
+                className="relative hidden rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:inline-flex"
+                title={pendientes ? `${pendientes} pendientes en bandeja` : 'Bandeja'}
+                onClick={() => navigate('/bandeja')}
+              >
+                <Bell size={18} />
+                {pendientes > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-4 text-white">
+                    {pendientes > 99 ? '99+' : pendientes}
+                  </span>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              className="hidden rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:inline-flex"
+              title="Guía rápida"
+              onClick={() => setHelpOpen(true)}
+            >
               <CircleHelp size={18} />
             </button>
             <button type="button" onClick={() => navigate('/perfil')} className="hidden text-right lg:block">
@@ -186,7 +244,12 @@ export function AppShell() {
             <button type="button" onClick={() => navigate('/perfil')} title="Ver perfil">
               <Avatar name={usuario?.nombreCompleto || usuario?.nombreUsuario} />
             </button>
-            <button type="button" onClick={logout} title="Cerrar sesión" className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
+            <button
+              type="button"
+              onClick={() => setLogoutOpen(true)}
+              title="Cerrar sesión"
+              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+            >
               <LogOut size={18} />
             </button>
           </div>
@@ -216,15 +279,63 @@ export function AppShell() {
               <NavItems groups={menu} collapsed={collapsed} onToggle={toggleGroup} onNavigate={() => setOpen(false)} />
             </nav>
             <div className="border-t border-line">
+              {canInbox && (
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-navy hover:bg-slate-50"
+                  onClick={() => { setOpen(false); navigate('/bandeja'); }}
+                >
+                  Bandeja
+                  {pendientes > 0 && (
+                    <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-5 text-white">
+                      {pendientes > 99 ? '99+' : pendientes}
+                    </span>
+                  )}
+                </button>
+              )}
+              <button type="button" className="w-full px-4 py-3 text-left text-sm text-navy hover:bg-slate-50" onClick={() => { setOpen(false); setHelpOpen(true); }}>
+                Guía rápida
+              </button>
               <button type="button" className="w-full px-4 py-3 text-left text-sm text-navy hover:bg-slate-50" onClick={() => { setOpen(false); navigate('/perfil'); }}>
                 Ver perfil
               </button>
-              <button type="button" className="w-full px-4 py-3 text-left text-sm text-muted hover:bg-slate-50" onClick={logout}>
+              <button type="button" className="w-full px-4 py-3 text-left text-sm text-muted hover:bg-slate-50" onClick={() => { setOpen(false); setLogoutOpen(true); }}>
                 Cerrar sesión
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {helpOpen && (
+        <Modal title="Guía rápida" onClose={() => setHelpOpen(false)}>
+          <div className="space-y-4 text-sm text-slate-600">
+            <p>Sistema de RR. HH. de Consultora Contable Andina. Lo esencial para empezar:</p>
+            <ul className="list-disc space-y-2 pl-5">
+              <li><span className="font-medium text-navy">Buscar</span> en la barra superior filtra bandeja, permisos, horas extras o personal, según su perfil.</li>
+              <li><span className="font-medium text-navy">Marcar</span> registra un ingreso y una salida por día hábil (hora de Lima). Fines de semana no aplica.</li>
+              <li><span className="font-medium text-navy">Permisos y horas extras</span> se envían al flujo configurado. Siga el estado en el detalle de cada solicitud.</li>
+              {canInbox && (
+                <li><span className="font-medium text-navy">Bandeja</span> muestra los pasos que debe aprobar o rechazar. El número rojo indica pendientes.</li>
+              )}
+              <li><span className="font-medium text-navy">Mi perfil</span> (avatar) abre sus datos y permite cambiar la contraseña.</li>
+              {canAccess('/maestros') && (
+                <li><span className="font-medium text-navy">Maestros</span> mantiene áreas, cargos, horarios, tipos de permiso, parámetros y el plan de cuentas de planilla.</li>
+              )}
+            </ul>
+            <p className="text-xs text-muted">Si un menú no aparece, su perfil no tiene acceso a ese módulo.</p>
+          </div>
+        </Modal>
+      )}
+
+      {logoutOpen && (
+        <Modal title="Cerrar sesión" onClose={() => setLogoutOpen(false)}>
+          <p className="text-sm text-slate-600">¿Desea salir de su cuenta en Consultora Andina?</p>
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setLogoutOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="danger" onClick={confirmLogout}>Cerrar sesión</Button>
+          </div>
+        </Modal>
       )}
 
       <main className="min-w-0 px-3 py-4 sm:px-4 sm:py-6 md:px-6">

@@ -16,7 +16,6 @@ import pe.andina.rrhh.dto.AppDtos.ContratoResponse;
 import pe.andina.rrhh.dto.AppDtos.VacacionSaldoResponse;
 import pe.andina.rrhh.repo.ContratoRepository;
 import pe.andina.rrhh.repo.HorarioLaboralRepository;
-import pe.andina.rrhh.repo.ParametroSistemaRepository;
 import pe.andina.rrhh.repo.SolicitudPermisoRepository;
 import pe.andina.rrhh.security.SecurityUtils;
 
@@ -39,20 +38,20 @@ public class ContratoService {
     private final ContratoRepository contratoRepository;
     private final HorarioLaboralRepository horarioRepository;
     private final SolicitudPermisoRepository permisoRepository;
-    private final ParametroSistemaRepository parametroRepository;
+    private final ParametroSistemaService parametros;
     private final EmpleadoService empleadoService;
     private final AuditoriaService auditoriaService;
 
     public ContratoService(ContratoRepository contratoRepository,
                            HorarioLaboralRepository horarioRepository,
                            SolicitudPermisoRepository permisoRepository,
-                           ParametroSistemaRepository parametroRepository,
+                           ParametroSistemaService parametros,
                            EmpleadoService empleadoService,
                            AuditoriaService auditoriaService) {
         this.contratoRepository = contratoRepository;
         this.horarioRepository = horarioRepository;
         this.permisoRepository = permisoRepository;
-        this.parametroRepository = parametroRepository;
+        this.parametros = parametros;
         this.empleadoService = empleadoService;
         this.auditoriaService = auditoriaService;
     }
@@ -154,6 +153,7 @@ public class ContratoService {
         c.setHorario(horario);
         c.setFechaInicio(r.fechaInicio());
         c.setFechaFin(r.fechaFin());
+        c.setRemuneracionBasica(r.remuneracionBasica() != null ? r.remuneracionBasica() : BigDecimal.ZERO);
         c.setEstado(r.estado() != null ? r.estado() : EstadoContrato.VIGENTE);
         c.setObservaciones(r.observaciones());
     }
@@ -230,15 +230,7 @@ public class ContratoService {
     }
 
     private BigDecimal tasaMensual() {
-        return parametroRepository.findById(PARAM_TASA)
-                .map(p -> {
-                    try {
-                        return new BigDecimal(p.getValor());
-                    } catch (NumberFormatException ex) {
-                        return TASA_DEFAULT;
-                    }
-                })
-                .orElse(TASA_DEFAULT);
+        return parametros.decimal(PARAM_TASA, TASA_DEFAULT);
     }
 
     private ModalidadContrato mapearModalidad(Empleado e) {
@@ -278,6 +270,7 @@ public class ContratoService {
                 h.getHoraSalida() != null ? h.getHoraSalida().toString() : null,
                 c.getFechaInicio(),
                 c.getFechaFin(),
+                c.getRemuneracionBasica(),
                 c.getEstado(),
                 c.getObservaciones(),
                 calcularSaldo(e)

@@ -39,17 +39,12 @@ public class ContratoController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String modalidad,
             @RequestParam(required = false) String estado) {
-        var data = PageResponses.search(contratoService.listar(), q, c ->
-                PageResponses.text(c.codigo(), c.empleado(), c.codigoEmpleado(), c.modalidad(), c.horario(), c.estado()));
-        if (modalidad != null && !modalidad.isBlank()) {
-            String m = modalidad.toUpperCase();
-            data = data.stream().filter(c -> c.modalidad() != null && m.equals(c.modalidad().name())).toList();
-        }
-        if (estado != null && !estado.isBlank()) {
-            String e = estado.toUpperCase();
-            data = data.stream().filter(c -> c.estado() != null && e.equals(c.estado().name())).toList();
-        }
-        return PageResponses.of(data, page, size);
+        return PageResponses.query(contratoService.listar())
+                .search(q, c -> PageResponses.text(c.codigo(), c.empleado(), c.codigoEmpleado(), c.modalidad(), c.horario(), c.estado()))
+                .donde(modalidad == null || modalidad.isBlank() ? null
+                        : c -> c.modalidad() != null && modalidad.equalsIgnoreCase(c.modalidad().name()))
+                .estados(estado, ContratoResponse::estado)
+                .pagina(page, size);
     }
 
     @GetMapping("/saldo-vacaciones")

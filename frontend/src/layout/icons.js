@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   ClipboardCheck,
   Clock3,
   FileSpreadsheet,
@@ -10,9 +11,13 @@ import {
   List,
   LogIn,
   Shield,
+  Star,
   User,
   UserCog,
-  Users
+  UserPlus,
+  Users,
+  Wallet,
+  Library
 } from 'lucide-react';
 
 const ICONS = {
@@ -29,7 +34,12 @@ const ICONS = {
   FileSpreadsheet,
   FileText,
   Shield,
-  List
+  List,
+  Wallet,
+  BookOpen,
+  Star,
+  UserPlus,
+  Library
 };
 
 export function menuIcon(name) {

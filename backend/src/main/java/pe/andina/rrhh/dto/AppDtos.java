@@ -10,9 +10,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import pe.andina.rrhh.domain.enums.EstadoAsiento;
 import pe.andina.rrhh.domain.enums.EstadoContrato;
+import pe.andina.rrhh.domain.enums.EstadoConvocatoria;
 import pe.andina.rrhh.domain.enums.EstadoEmpleado;
+import pe.andina.rrhh.domain.enums.EstadoEvaluacion;
 import pe.andina.rrhh.domain.enums.EstadoPasoAprobacion;
+import pe.andina.rrhh.domain.enums.EstadoPlanilla;
+import pe.andina.rrhh.domain.enums.EstadoPostulacion;
 import pe.andina.rrhh.domain.enums.EstadoSolicitud;
 import pe.andina.rrhh.domain.enums.ModalidadContrato;
 import pe.andina.rrhh.domain.enums.SexoEmpleado;
@@ -115,6 +120,13 @@ public final class AppDtos {
             @Pattern(regexp = "^$|^.{6,80}$", message = "La contraseña debe tener al menos 6 caracteres")
             String password,
             Boolean activo
+    ) {}
+
+    public record CambioPasswordRequest(
+            @NotBlank(message = "Indique la contraseña actual") String actual,
+            @NotBlank(message = "Indique la nueva contraseña")
+            @Size(min = 6, max = 80, message = "La nueva contraseña debe tener entre 6 y 80 caracteres")
+            String nueva
     ) {}
 
     public record UsuarioResponse(
@@ -380,6 +392,8 @@ public final class AppDtos {
             @NotNull Integer idHorario,
             @NotNull LocalDate fechaInicio,
             LocalDate fechaFin,
+            @DecimalMin(value = "0", message = "La remuneración no puede ser negativa")
+            BigDecimal remuneracionBasica,
             EstadoContrato estado,
             @Size(max = 400, message = "Las observaciones no pueden superar 400 caracteres")
             String observaciones
@@ -398,6 +412,7 @@ public final class AppDtos {
             String horaSalida,
             LocalDate fechaInicio,
             LocalDate fechaFin,
+            BigDecimal remuneracionBasica,
             EstadoContrato estado,
             String observaciones,
             VacacionSaldoResponse vacaciones
@@ -413,6 +428,215 @@ public final class AppDtos {
             BigDecimal diasGanados,
             BigDecimal diasUsados,
             BigDecimal diasDisponibles
+    ) {}
+
+    public record PlanillaRequest(
+            @NotNull @Min(2020) @Max(2100) Integer anio,
+            @NotNull @Min(1) @Max(12) Integer mes,
+            @Size(max = 400) String observaciones
+    ) {}
+
+    public record PlanillaDetalleResponse(
+            Integer idDetalle,
+            Integer idEmpleado,
+            String empleado,
+            String modalidad,
+            BigDecimal remuneracionBasica,
+            BigDecimal horasExtras,
+            BigDecimal montoHorasExtras,
+            BigDecimal diasNoLaborados,
+            BigDecimal descuentoAusencias,
+            BigDecimal onp,
+            BigDecimal essalud,
+            BigDecimal bruto,
+            BigDecimal neto
+    ) {}
+
+    public record PlanillaResponse(
+            Integer idPlanilla,
+            Integer anio,
+            Integer mes,
+            String periodo,
+            EstadoPlanilla estado,
+            BigDecimal totalBruto,
+            BigDecimal totalDescuentos,
+            BigDecimal totalAportes,
+            BigDecimal totalNeto,
+            String observaciones,
+            OffsetDateTime fechaCalculo,
+            OffsetDateTime fechaCierre,
+            List<PlanillaDetalleResponse> boletas
+    ) {}
+
+    public record AsientoLineaResponse(
+            Integer idLinea,
+            String cuenta,
+            String nombreCuenta,
+            BigDecimal debe,
+            BigDecimal haber
+    ) {}
+
+    public record AsientoResponse(
+            Integer idAsiento,
+            String codigo,
+            Integer idPlanilla,
+            String periodoPlanilla,
+            LocalDate fecha,
+            String glosa,
+            EstadoAsiento estado,
+            BigDecimal totalDebe,
+            BigDecimal totalHaber,
+            List<AsientoLineaResponse> lineas
+    ) {}
+
+    public record EvaluacionRequest(
+            @NotNull Integer idEmpleado,
+            @NotBlank @Size(max = 20) String periodo,
+            LocalDate fecha,
+            @NotNull @Min(1) @Max(5) Integer puntualidad,
+            @NotNull @Min(1) @Max(5) Integer calidad,
+            @NotNull @Min(1) @Max(5) Integer cooperacion,
+            @NotNull @Min(1) @Max(5) Integer iniciativa,
+            @Size(max = 400) String comentario
+    ) {}
+
+    public record EvaluacionResponse(
+            Integer idEvaluacion,
+            Integer idEmpleado,
+            String empleado,
+            String evaluador,
+            String periodo,
+            LocalDate fecha,
+            Integer puntualidad,
+            Integer calidad,
+            Integer cooperacion,
+            Integer iniciativa,
+            BigDecimal promedio,
+            String comentario,
+            EstadoEvaluacion estado
+    ) {}
+
+    public record ConvocatoriaRequest(
+            @NotBlank @Size(max = 120) String puesto,
+            Integer idArea,
+            @Min(1) Integer vacantes,
+            @NotNull LocalDate fechaInicio,
+            LocalDate fechaFin,
+            @Size(max = 400) String descripcion,
+            EstadoConvocatoria estado
+    ) {}
+
+    public record ConvocatoriaResponse(
+            Integer idConvocatoria,
+            String codigo,
+            String puesto,
+            Integer idArea,
+            String area,
+            Integer vacantes,
+            LocalDate fechaInicio,
+            LocalDate fechaFin,
+            String descripcion,
+            EstadoConvocatoria estado,
+            long postulantes
+    ) {}
+
+    public record PostulacionRequest(
+            @NotBlank @Size(max = 80) String nombres,
+            @NotBlank @Size(max = 80) String apellidos,
+            @NotBlank @Size(max = 20) String documento,
+            @Size(max = 120) String correo,
+            @Size(max = 20) String telefono,
+            @Min(0) @Max(100) Integer puntaje,
+            EstadoPostulacion estado,
+            @Size(max = 400) String observacion
+    ) {}
+
+    public record PostulacionResponse(
+            Integer idPostulacion,
+            Integer idConvocatoria,
+            String convocatoria,
+            String nombres,
+            String apellidos,
+            String nombreCompleto,
+            String documento,
+            String correo,
+            String telefono,
+            Integer puntaje,
+            EstadoPostulacion estado,
+            String observacion
+    ) {}
+
+    public record AreaRequest(
+            @NotBlank @Size(max = 80) String nombre,
+            @Size(max = 250) String descripcion,
+            Boolean activo
+    ) {}
+
+    public record AreaResponse(Integer idArea, String nombre, String descripcion, Boolean activo) {}
+
+    public record CargoRequest(
+            @NotBlank @Size(max = 80) String nombre,
+            @Size(max = 250) String descripcion,
+            Boolean activo
+    ) {}
+
+    public record CargoResponse(Integer idCargo, String nombre, String descripcion, Boolean activo) {}
+
+    public record HorarioRequest(
+            @NotBlank @Size(max = 80) String nombre,
+            @NotNull LocalTime horaIngreso,
+            @NotNull LocalTime horaSalida,
+            @Min(0) @Max(180) Integer minutosRefrigerio,
+            Boolean activo
+    ) {}
+
+    public record HorarioResponse(
+            Integer idHorario,
+            String nombre,
+            LocalTime horaIngreso,
+            LocalTime horaSalida,
+            Integer minutosRefrigerio,
+            Boolean activo
+    ) {}
+
+    public record TipoPermisoRequest(
+            @NotBlank @Size(max = 30) String codigo,
+            @NotBlank @Size(max = 80) String nombre,
+            Boolean requiereSustento,
+            Boolean activo
+    ) {}
+
+    public record TipoPermisoMaestroResponse(
+            Integer idTipoPermiso,
+            String codigo,
+            String nombre,
+            Boolean requiereSustento,
+            Boolean activo
+    ) {}
+
+    public record ParametroRequest(
+            @NotBlank @Size(max = 80) String clave,
+            @NotBlank @Size(max = 200) String valor,
+            @Size(max = 300) String descripcion
+    ) {}
+
+    public record ParametroResponse(String clave, String valor, String descripcion) {}
+
+    public record CuentaRequest(
+            @NotBlank @Size(max = 20) String codigo,
+            @NotBlank @Size(max = 80) String nombre,
+            @NotBlank @Size(max = 40) String uso,
+            @Size(max = 12) String naturaleza,
+            Boolean activo
+    ) {}
+
+    public record CuentaResponse(
+            Integer idCuenta,
+            String codigo,
+            String nombre,
+            String uso,
+            String naturaleza,
+            Boolean activo
     ) {}
 
     public record PageResponse<T>(

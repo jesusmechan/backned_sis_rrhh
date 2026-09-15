@@ -26,6 +26,9 @@ import pe.andina.rrhh.repo.SolicitudPermisoRepository;
 import pe.andina.rrhh.repo.TipoPermisoRepository;
 import pe.andina.rrhh.security.SecurityUtils;
 import pe.andina.rrhh.security.UsuarioPrincipal;
+import pe.andina.rrhh.service.aprobacion.BandejaAsignacion;
+import pe.andina.rrhh.service.validacion.HoraExtraReglas;
+import pe.andina.rrhh.service.validacion.PermisoReglas;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,8 +45,9 @@ public class SolicitudService {
     private final SolicitudPasoAprobacionRepository pasoRepository;
     private final HistorialSolicitudRepository historialRepository;
     private final TipoPermisoRepository tipoPermisoRepository;
-    private final EmpleadoService empleadoService;
-    private final ContratoService contratoService;
+    private final EmpleadoScope empleadoScope;
+    private final PermisoReglas permisoReglas;
+    private final HoraExtraReglas horaExtraReglas;
     private final EntityManager entityManager;
     private final AuditoriaService auditoriaService;
 
@@ -52,8 +56,9 @@ public class SolicitudService {
                             SolicitudPasoAprobacionRepository pasoRepository,
                             HistorialSolicitudRepository historialRepository,
                             TipoPermisoRepository tipoPermisoRepository,
-                            EmpleadoService empleadoService,
-                            ContratoService contratoService,
+                            EmpleadoScope empleadoScope,
+                            PermisoReglas permisoReglas,
+                            HoraExtraReglas horaExtraReglas,
                             EntityManager entityManager,
                             AuditoriaService auditoriaService) {
         this.permisoRepository = permisoRepository;
@@ -61,20 +66,19 @@ public class SolicitudService {
         this.pasoRepository = pasoRepository;
         this.historialRepository = historialRepository;
         this.tipoPermisoRepository = tipoPermisoRepository;
-        this.empleadoService = empleadoService;
-        this.contratoService = contratoService;
+        this.empleadoScope = empleadoScope;
+        this.permisoReglas = permisoReglas;
+        this.horaExtraReglas = horaExtraReglas;
         this.entityManager = entityManager;
         this.auditoriaService = auditoriaService;
     }
 
     @Transactional
     public PermisoResponse crearPermiso(PermisoRequest request) {
-        Empleado empleado = resolverEmpleadoSolicitante(request.idEmpleado());
+        Empleado empleado = empleadoScope.resolverSolicitante(request.idEmpleado());
         var tipo = tipoPermisoRepository.findById(request.idTipoPermiso())
                 .orElseThrow(() -> ApiException.badRequest("Tipo de permiso no existe"));
-        if ("VACACIONES".equalsIgnoreCase(tipo.getCodigo())) {
-            contratoService.validarVacaciones(empleado, request.fechaInicio(), request.fechaFin());
-        }
+        permisoReglas.validarAlCrear(empleado, tipo, request);
         SolicitudPermiso s = new SolicitudPermiso();
         s.setEmpleado(empleado);
         s.setTipoPermiso(tipo);
@@ -92,7 +96,8 @@ public class SolicitudService {
 
     @Transactional
     public HoraExtraResponse crearHoraExtra(HoraExtraRequest request) {
-        Empleado empleado = resolverEmpleadoSolicitante(request.idEmpleado());
+        Empleado empleado = empleadoScope.resolverSolicitante(request.idEmpleado());
+        horaExtraReglas.validarAlCrear(empleado, request);
         SolicitudHoraExtra s = new SolicitudHoraExtra();
         s.setEmpleado(empleado);
         s.setFecha(request.fecha());
@@ -119,9 +124,9 @@ public class SolicitudService {
     @Transactional(readOnly = true)
     public PermisoResponse obtenerPermiso(Integer id) {
         SolicitudPermiso s = permisoRepository.findById(id).orElseThrow(() -> ApiException.notFound("Solicitud no encontrada"));
-        assertPuedeVer(
+        empleadoScope.assertPuedeConsultar(
                 s.getEmpleado().getIdEmpleado(),
-                pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
+                participoEnCircuito(pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso())));
         return toPermiso(s);
     }
 
@@ -137,19 +142,17 @@ public class SolicitudService {
     @Transactional(readOnly = true)
     public HoraExtraResponse obtenerHoraExtra(Integer id) {
         SolicitudHoraExtra s = horaExtraRepository.findById(id).orElseThrow(() -> ApiException.notFound("Solicitud no encontrada"));
-        assertPuedeVer(
+        empleadoScope.assertPuedeConsultar(
                 s.getEmpleado().getIdEmpleado(),
-                pasoRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(s.getIdSolicitudHoraExtra()));
+                participoEnCircuito(pasoRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(s.getIdSolicitudHoraExtra())));
         return toHoraExtra(s);
     }
 
     @Transactional
     public PermisoResponse cancelarPermiso(Integer id) {
         SolicitudPermiso s = permisoRepository.findById(id).orElseThrow(() -> ApiException.notFound("Solicitud no encontrada"));
-        assertEsDuenioORrhh(s.getEmpleado().getIdEmpleado());
-        if (s.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw ApiException.badRequest("Solo se puede cancelar una solicitud pendiente");
-        }
+        empleadoScope.assertDuenioORrhh(s.getEmpleado().getIdEmpleado());
+        exigirPendiente(s.getEstado());
         s.setEstado(EstadoSolicitud.CANCELADO);
         return toPermiso(s);
     }
@@ -157,23 +160,26 @@ public class SolicitudService {
     @Transactional
     public HoraExtraResponse cancelarHoraExtra(Integer id) {
         SolicitudHoraExtra s = horaExtraRepository.findById(id).orElseThrow(() -> ApiException.notFound("Solicitud no encontrada"));
-        assertEsDuenioORrhh(s.getEmpleado().getIdEmpleado());
-        if (s.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw ApiException.badRequest("Solo se puede cancelar una solicitud pendiente");
-        }
+        empleadoScope.assertDuenioORrhh(s.getEmpleado().getIdEmpleado());
+        exigirPendiente(s.getEstado());
         s.setEstado(EstadoSolicitud.CANCELADO);
         return toHoraExtra(s);
     }
 
+    @Transactional(readOnly = true)
+    public BandejaItem pasoPendiente(Integer idPaso) {
+        SolicitudPasoAprobacion paso = exigirPasoEnCurso(idPaso);
+        if (!BandejaAsignacion.corresponde(paso, SecurityUtils.current())) {
+            throw ApiException.forbidden("Este paso no le corresponde");
+        }
+        return toBandeja(paso, true);
+    }
+
     @Transactional
     public PasoResponse decidir(Integer idPaso, boolean aprobar, DecisionRequest request) {
-        SolicitudPasoAprobacion paso = pasoRepository.findById(idPaso)
-                .orElseThrow(() -> ApiException.notFound("Paso no encontrado"));
-        if (paso.getEstado() != EstadoPasoAprobacion.EN_CURSO) {
-            throw ApiException.badRequest("Este paso ya no está pendiente de decisión");
-        }
+        SolicitudPasoAprobacion paso = exigirPasoEnCurso(idPaso);
         UsuarioPrincipal me = SecurityUtils.current();
-        if (!correspondeBandeja(paso, me)) {
+        if (!BandejaAsignacion.corresponde(paso, me)) {
             throw ApiException.forbidden("Este paso no le corresponde");
         }
         Usuario decisor = me.getUsuario();
@@ -194,10 +200,24 @@ public class SolicitudService {
         return bandejaPendientes();
     }
 
+    @Transactional(readOnly = true)
+    public List<HistorialResponse> historialPermiso(Integer id) {
+        obtenerPermiso(id);
+        return historialRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByIdHistorialAsc(id)
+                .stream().map(DtoMapper::historial).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<HistorialResponse> historialHoraExtra(Integer id) {
+        obtenerHoraExtra(id);
+        return historialRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByIdHistorialAsc(id)
+                .stream().map(DtoMapper::historial).toList();
+    }
+
     private List<BandejaItem> bandejaPendientes() {
         UsuarioPrincipal me = SecurityUtils.current();
         return pasoRepository.findByEstado(EstadoPasoAprobacion.EN_CURSO).stream()
-                .filter(p -> correspondeBandeja(p, me))
+                .filter(p -> BandejaAsignacion.corresponde(p, me))
                 .map(p -> toBandeja(p, true))
                 .toList();
     }
@@ -243,28 +263,6 @@ public class SolicitudService {
 
     private void putSeguimiento(Map<String, BandejaItem> items, SolicitudHoraExtra s) {
         items.putIfAbsent("HORA_EXTRA-" + s.getIdSolicitudHoraExtra(), toBandejaSeguimiento(s));
-    }
-
-    @Transactional(readOnly = true)
-    public List<HistorialResponse> historialPermiso(Integer id) {
-        obtenerPermiso(id);
-        return historialRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByIdHistorialAsc(id)
-                .stream().map(DtoMapper::historial).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<HistorialResponse> historialHoraExtra(Integer id) {
-        obtenerHoraExtra(id);
-        return historialRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByIdHistorialAsc(id)
-                .stream().map(DtoMapper::historial).toList();
-    }
-
-    private boolean correspondeBandeja(SolicitudPasoAprobacion p, UsuarioPrincipal me) {
-        return switch (p.getTipoAprobador()) {
-            case JEFE_INMEDIATO, USUARIO -> p.getUsuarioAsignado() != null
-                    && p.getUsuarioAsignado().getIdUsuario().equals(me.getIdUsuario());
-            case ROL -> p.getRol() != null && p.getRol().getCodigo().equals(me.getCodigoRol());
-        };
     }
 
     private BandejaItem toBandeja(SolicitudPasoAprobacion p, boolean puedeDecidir) {
@@ -322,6 +320,21 @@ public class SolicitudService {
                 .orElse(pasos.get(pasos.size() - 1));
     }
 
+    private SolicitudPasoAprobacion exigirPasoEnCurso(Integer idPaso) {
+        SolicitudPasoAprobacion paso = pasoRepository.findById(idPaso)
+                .orElseThrow(() -> ApiException.notFound("Paso no encontrado"));
+        if (paso.getEstado() != EstadoPasoAprobacion.EN_CURSO) {
+            throw ApiException.badRequest("Este paso ya no está pendiente de decisión");
+        }
+        return paso;
+    }
+
+    private void exigirPendiente(EstadoSolicitud estado) {
+        if (estado != EstadoSolicitud.PENDIENTE) {
+            throw ApiException.badRequest("Solo se puede cancelar una solicitud pendiente");
+        }
+    }
+
     private PermisoResponse toPermiso(SolicitudPermiso s) {
         return DtoMapper.permiso(s, pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
     }
@@ -330,46 +343,13 @@ public class SolicitudService {
         return DtoMapper.horaExtra(s, pasoRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(s.getIdSolicitudHoraExtra()));
     }
 
-    private Empleado resolverEmpleadoSolicitante(Integer idEmpleadoRequest) {
-        UsuarioPrincipal me = SecurityUtils.current();
-        if (SecurityUtils.isAdminOrRrhh() && idEmpleadoRequest != null) {
-            return empleadoService.buscar(idEmpleadoRequest);
-        }
-        if (me.getIdEmpleado() == null) {
-            throw ApiException.badRequest("El usuario no está asociado a un trabajador");
-        }
-        return empleadoService.buscar(me.getIdEmpleado());
-    }
-
-    private void assertPuedeVer(Integer idEmpleado, List<SolicitudPasoAprobacion> pasos) {
-        if (SecurityUtils.isAdminOrRrhh() || SecurityUtils.hasRole("APROBADOR")) {
-            return;
-        }
-        UsuarioPrincipal me = SecurityUtils.current();
-        if (idEmpleado.equals(me.getIdEmpleado())) {
-            return;
-        }
-        if (participoEnCircuito(pasos, me.getIdUsuario())) {
-            return;
-        }
-        throw ApiException.forbidden("No puede consultar solicitudes de otro trabajador");
-    }
-
-    private boolean participoEnCircuito(List<SolicitudPasoAprobacion> pasos, Integer idUsuario) {
+    private boolean participoEnCircuito(List<SolicitudPasoAprobacion> pasos) {
+        Integer idUsuario = SecurityUtils.current().getIdUsuario();
         if (pasos == null || idUsuario == null) {
             return false;
         }
         return pasos.stream().anyMatch(p ->
                 (p.getUsuarioDecision() != null && idUsuario.equals(p.getUsuarioDecision().getIdUsuario()))
                         || (p.getUsuarioAsignado() != null && idUsuario.equals(p.getUsuarioAsignado().getIdUsuario())));
-    }
-
-    private void assertEsDuenioORrhh(Integer idEmpleado) {
-        if (SecurityUtils.isAdminOrRrhh()) {
-            return;
-        }
-        if (!idEmpleado.equals(SecurityUtils.current().getIdEmpleado())) {
-            throw ApiException.forbidden("Solo el solicitante o RR. HH. puede cancelar");
-        }
     }
 }

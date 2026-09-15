@@ -3,7 +3,7 @@
 Proyecto del *Curso Integrador I — Sistemas Software* (UTP).  
 Origen funcional: **Plan de Toma de Requerimientos v1.0**.
 
-La consultora es una MYPE. El sistema cubre personal, permisos, horas extras, asistencia, usuarios, reportes y auditoría. El circuito de aprobación **no guarda al aprobador en la solicitud**: se configura por tipo de trámite y se instancia paso a paso.
+La consultora es una MYPE. El sistema cubre personal, contratos, asistencia, permisos, horas extras, planillas, remuneraciones, contabilidad de planilla, desempeño, reclutamiento, usuarios, reportes y auditoría. El circuito de aprobación **no guarda al aprobador en la solicitud**: se configura por tipo de trámite y se instancia paso a paso.
 
 ## Stack
 
@@ -123,9 +123,15 @@ Abre http://localhost:5173. Vite proxea `/api` al backend en el puerto 8080. El 
 | Módulo | Qué cubre |
 |---|---|
 | Personal | Empleados, organigrama (`id_jefe_inmediato`), carga Excel |
+| Contratos | Modalidad, horario, remuneración básica y vacaciones |
+| Maestros | Áreas, cargos, horarios, tipos de permiso, parámetros y plan de cuentas |
 | Permisos / horas extras | Registro, cancelación, historial |
 | Aprobación | Flujos configurables + bandeja + aprobar/rechazar paso |
 | Asistencia | Marcación de ingreso/salida y corrección |
+| Planillas | Cálculo mensual de boletas (básico, extras, descuentos, ONP, EsSalud, neto) |
+| Contabilidad | Asiento de partida doble al cerrar la planilla |
+| Desempeño | Evaluación 1–5 en puntualidad, calidad, cooperación e iniciativa |
+| Reclutamiento | Convocatorias y seguimiento de postulantes |
 | Usuarios | Roles ADMIN, RRHH, APROBADOR, EMPLEADO |
 | Reportes | JSON, Excel y PDF |
 | Auditoría | Bitácora y trazabilidad de solicitudes |
