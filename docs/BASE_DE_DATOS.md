@@ -7,12 +7,12 @@ PostgreSQL 16+. Los scripts viven en `database/` y se ejecutan desde **pgAdmin**
 | # | Archivo | Dónde | Qué hace |
 |---|---|---|---|
 | 0 | `00_create_database.sql` | Query Tool sobre **postgres** | Crea `rrhh_andina` |
-| 1 | `01_install.sql` | Query Tool sobre **rrhh_andina** | Esquema, menú, 3 cuentas y flujos |
+| 1 | `01_install.sql` | Query Tool sobre **rrhh_andina** | Todas las tablas, menú, 3 cuentas y flujos |
 | 2 | `02_reset.sql` | Misma conexión | Limpia trámites y deja solo las 3 cuentas |
 
 En el Query Tool del `00`, dejar **Auto commit** activo. `CREATE DATABASE` no puede ir dentro de una transacción.
 
-`01_install.sql` empieza con `DROP SCHEMA public CASCADE`. Se puede repetir sobre `rrhh_andina` sin tocar otras bases. Incluye `refresh_token` y el menú.
+`01_install.sql` empieza con `DROP SCHEMA public CASCADE`. Se puede repetir sobre `rrhh_andina` sin tocar otras bases. Contiene **todas** las `CREATE TABLE` (personal, contratos, trámites, planilla, contabilidad, desempeño y reclutamiento).
 
 ## Modelo de aprobación
 
@@ -65,6 +65,7 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 
 - `area`, `cargo`, `horario_laboral`
 - `empleado` (código `AND-xxx`, jefe inmediato, estado)
+- `contrato` (modalidad, horario, remuneración básica)
 - `carga_masiva`, `carga_masiva_detalle`
 
 **Seguridad**
@@ -78,6 +79,13 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 - `tipo_permiso`
 - `configuracion_aprobacion`, `configuracion_aprobacion_detalle`
 - `solicitud_permiso`, `solicitud_hora_extra`
+
+**Planilla, contabilidad, desempeño y reclutamiento**
+
+- `planilla`, `planilla_detalle`
+- `cuenta_contable`, `asiento_contable`, `asiento_linea`
+- `evaluacion_desempeno`
+- `convocatoria`, `postulacion`
 - `solicitud_paso_aprobacion`
 - `historial_solicitud`
 

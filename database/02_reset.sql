@@ -23,6 +23,14 @@ DELETE FROM marcacion;
 DELETE FROM carga_masiva_detalle;
 DELETE FROM carga_masiva;
 DELETE FROM reporte_generado;
+DELETE FROM postulacion;
+DELETE FROM convocatoria;
+DELETE FROM evaluacion_desempeno;
+DELETE FROM asiento_linea;
+DELETE FROM asiento_contable;
+DELETE FROM planilla_detalle;
+DELETE FROM planilla;
+DELETE FROM contrato;
 DELETE FROM usuario;
 UPDATE empleado SET id_jefe_inmediato = NULL;
 DELETE FROM empleado;
@@ -78,6 +86,23 @@ FROM (VALUES
 ) AS v(codigo_empleado, nombre_usuario, codigo_rol)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
 JOIN rol r ON r.codigo = v.codigo_rol;
+
+INSERT INTO contrato (codigo, id_empleado, modalidad, id_horario, fecha_inicio, estado, observaciones, remuneracion_basica)
+SELECT v.codigo, e.id_empleado, v.modalidad::modalidad_contrato, e.id_horario, e.fecha_ingreso, 'VIGENTE',
+       'Contrato inicial de demostración', v.remuneracion
+FROM (VALUES
+    ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC),
+    ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC),
+    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC)
+) AS v(codigo, codigo_empleado, modalidad, remuneracion)
+JOIN empleado e ON e.codigo_empleado = v.codigo_empleado;
+
+INSERT INTO convocatoria (codigo, puesto, id_area, vacantes, fecha_inicio, fecha_fin, descripcion, estado)
+SELECT 'CONV-001', 'Analista contable junior', a.id_area, 1, CURRENT_DATE - 10, CURRENT_DATE + 20,
+       'Convocatoria de demostración para el área contable.', 'ABIERTA'
+FROM area a
+WHERE a.nombre ILIKE '%contab%'
+LIMIT 1;
 
 -- Sin cuenta RRHH: el paso de validación lo atiende el administrador.
 UPDATE configuracion_aprobacion_detalle d

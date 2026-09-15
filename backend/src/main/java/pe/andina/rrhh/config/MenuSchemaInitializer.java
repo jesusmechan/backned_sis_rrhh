@@ -64,9 +64,7 @@ public class MenuSchemaInitializer implements ApplicationRunner {
                 """);
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.setContinueOnError(true);
-        populator.addScript(new ClassPathResource("db/menu.sql"));
-        populator.addScript(new ClassPathResource("db/contratos.sql"));
-        populator.addScript(new ClassPathResource("db/modulos_rrhh.sql"));
+        populator.addScript(new ClassPathResource("db/schema.sql"));
         populator.execute(jdbcTemplate.getDataSource());
     }
 }

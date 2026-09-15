@@ -26,7 +26,7 @@ Proyecto_RRHH/
 │   └── PRUEBAS.md           # Cuentas y recorrido de los flujos
 ├── database/
 │   ├── 00_create_database.sql
-│   ├── 01_install.sql       # Esquema + datos iniciales
+│   ├── 01_install.sql       # Todas las tablas + datos iniciales
 │   └── 02_reset.sql         # Limpia trámites y deja 3 cuentas
 ├── backend/                 # API Spring Boot (puerto 8080)
 └── frontend/                # React + Vite (puerto 5173)
