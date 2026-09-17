@@ -29,6 +29,7 @@ import { PlanillaDetalle } from './pages/PlanillaDetalle';
 import { Contabilidad } from './pages/Contabilidad';
 import { Desempeno } from './pages/Desempeno';
 import { Reclutamiento } from './pages/Reclutamiento';
+import { Roles } from './pages/Roles';
 import { Maestros } from './pages/Maestros';
 
 function ScrollToTop() {
@@ -43,6 +44,7 @@ function Private({ children, path }) {
   const { isAuth, canAccess, hasAnyRole } = useAuth();
   if (!isAuth) return <Navigate to="/login" replace />;
   if (path === '/menu' && hasAnyRole('ADMIN')) return children;
+  if (path === '/roles' && hasAnyRole('ADMIN')) return children;
   if (path && !canAccess(path)) return <AccesoRestringido />;
   return children;
 }
@@ -77,6 +79,7 @@ export default function App() {
         <Route path="desempeno" element={<Private path="/desempeno"><Desempeno /></Private>} />
         <Route path="reclutamiento" element={<Private path="/reclutamiento"><Reclutamiento /></Private>} />
         <Route path="usuarios" element={<Private path="/usuarios"><Usuarios /></Private>} />
+        <Route path="roles" element={<Private path="/roles"><Roles /></Private>} />
         <Route path="menu" element={<Private path="/menu"><Menus /></Private>} />
         <Route path="flujos" element={<Private path="/flujos"><Flujos /></Private>} />
         <Route path="flujos/nuevo" element={<Private path="/flujos"><FlujoConfig /></Private>} />

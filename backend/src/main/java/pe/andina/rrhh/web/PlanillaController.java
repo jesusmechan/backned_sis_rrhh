@@ -3,6 +3,9 @@ package pe.andina.rrhh.web;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +19,7 @@ import pe.andina.rrhh.dto.AppDtos.PageResponse;
 import pe.andina.rrhh.dto.AppDtos.PlanillaRequest;
 import pe.andina.rrhh.dto.AppDtos.PlanillaResponse;
 import pe.andina.rrhh.service.PlanillaService;
+import pe.andina.rrhh.service.PlanillaService.BoletaPdfFile;
 
 @RestController
 @RequestMapping("/api/planillas")
@@ -62,5 +66,24 @@ public class PlanillaController {
     @Operation(summary = "Cerrar planilla y generar asiento contable")
     public PlanillaResponse cerrar(@PathVariable Integer id) {
         return planillaService.cerrar(id);
+    }
+
+    @GetMapping("/{id}/boletas/pdf")
+    @Operation(summary = "Descargar todas las boletas del periodo en un PDF")
+    public ResponseEntity<byte[]> pdfTodas(@PathVariable Integer id) {
+        return archivo(planillaService.pdfBoletas(id));
+    }
+
+    @GetMapping("/{id}/boletas/{idDetalle}/pdf")
+    @Operation(summary = "Descargar la boleta de un trabajador")
+    public ResponseEntity<byte[]> pdfUna(@PathVariable Integer id, @PathVariable Integer idDetalle) {
+        return archivo(planillaService.pdfBoleta(id, idDetalle));
+    }
+
+    private ResponseEntity<byte[]> archivo(BoletaPdfFile pdf) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + pdf.nombre() + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf.contenido());
     }
 }

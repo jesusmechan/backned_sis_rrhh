@@ -100,15 +100,7 @@ Para combos (empleado, jefe) use `page=1&size=100`.
 
 ## Roles
 
-Spring Security usa `ROLE_ADMIN`, `ROLE_RRHH`, `ROLE_APROBADOR` y `ROLE_EMPLEADO`.  
-Los permisos funcionales del rol también viajan como authorities.
-
-| Código | Uso |
-|---|---|
-| ADMIN | Usuarios, configuración, auditoría |
-| RRHH | Personal, flujos, reportes, supervisión |
-| APROBADOR | Bandeja y decisión de pasos |
-| EMPLEADO | Solicitudes y marcaciones propias |
+Los perfiles están en la tabla `rol` (mantenedor `GET/POST/PUT /api/roles`). El código del rol se publica como `ROLE_{codigo}` y los permisos funcionales de `rol_permiso` viajan como authorities. El semilla incluye ADMIN, RRHH, APROBADOR y EMPLEADO; se pueden crear más desde el mantenedor.
 
 Contraseña de todos: **Andina2026**. Recorrido: [PRUEBAS.md](PRUEBAS.md).
 
@@ -222,6 +214,10 @@ El perfil de la cuenta es el `rol`. El menú no es estático: se lee de `menu_it
 | POST | `/api/menus` | ADMIN | Crear opción y asociarla a perfiles |
 | PUT | `/api/menus/{id}` | ADMIN | Actualizar opción y perfiles |
 | DELETE | `/api/menus/{id}` | ADMIN | Eliminar opción |
+| GET | `/api/roles` | ADMIN | Mantenedor paginado de roles |
+| GET | `/api/roles/{id}` | ADMIN | Detalle con menús y permisos |
+| POST | `/api/roles` | ADMIN | Crear rol |
+| PUT | `/api/roles/{id}` | ADMIN | Actualizar rol, menús y permisos |
 
 ## Usuarios
 
@@ -439,6 +435,8 @@ El cálculo usa la remuneración básica del contrato vigente, las horas extras 
 | GET | `/api/planillas` | ADMIN, RRHH | Lista periodos |
 | POST | `/api/planillas` | ADMIN, RRHH | Abre periodo `anio` + `mes` |
 | GET | `/api/planillas/{id}` | ADMIN, RRHH | Boletas del periodo |
+| GET | `/api/planillas/{id}/boletas/pdf` | ADMIN, RRHH | PDF con una página por trabajador |
+| GET | `/api/planillas/{id}/boletas/{idDetalle}/pdf` | ADMIN, RRHH | PDF de una boleta |
 | POST | `/api/planillas/{id}/calcular` | ADMIN, RRHH | Recalcula boletas |
 | POST | `/api/planillas/{id}/cerrar` | ADMIN, RRHH | Cierra y contabiliza |
 | GET | `/api/asientos` | ADMIN, RRHH | Asientos de planilla |

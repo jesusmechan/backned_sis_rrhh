@@ -2,6 +2,7 @@
 -- Limpia trámites y deja solo las 3 cuentas de prueba.
 -- Conserva: áreas, cargos, horarios, tipos de permiso, parámetros, roles,
 -- permisos funcionales, menú y configuración de flujos.
+-- Vuelve a sembrar marcaciones hábiles desde el 2026-08-03 hasta hoy.
 --
 -- pgAdmin: Query Tool sobre rrhh_andina, F5.
 -- Contraseña: Andina2026. Guía: docs/PRUEBAS.md
@@ -122,6 +123,41 @@ WHERE d.id_configuracion = c.id_configuracion
   AND c.codigo = 'CFG-PERMISO-VACACIONES'
   AND d.numero_paso = 3
   AND u.nombre_usuario = 'jesus.mechan';
+
+-- Asistencia: lun-vie desde el 3 de agosto de 2026 hasta hoy (America/Lima).
+INSERT INTO marcacion (id_empleado, tipo, fecha_hora, origen, observacion, id_usuario_registro)
+SELECT
+    e.id_empleado,
+    v.tipo::tipo_marcacion,
+    ((d.dia + v.hora) + make_interval(mins => v.ajuste)) AT TIME ZONE 'America/Lima',
+    'WEB',
+    'Jornada ordinaria',
+    u.id_usuario
+FROM usuario u
+JOIN empleado e ON e.id_empleado = u.id_empleado
+JOIN horario_laboral h ON h.id_horario = e.id_horario
+JOIN generate_series(
+        DATE '2026-08-03',
+        (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date,
+        INTERVAL '1 day'
+     ) AS gs(ts) ON TRUE
+CROSS JOIN LATERAL (SELECT gs.ts::date AS dia) AS d
+CROSS JOIN LATERAL (
+    VALUES
+        ('INGRESO', h.hora_ingreso, (abs(hashtext(e.id_empleado::text || d.dia::text || 'I')) % 11) - 4),
+        ('SALIDA',  h.hora_salida,  (abs(hashtext(e.id_empleado::text || d.dia::text || 'S')) % 16) - 2)
+) AS v(tipo, hora, ajuste)
+WHERE u.activo
+  AND e.estado = 'ACTIVO'
+  AND d.dia >= e.fecha_ingreso
+  AND EXTRACT(ISODOW FROM d.dia) BETWEEN 1 AND 5
+  AND NOT EXISTS (
+        SELECT 1
+        FROM marcacion m
+        WHERE m.id_empleado = e.id_empleado
+          AND m.tipo = v.tipo::tipo_marcacion
+          AND m.fecha = d.dia
+  );
 
 INSERT INTO auditoria (id_usuario, accion, entidad, id_entidad, detalle)
 SELECT id_usuario, 'RESET_PRUEBAS', 'SISTEMA', NULL,

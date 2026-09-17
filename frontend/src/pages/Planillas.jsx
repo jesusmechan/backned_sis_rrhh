@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager } from '../components/ui';
+import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, downloadBlob } from '../components/ui';
 import { fmtMoney } from '../lib/format';
 
 const MESES = [
@@ -22,6 +22,7 @@ export function Planillas() {
   const [ok, setOk] = useState('');
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pdfId, setPdfId] = useState(null);
   const [form, setForm] = useState({ anio: String(now.getFullYear()), mes: String(now.getMonth() + 1), observaciones: '' });
   const [counts, setCounts] = useState({ total: 0, calculadas: 0, cerradas: 0 });
 
@@ -48,6 +49,19 @@ export function Planillas() {
       });
     }).catch(() => {});
   }, []);
+
+  async function bajarPdf(r) {
+    setError('');
+    setPdfId(r.idPlanilla);
+    try {
+      const blob = await http.download(`/api/planillas/${r.idPlanilla}/boletas/pdf`);
+      downloadBlob(blob, `boletas-${r.anio}-${String(r.mes).padStart(2, '0')}.pdf`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPdfId(null);
+    }
+  }
 
   async function crear(e) {
     e.preventDefault();
@@ -116,7 +130,14 @@ export function Planillas() {
                 </div>
                 <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
                   <Badge value={r.estado} />
-                  <Button variant="secondary" onClick={() => navigate(`/planillas/${r.idPlanilla}`)}>Ver boletas</Button>
+                  <div className="flex flex-wrap gap-2">
+                    {(r.estado === 'CALCULADA' || r.estado === 'CERRADA') && (
+                      <Button variant="secondary" disabled={pdfId === r.idPlanilla} onClick={() => bajarPdf(r)}>
+                        <Download size={14} /> {pdfId === r.idPlanilla ? 'Descargando…' : 'PDF'}
+                      </Button>
+                    )}
+                    <Button variant="secondary" onClick={() => navigate(`/planillas/${r.idPlanilla}`)}>Ver boletas</Button>
+                  </div>
                 </div>
               </div>
             </article>

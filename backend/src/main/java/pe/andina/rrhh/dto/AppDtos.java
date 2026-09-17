@@ -38,6 +38,7 @@ public final class AppDtos {
 
     public record IdNombre(Integer id, String nombre) {}
     public record CatalogoItem(Integer id, String codigo, String nombre) {}
+    public record PermisoFuncionalItem(Integer id, String codigo, String nombre, String modulo) {}
 
     public record EmpleadoRequest(
             @NotBlank(message = "Indique el código")
@@ -187,6 +188,32 @@ public final class AppDtos {
             Boolean activo,
             List<Integer> idPerfiles,
             List<String> perfiles
+    ) {}
+
+    public record RolRequest(
+            @NotBlank(message = "Indique el código")
+            @Pattern(regexp = "^[A-Z][A-Z0-9_-]{1,29}$", message = "El código solo admite mayúsculas, números y guion")
+            String codigo,
+            @NotBlank(message = "Indique el nombre")
+            @Size(max = 80)
+            String nombre,
+            @Size(max = 250) String descripcion,
+            Boolean activo,
+            List<Integer> idMenus,
+            List<Integer> idPermisos
+    ) {}
+
+    public record RolResponse(
+            Integer idRol,
+            String codigo,
+            String nombre,
+            String descripcion,
+            Boolean activo,
+            int usuarios,
+            List<Integer> idMenus,
+            List<String> menus,
+            List<Integer> idPermisos,
+            List<String> permisos
     ) {}
 
     public record SesionResponse(

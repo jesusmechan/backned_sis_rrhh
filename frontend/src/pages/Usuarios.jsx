@@ -100,7 +100,7 @@ export function Usuarios() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   function rolEmpleadoId(list = roles) {
-    return list.find((r) => r.codigo === 'EMPLEADO')?.id || '';
+    return list.find((r) => r.codigo === 'EMPLEADO')?.id || list[0]?.id || '';
   }
 
   function datosCuenta(emp, prefill = {}) {
@@ -231,7 +231,7 @@ export function Usuarios() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Administración</p>
           <h1 className="page-title mt-1">Usuarios</h1>
-          <p className="mt-2 text-sm text-muted">Cuentas de acceso. El menú se carga según el perfil asignado.</p>
+          <p className="mt-2 text-sm text-muted">Cuentas de acceso. El menú y los permisos salen del rol asignado en el mantenedor.</p>
         </div>
         {esAdmin && <Button onClick={() => abrir(null)}><Plus size={16} /> Nueva cuenta</Button>}
       </div>

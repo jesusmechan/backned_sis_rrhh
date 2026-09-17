@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pe.andina.rrhh.dto.AppDtos.CatalogoItem;
 import pe.andina.rrhh.dto.AppDtos.IdNombre;
+import pe.andina.rrhh.dto.AppDtos.PermisoFuncionalItem;
 import pe.andina.rrhh.service.CatalogoService;
 
 import java.util.List;
@@ -38,7 +39,7 @@ public class CatalogoController {
     public List<CatalogoItem> roles() { return catalogoService.roles(); }
 
     @GetMapping("/permisos-funcionales")
-    public List<CatalogoItem> permisos() { return catalogoService.permisosFuncionales(); }
+    public List<PermisoFuncionalItem> permisos() { return catalogoService.permisosFuncionales(); }
 
     @GetMapping("/parametros")
     public List<Map<String, String>> parametros() { return catalogoService.parametros(); }

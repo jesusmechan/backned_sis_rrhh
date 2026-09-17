@@ -29,4 +29,10 @@ public class ParametroSistemaService {
     public BigDecimal decimal(String clave, String defecto) {
         return decimal(clave, new BigDecimal(defecto));
     }
+
+    public String texto(String clave, String defecto) {
+        return parametroRepository.findById(clave)
+                .map(p -> p.getValor() == null || p.getValor().isBlank() ? defecto : p.getValor().trim())
+                .orElse(defecto);
+    }
 }

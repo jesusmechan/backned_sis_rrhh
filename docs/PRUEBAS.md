@@ -2,7 +2,7 @@
 
 Contraseña de **todos**: `Andina2026`
 
-La base queda sin solicitudes, marcaciones ni historial. Se conservan menú, roles, horarios, tipos de permiso y la configuración de flujos.
+La base queda sin solicitudes ni historial. Se conservan menú, roles, horarios, tipos de permiso y la configuración de flujos. Cada cuenta vuelve a tener marcaciones de lunes a viernes desde el **2026-08-03** hasta hoy (ingreso y salida según su jornada; sin sábados ni domingo).
 
 Si la base ya tenía otras cuentas, ejecuta `database/02_reset.sql` sobre `rrhh_andina` (pgAdmin → F5).
 
@@ -69,7 +69,8 @@ Cierra sesión al cambiar de usuario (icono de salir).
 
 ## Marcación
 
-- Entra con `juan.espinoza` o `jesus.pantoja` en **Marcar**.
+- El seed deja historial hábil desde el **3 de agosto de 2026** hasta la fecha en que se ejecutó el script (hora Lima).
+- Entra con `juan.espinoza` o `jesus.pantoja` en **Marcar** para el día de hoy si aún no hay salida.
 - Sábado y domingo la marcación está deshabilitada (zona `America/Lima`).
 - Un **INGRESO** y una **SALIDA** por día, origen WEB.
 - `jesus.mechan` ve todo en **Asistencia** y **Personal**.

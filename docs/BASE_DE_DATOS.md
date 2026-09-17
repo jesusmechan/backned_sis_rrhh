@@ -116,7 +116,7 @@ Contraseña de todos: **Andina2026**. Guía: [PRUEBAS.md](PRUEBAS.md).
 | AND-002 | `jesus.pantoja` | APROBADOR | Contabilidad |
 | AND-003 | `juan.espinoza` | EMPLEADO | Contabilidad |
 
-Para dejar la base en este estado (sin solicitudes ni marcaciones): ejecuta `database/02_reset.sql`.
+Para dejar la base en este estado (sin solicitudes, con marcaciones hábiles desde el 2026-08-03): ejecuta `database/02_reset.sql`.
 
 ## Conexión de la API
 

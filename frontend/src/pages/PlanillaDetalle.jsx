@@ -1,8 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { http } from '../api/client';
-import { Alert, BackLink, Badge, Button, Empty } from '../components/ui';
+import { Alert, BackLink, Badge, Button, Empty, downloadBlob } from '../components/ui';
 import { fmtMoney } from '../lib/format';
+
+function archivoPeriodo(detalle, prefix, extra = '') {
+  const mes = String(detalle?.mes || 0).padStart(2, '0');
+  return `${prefix}${extra}${detalle?.anio || ''}-${mes}.pdf`;
+}
+
+function slugNombre(nombre) {
+  const slug = String(nombre || 'boleta')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+  return slug || 'boleta';
+}
 
 export function PlanillaDetalle() {
   const { id } = useParams();
@@ -12,6 +28,7 @@ export function PlanillaDetalle() {
   const [error, setError] = useState('');
   const [ok, setOk] = useState(location.state?.ok || '');
   const [saving, setSaving] = useState(false);
+  const [pdf, setPdf] = useState('');
 
   async function load() {
     setDetalle(await http.get(`/api/planillas/${id}`));
@@ -50,7 +67,21 @@ export function PlanillaDetalle() {
     }
   }
 
+  async function bajar(path, filename, token) {
+    setError('');
+    setOk('');
+    setPdf(token);
+    try {
+      downloadBlob(await http.download(path), filename);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPdf('');
+    }
+  }
+
   const boletas = detalle?.boletas || [];
+  const puedePdf = boletas.length > 0 && (detalle?.estado === 'CALCULADA' || detalle?.estado === 'CERRADA');
 
   return (
     <div>
@@ -65,6 +96,15 @@ export function PlanillaDetalle() {
         </div>
         <div className="flex flex-wrap gap-2">
           {detalle?.estado && <Badge value={detalle.estado} />}
+          {puedePdf && (
+            <Button
+              variant="secondary"
+              disabled={Boolean(pdf)}
+              onClick={() => bajar(`/api/planillas/${id}/boletas/pdf`, archivoPeriodo(detalle, 'boletas-'), 'todas')}
+            >
+              <Download size={16} /> {pdf === 'todas' ? 'Descargando…' : 'PDF todas'}
+            </Button>
+          )}
           {detalle?.estado !== 'CERRADA' && detalle?.estado !== 'ANULADA' && (
             <Button disabled={saving} onClick={calcular}>{saving ? 'Calculando…' : 'Calcular'}</Button>
           )}
@@ -96,6 +136,7 @@ export function PlanillaDetalle() {
                 <th className="px-4 py-3">ONP</th>
                 <th className="px-4 py-3">EsSalud</th>
                 <th className="px-4 py-3">Neto</th>
+                <th className="px-4 py-3 text-right"> </th>
               </tr>
             </thead>
             <tbody>
@@ -111,6 +152,22 @@ export function PlanillaDetalle() {
                   <td className="px-4 py-3">{fmtMoney(b.onp)}</td>
                   <td className="px-4 py-3">{fmtMoney(b.essalud)}</td>
                   <td className="px-4 py-3 font-semibold text-navy">{fmtMoney(b.neto)}</td>
+                  <td className="px-4 py-3 text-right">
+                    {puedePdf && (
+                      <Button
+                        variant="ghost"
+                        className="px-2 py-1.5 text-xs"
+                        disabled={Boolean(pdf)}
+                        onClick={() => bajar(
+                          `/api/planillas/${id}/boletas/${b.idDetalle}/pdf`,
+                          archivoPeriodo(detalle, 'boleta-', `${slugNombre(b.empleado)}-`),
+                          String(b.idDetalle)
+                        )}
+                      >
+                        <Download size={14} /> {pdf === String(b.idDetalle) ? '…' : 'PDF'}
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

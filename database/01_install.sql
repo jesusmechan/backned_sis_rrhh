@@ -1573,6 +1573,7 @@ INSERT INTO menu_item (codigo, etiqueta, ruta, icono, grupo, descripcion, orden)
     ('CONTRATOS', 'Contratos', '/contratos', 'FileText', 'Administración', 'Modalidad, horario y vigencia del vínculo laboral.', 85),
     ('MAESTROS', 'Maestros', '/maestros', 'Library', 'Administración', 'Áreas, cargos, horarios, tipos de permiso, parámetros y plan de cuentas.', 88),
     ('USUARIOS', 'Usuarios', '/usuarios', 'UserCog', 'Administración', 'Cuentas de acceso y asignación de perfil.', 90),
+    ('ROLES', 'Roles', '/roles', 'KeyRound', 'Administración', 'Mantenedor de perfiles, menús y permisos.', 92),
     ('MENU', 'Menú', '/menu', 'List', 'Administración', 'Mantenedor de opciones de menú por perfil.', 95),
     ('FLUJOS', 'Flujos', '/flujos', 'GitBranch', 'Administración', 'Circuitos de aprobación.', 100),
     ('PLANILLAS', 'Planillas', '/planillas', 'Wallet', 'Gestión', 'Cálculo mensual de remuneraciones y boletas.', 102),
@@ -1738,6 +1739,42 @@ FROM (VALUES
 JOIN configuracion_aprobacion c ON c.codigo = v.codigo
 LEFT JOIN rol r ON r.codigo = v.codigo_rol
 LEFT JOIN usuario u ON u.nombre_usuario = v.nombre_usuario;
+
+-- Asistencia de demostración: un INGRESO y una SALIDA por día hábil
+-- desde el 3 de agosto de 2026 hasta hoy (America/Lima). Sin sábados ni domingo.
+INSERT INTO marcacion (id_empleado, tipo, fecha_hora, origen, observacion, id_usuario_registro)
+SELECT
+    e.id_empleado,
+    v.tipo::tipo_marcacion,
+    ((d.dia + v.hora) + make_interval(mins => v.ajuste)) AT TIME ZONE 'America/Lima',
+    'WEB',
+    'Jornada ordinaria',
+    u.id_usuario
+FROM usuario u
+JOIN empleado e ON e.id_empleado = u.id_empleado
+JOIN horario_laboral h ON h.id_horario = e.id_horario
+JOIN generate_series(
+        DATE '2026-08-03',
+        (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date,
+        INTERVAL '1 day'
+     ) AS gs(ts) ON TRUE
+CROSS JOIN LATERAL (SELECT gs.ts::date AS dia) AS d
+CROSS JOIN LATERAL (
+    VALUES
+        ('INGRESO', h.hora_ingreso, (abs(hashtext(e.id_empleado::text || d.dia::text || 'I')) % 11) - 4),
+        ('SALIDA',  h.hora_salida,  (abs(hashtext(e.id_empleado::text || d.dia::text || 'S')) % 16) - 2)
+) AS v(tipo, hora, ajuste)
+WHERE u.activo
+  AND e.estado = 'ACTIVO'
+  AND d.dia >= e.fecha_ingreso
+  AND EXTRACT(ISODOW FROM d.dia) BETWEEN 1 AND 5
+  AND NOT EXISTS (
+        SELECT 1
+        FROM marcacion m
+        WHERE m.id_empleado = e.id_empleado
+          AND m.tipo = v.tipo::tipo_marcacion
+          AND m.fecha = d.dia
+  );
 
 INSERT INTO auditoria (id_usuario, accion, entidad, id_entidad, detalle)
 SELECT id_usuario, 'INICIALIZAR_BD', 'SISTEMA', NULL,

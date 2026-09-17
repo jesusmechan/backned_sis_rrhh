@@ -67,7 +67,7 @@ public class MenuAdminService {
     public void eliminar(Integer id) {
         MenuItem item = buscar(id);
         if (esMantenedor(item)) {
-            throw ApiException.badRequest("No se puede eliminar el mantenedor de menú");
+            throw ApiException.badRequest("No se puede eliminar este mantenedor");
         }
         auditoriaService.registrar(SecurityUtils.current().getUsuario(), "ELIMINAR", "MENU", id, item.getCodigo());
         menuItemRepository.delete(item);
@@ -75,11 +75,11 @@ public class MenuAdminService {
 
     private void aplicar(MenuItem item, MenuAdminRequest request) {
         Set<Rol> perfiles = resolverPerfiles(request.idPerfiles());
-        if (esMantenedor(request) && perfiles.stream().noneMatch(r -> "ADMIN".equals(r.getCodigo()))) {
-            throw ApiException.badRequest("El mantenedor de menú debe quedar asignado al perfil Administrador");
+        if (esMantenedor(request) && perfiles.stream().noneMatch(r -> "ADMIN".equalsIgnoreCase(r.getCodigo()))) {
+            throw ApiException.badRequest("El mantenedor debe quedar asignado al perfil Administrador");
         }
         if (Boolean.FALSE.equals(request.activo()) && esMantenedor(item)) {
-            throw ApiException.badRequest("El mantenedor de menú no puede desactivarse");
+            throw ApiException.badRequest("El mantenedor no puede desactivarse");
         }
         item.setCodigo(request.codigo().trim().toUpperCase());
         item.setEtiqueta(request.etiqueta().trim());
@@ -131,11 +131,16 @@ public class MenuAdminService {
     }
 
     private boolean esMantenedor(MenuItem item) {
-        return "MENU".equalsIgnoreCase(item.getCodigo()) || "/menu".equals(item.getRuta());
+        return esMantenedor(item.getCodigo(), item.getRuta());
     }
 
     private boolean esMantenedor(MenuAdminRequest request) {
-        return "MENU".equalsIgnoreCase(request.codigo()) || "/menu".equals(normalizarRuta(request.ruta()));
+        return esMantenedor(request.codigo(), normalizarRuta(request.ruta()));
+    }
+
+    private boolean esMantenedor(String codigo, String ruta) {
+        return "MENU".equalsIgnoreCase(codigo) || "/menu".equals(ruta)
+                || "ROLES".equalsIgnoreCase(codigo) || "/roles".equals(ruta);
     }
 
     private String normalizarRuta(String ruta) {

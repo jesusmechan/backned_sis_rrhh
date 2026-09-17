@@ -4,6 +4,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.common.ApiException;
+import pe.andina.rrhh.domain.Rol;
 import pe.andina.rrhh.domain.Usuario;
 import pe.andina.rrhh.dto.AppDtos.CambioPasswordRequest;
 import pe.andina.rrhh.dto.AppDtos.UsuarioRequest;
@@ -104,7 +105,12 @@ public class UsuarioService {
     }
 
     private void aplicar(Usuario u, UsuarioRequest r, boolean nuevo) {
-        u.setRol(rolRepository.findById(r.idRol()).orElseThrow(() -> ApiException.badRequest("Rol no existe")));
+        Rol rol = rolRepository.findById(r.idRol()).orElseThrow(() -> ApiException.badRequest("Rol no existe"));
+        if (!Boolean.TRUE.equals(rol.getActivo())
+                && (u.getRol() == null || !rol.getIdRol().equals(u.getRol().getIdRol()))) {
+            throw ApiException.badRequest("El rol está inactivo");
+        }
+        u.setRol(rol);
         u.setNombreUsuario(r.nombreUsuario());
         u.setCorreo(r.correo());
         if (r.idEmpleado() != null) {

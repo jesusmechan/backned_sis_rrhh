@@ -45,7 +45,7 @@ Proyecto_RRHH/
 2. Ejecutar `database/00_create_database.sql` (F5).
 3. Refresh → Query Tool sobre **`rrhh_andina`**.
 4. Ejecutar `01_install.sql` (esquema + menú + 3 cuentas + flujos).
-5. Para volver a dejar la base sin solicitudes ni marcaciones: `02_reset.sql`.
+5. Para volver a dejar la base sin solicitudes y con asistencia hábil desde el 3 de agosto: `02_reset.sql`.
 
 `01_install.sql` recrea el esquema `public`. Se puede repetir: borra solo objetos de `rrhh_andina`.
 
@@ -128,11 +128,12 @@ Abre http://localhost:5173. Vite proxea `/api` al backend en el puerto 8080. El 
 | Permisos / horas extras | Registro, cancelación, historial |
 | Aprobación | Flujos configurables + bandeja + aprobar/rechazar paso |
 | Asistencia | Marcación de ingreso/salida y corrección |
-| Planillas | Cálculo mensual de boletas (básico, extras, descuentos, ONP, EsSalud, neto) |
+| Planillas | Cálculo mensual de boletas y exportación PDF (básico, extras, descuentos, ONP, EsSalud, neto) |
 | Contabilidad | Asiento de partida doble al cerrar la planilla |
 | Desempeño | Evaluación 1–5 en puntualidad, calidad, cooperación e iniciativa |
 | Reclutamiento | Convocatorias y seguimiento de postulantes |
-| Usuarios | Roles ADMIN, RRHH, APROBADOR, EMPLEADO |
+| Usuarios | Cuentas de acceso; el rol se elige del mantenedor (`rol`) |
+| Roles | Alta y edición de perfiles, menú y permisos funcionales |
 | Reportes | JSON, Excel y PDF |
 | Auditoría | Bitácora y trazabilidad de solicitudes |
 

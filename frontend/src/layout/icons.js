@@ -17,7 +17,8 @@ import {
   UserPlus,
   Users,
   Wallet,
-  Library
+  Library,
+  KeyRound
 } from 'lucide-react';
 
 const ICONS = {
@@ -39,7 +40,8 @@ const ICONS = {
   BookOpen,
   Star,
   UserPlus,
-  Library
+  Library,
+  KeyRound
 };
 
 export function menuIcon(name) {

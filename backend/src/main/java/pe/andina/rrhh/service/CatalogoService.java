@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.dto.AppDtos.CatalogoItem;
 import pe.andina.rrhh.dto.AppDtos.IdNombre;
+import pe.andina.rrhh.dto.AppDtos.PermisoFuncionalItem;
 import pe.andina.rrhh.repo.AreaRepository;
 import pe.andina.rrhh.repo.CargoRepository;
 import pe.andina.rrhh.repo.HorarioLaboralRepository;
@@ -77,14 +78,17 @@ public class CatalogoService {
 
     @Transactional(readOnly = true)
     public List<CatalogoItem> roles() {
-        return rolRepository.findAll().stream()
-                .map(r -> new CatalogoItem(r.getIdRol(), r.getCodigo(), r.getNombre())).toList();
+        return rolRepository.findAllByOrderByNombreAsc().stream()
+                .filter(r -> Boolean.TRUE.equals(r.getActivo()))
+                .map(r -> new CatalogoItem(r.getIdRol(), r.getCodigo(), r.getNombre()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<CatalogoItem> permisosFuncionales() {
+    public List<PermisoFuncionalItem> permisosFuncionales() {
         return permisoFuncionalRepository.findAll().stream()
-                .map(p -> new CatalogoItem(p.getIdPermiso(), p.getCodigo(), p.getNombre())).toList();
+                .map(p -> new PermisoFuncionalItem(p.getIdPermiso(), p.getCodigo(), p.getNombre(), p.getModulo()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

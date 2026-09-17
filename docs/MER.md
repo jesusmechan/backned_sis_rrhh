@@ -245,7 +245,7 @@ erDiagram
 | AREA / CARGO / HORARIO_LABORAL → EMPLEADO | 1 : N | Todo colaborador pertenece a un área, un cargo y un horario |
 | EMPLEADO → EMPLEADO | 1 : N | `id_jefe_inmediato` (organigrama; no puede ser él mismo) |
 | EMPLEADO → USUARIO | 1 : 0..1 | Un colaborador tiene como máximo una cuenta |
-| ROL → USUARIO | 1 : N | ADMIN, RRHH, APROBADOR, EMPLEADO |
+| ROL → USUARIO | 1 : N | El perfil se elige del mantenedor `rol` |
 | ROL ↔ PERMISO_FUNCIONAL | N : M | Puente `rol_permiso` |
 | MENU_ITEM ↔ ROL | N : M | Puente `menu_rol` (menú dinámico por perfil) |
 | EMPLEADO → MARCACION | 1 : N | INGRESO / SALIDA; `fecha` se deriva en zona `America/Lima` |

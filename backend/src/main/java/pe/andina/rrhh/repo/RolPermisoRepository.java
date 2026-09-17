@@ -8,4 +8,6 @@ import java.util.List;
 public interface RolPermisoRepository extends JpaRepository<RolPermiso, RolPermisoId> {
     @Query("select rp from RolPermiso rp join fetch rp.permiso where rp.rol.idRol = :idRol")
     List<RolPermiso> findByRolId(@Param("idRol") Integer idRol);
+
+    void deleteByRol_IdRol(Integer idRol);
 }

@@ -47,6 +47,7 @@ FROM (VALUES
     ('CONTRATOS', 'Contratos', '/contratos', 'FileText', 'Administración', 'Modalidad, horario y vigencia del vínculo laboral.', 85),
     ('MAESTROS', 'Maestros', '/maestros', 'Library', 'Administración', 'Áreas, cargos, horarios, tipos de permiso, parámetros y plan de cuentas.', 88),
     ('USUARIOS', 'Usuarios', '/usuarios', 'UserCog', 'Administración', 'Cuentas de acceso y asignación de perfil.', 90),
+    ('ROLES', 'Roles', '/roles', 'KeyRound', 'Administración', 'Mantenedor de perfiles, menús y permisos.', 92),
     ('MENU', 'Menú', '/menu', 'List', 'Administración', 'Mantenedor de opciones de menú por perfil.', 95),
     ('FLUJOS', 'Flujos', '/flujos', 'GitBranch', 'Administración', 'Circuitos de aprobación.', 100),
     ('PLANILLAS', 'Planillas', '/planillas', 'Wallet', 'Gestión', 'Cálculo mensual de remuneraciones y boletas.', 102),

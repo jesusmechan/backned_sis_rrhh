@@ -57,6 +57,7 @@ public class PlanillaService {
     private final ParametroSistemaService parametros;
     private final CuentaContableRepository cuentaRepository;
     private final AuditoriaService auditoriaService;
+    private final BoletaPdfService boletaPdfService;
 
     public PlanillaService(PlanillaRepository planillaRepository,
                            PlanillaDetalleRepository detalleRepository,
@@ -67,7 +68,8 @@ public class PlanillaService {
                            SolicitudPermisoRepository permisoRepository,
                            ParametroSistemaService parametros,
                            CuentaContableRepository cuentaRepository,
-                           AuditoriaService auditoriaService) {
+                           AuditoriaService auditoriaService,
+                           BoletaPdfService boletaPdfService) {
         this.planillaRepository = planillaRepository;
         this.detalleRepository = detalleRepository;
         this.asientoRepository = asientoRepository;
@@ -78,6 +80,7 @@ public class PlanillaService {
         this.parametros = parametros;
         this.cuentaRepository = cuentaRepository;
         this.auditoriaService = auditoriaService;
+        this.boletaPdfService = boletaPdfService;
     }
 
     @Transactional(readOnly = true)
@@ -177,6 +180,38 @@ public class PlanillaService {
         asientoRepository.save(asiento);
         auditoriaService.registrar(SecurityUtils.current().getUsuario(), "CERRAR", "PLANILLA", id, asiento.getCodigo());
         return toResponse(p, detalleRepository.findByPlanilla_IdPlanillaOrderByIdDetalleAsc(id));
+    }
+
+    @Transactional(readOnly = true)
+    public BoletaPdfFile pdfBoletas(Integer id) {
+        Planilla p = exigirExportable(id);
+        List<PlanillaDetalle> boletas = detalleRepository.findCompletosByPlanilla(id);
+        return new BoletaPdfFile(
+                boletaPdfService.exportarPlanilla(p, boletas),
+                String.format("boletas-%d-%02d.pdf", p.getAnio(), p.getMes()));
+    }
+
+    @Transactional(readOnly = true)
+    public BoletaPdfFile pdfBoleta(Integer id, Integer idDetalle) {
+        Planilla p = exigirExportable(id);
+        PlanillaDetalle d = detalleRepository.findCompleto(id, idDetalle)
+                .orElseThrow(() -> ApiException.notFound("Boleta no encontrada"));
+        String codigo = d.getEmpleado() != null && d.getEmpleado().getCodigoEmpleado() != null
+                ? d.getEmpleado().getCodigoEmpleado().replaceAll("[^A-Za-z0-9-]", "")
+                : "boleta";
+        return new BoletaPdfFile(
+                boletaPdfService.exportarBoleta(p, d),
+                String.format("boleta-%s-%d-%02d.pdf", codigo, p.getAnio(), p.getMes()));
+    }
+
+    public record BoletaPdfFile(byte[] contenido, String nombre) {}
+
+    private Planilla exigirExportable(Integer id) {
+        Planilla p = buscar(id);
+        if (p.getEstado() != EstadoPlanilla.CALCULADA && p.getEstado() != EstadoPlanilla.CERRADA) {
+            throw ApiException.badRequest("Calcule la planilla antes de exportar las boletas");
+        }
+        return p;
     }
 
     @Transactional(readOnly = true)
