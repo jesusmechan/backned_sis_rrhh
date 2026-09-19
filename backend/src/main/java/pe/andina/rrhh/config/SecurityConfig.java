@@ -18,8 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import pe.andina.rrhh.security.JwtAuthFilter;
-import pe.andina.rrhh.security.JwtProperties;
+import pe.andina.rrhh.adapter.in.security.JwtAuthFilter;
+import pe.andina.rrhh.adapter.in.security.JwtProperties;
 
 @Configuration
 @EnableMethodSecurity

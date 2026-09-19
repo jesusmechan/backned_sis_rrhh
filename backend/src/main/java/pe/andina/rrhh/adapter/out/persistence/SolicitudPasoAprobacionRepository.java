@@ -1,0 +1,14 @@
+package pe.andina.rrhh.adapter.out.persistence;
+import org.springframework.data.jpa.repository.JpaRepository;
+import pe.andina.rrhh.application.port.out.SolicitudPasoAprobacionPort;
+import pe.andina.rrhh.domain.model.SolicitudPasoAprobacion;
+import pe.andina.rrhh.domain.model.enums.EstadoPasoAprobacion;
+import java.util.Collection;
+import java.util.List;
+public interface SolicitudPasoAprobacionRepository extends JpaRepository<SolicitudPasoAprobacion, Integer>, SolicitudPasoAprobacionPort {
+    List<SolicitudPasoAprobacion> findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(Integer id);
+    List<SolicitudPasoAprobacion> findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(Integer id);
+    List<SolicitudPasoAprobacion> findByEstado(EstadoPasoAprobacion estado);
+    List<SolicitudPasoAprobacion> findByUsuarioDecision_IdUsuario(Integer idUsuario);
+    List<SolicitudPasoAprobacion> findByUsuarioAsignado_IdUsuarioAndEstadoIn(Integer idUsuario, Collection<EstadoPasoAprobacion> estados);
+}
