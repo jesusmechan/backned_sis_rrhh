@@ -7,8 +7,8 @@ PostgreSQL 16+. Los scripts viven en `database/` y se ejecutan desde **pgAdmin**
 | # | Archivo | Dónde | Qué hace |
 |---|---|---|---|
 | 0 | `00_create_database.sql` | Query Tool sobre **postgres** | Crea `rrhh_andina` |
-| 1 | `01_install.sql` | Query Tool sobre **rrhh_andina** | Todas las tablas, menú, 3 cuentas y flujos |
-| 2 | `02_reset.sql` | Misma conexión | Limpia trámites y deja solo las 3 cuentas |
+| 1 | `01_install.sql` | Query Tool sobre **rrhh_andina** | Todas las tablas, menú, 4 cuentas y flujos |
+| 2 | `02_reset.sql` | Misma conexión | Limpia trámites y deja las 4 cuentas |
 
 En el Query Tool del `00`, dejar **Auto commit** activo. `CREATE DATABASE` no puede ir dentro de una transacción.
 
@@ -44,7 +44,7 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 |---|---|
 | `JEFE_INMEDIATO` | Jefe del solicitante (`empleado.id_jefe_inmediato`) |
 | `ROL` | Cualquier usuario activo con ese rol (p. ej. RRHH) |
-| `USUARIO` | Un usuario concreto (p. ej. Gerencia = `jesus.mechan`) |
+| `USUARIO` | Un usuario concreto |
 
 ### Flujos seed
 
@@ -52,12 +52,12 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 |---|---|---|
 | `CFG-PERMISO-DEFAULT` | Fallback | Jefe |
 | `CFG-PERMISO-PARTICULAR` | Particular | Jefe |
-| `CFG-PERMISO-SALUD` | Salud | Jefe → ADMIN |
-| `CFG-PERMISO-VACACIONES` | Vacaciones | Jefe → ADMIN → Gerencia (`jesus.mechan`) |
-| `CFG-PERMISO-CAPACITACION` | Capacitación | Jefe → ADMIN |
-| `CFG-PERMISO-COMISION` | Comisión | Jefe → rol APROBADOR |
-| `CFG-PERMISO-DUELO` | Duelo | Jefe → ADMIN |
-| `CFG-HEXTRA` | Horas extras | Jefe → ADMIN |
+| `CFG-PERMISO-SALUD` | Salud | Jefe → RRHH |
+| `CFG-PERMISO-VACACIONES` | Vacaciones | Jefe → RRHH → GERENCIA |
+| `CFG-PERMISO-CAPACITACION` | Capacitación | Jefe → RRHH |
+| `CFG-PERMISO-COMISION` | Comisión | Jefe → GERENCIA |
+| `CFG-PERMISO-DUELO` | Duelo | Jefe → RRHH |
+| `CFG-HEXTRA` | Horas extras | Jefe → RRHH |
 
 ## Tablas principales
 
@@ -113,8 +113,9 @@ Contraseña de todos: **Andina2026**. Guía: [PRUEBAS.md](PRUEBAS.md).
 | Código | Usuario | Rol | Área |
 |---|---|---|---|
 | AND-001 | `jesus.mechan` | ADMIN | Gerencia |
-| AND-002 | `jesus.pantoja` | APROBADOR | Contabilidad |
+| AND-002 | `jesus.pantoja` | JEFE | Contabilidad |
 | AND-003 | `juan.espinoza` | EMPLEADO | Contabilidad |
+| AND-004 | `carla.reyes` | RRHH | Recursos Humanos |
 
 Para dejar la base en este estado (sin solicitudes, con marcaciones hábiles desde el 2026-08-03): ejecuta `database/02_reset.sql`.
 

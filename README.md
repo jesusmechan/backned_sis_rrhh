@@ -21,13 +21,15 @@ La consultora es una MYPE. El sistema cubre personal, contratos, asistencia, per
 Proyecto_RRHH/
 ├── README.md
 ├── docs/
+│   ├── ARQUITECTURA_DE_PROYECTO.md  # Hexágono y comunicación entre carpetas
 │   ├── API.md
 │   ├── BASE_DE_DATOS.md
+│   ├── MER.md
 │   └── PRUEBAS.md           # Cuentas y recorrido de los flujos
 ├── database/
 │   ├── 00_create_database.sql
 │   ├── 01_install.sql       # Todas las tablas + datos iniciales
-│   └── 02_reset.sql         # Limpia trámites y deja 3 cuentas
+│   └── 02_reset.sql         # Limpia trámites y deja 4 cuentas
 ├── backend/                 # API Spring Boot (puerto 8080)
 └── frontend/                # React + Vite (puerto 5173)
 ```
@@ -44,12 +46,14 @@ Proyecto_RRHH/
 1. Query Tool sobre la base **`postgres`**, con **Auto commit** activo.
 2. Ejecutar `database/00_create_database.sql` (F5).
 3. Refresh → Query Tool sobre **`rrhh_andina`**.
-4. Ejecutar `01_install.sql` (esquema + menú + 3 cuentas + flujos).
+4. Ejecutar `01_install.sql` (esquema + menú + 4 cuentas + flujos).
 5. Para volver a dejar la base sin solicitudes y con asistencia hábil desde el 3 de agosto: `02_reset.sql`.
 
 `01_install.sql` recrea el esquema `public`. Se puede repetir: borra solo objetos de `rrhh_andina`.
 
 Cuentas y cómo recorrer cada flujo: [docs/PRUEBAS.md](docs/PRUEBAS.md).
+
+Arquitectura hexagonal y comunicación entre carpetas: [docs/ARQUITECTURA_DE_PROYECTO.md](docs/ARQUITECTURA_DE_PROYECTO.md).
 
 Detalle: [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md).
 
@@ -102,8 +106,9 @@ Usuarios de prueba (contraseña **Andina2026**):
 
 | Usuario | Rol | Persona |
 |---|---|---|
-| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales (acceso total) |
-| `jesus.pantoja` | APROBADOR | Jesús Pantoja Pantoja (jefe de Juan) |
+| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales (acceso total; cierra Gerencia en la demo) |
+| `carla.reyes` | RRHH | Carla Reyes Huamán |
+| `jesus.pantoja` | JEFE | Jesús Pantoja Pantoja (jefe de Juan) |
 | `juan.espinoza` | EMPLEADO | Juan Espinoza (inicia el flujo) |
 
 Recorrido paso a paso: [docs/PRUEBAS.md](docs/PRUEBAS.md). Endpoints: [docs/API.md](docs/API.md).

@@ -27,7 +27,7 @@ public class AuthController {
 
     @PostMapping("/login")
     @SecurityRequirements
-    @Operation(summary = "Iniciar sesión", description = "Usuarios de prueba: jesus.mechan, jesus.pantoja, juan.espinoza. Contraseña: Andina2026")
+    @Operation(summary = "Iniciar sesión", description = "Usuarios de prueba: jesus.mechan, carla.reyes, jesus.pantoja, juan.espinoza. Contraseña: Andina2026")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
     }

@@ -37,6 +37,9 @@ public final class BandejaAsignacion {
     }
 
     private static boolean mismoRol(SolicitudPasoAprobacion paso, Integer idUsuario, String codigoRol) {
-        return paso.getRol() != null && paso.getRol().getCodigo().equals(codigoRol);
+        return paso.getRol() != null
+                && codigoRol != null
+                && (paso.getRol().getCodigo().equals(codigoRol)
+                    || ("GERENCIA".equals(paso.getRol().getCodigo()) && "ADMIN".equals(codigoRol)));
     }
 }

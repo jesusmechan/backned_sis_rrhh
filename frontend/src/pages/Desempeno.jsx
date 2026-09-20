@@ -13,7 +13,7 @@ const empty = {
 
 export function Desempeno() {
   const { hasAnyRole } = useAuth();
-  const puedeRegistrar = hasAnyRole('ADMIN', 'RRHH', 'APROBADOR');
+  const puedeRegistrar = hasAnyRole('ADMIN', 'RRHH', 'JEFE', 'GERENCIA');
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(emptyPage);
   const [page, setPage] = useState(1);

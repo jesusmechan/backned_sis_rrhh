@@ -4,26 +4,28 @@ Contraseña de **todos**: `Andina2026`
 
 La base queda sin solicitudes ni historial. Se conservan menú, roles, horarios, tipos de permiso y la configuración de flujos. Cada cuenta vuelve a tener marcaciones de lunes a viernes desde el **2026-08-03** hasta hoy (ingreso y salida según su jornada; sin sábados ni domingo).
 
-Si la base ya tenía otras cuentas, ejecuta `database/02_reset.sql` sobre `rrhh_andina` (pgAdmin → F5).
+Si la base ya tenía otras cuentas, ejecuta `database/02_reset.sql` sobre `rrhh_andina` (pgAdmin → F5). Al levantar la API, `schema.sql` también crea los roles `JEFE` / `GERENCIA` y la cuenta `carla.reyes` si faltan.
 
 ## Cuentas
 
 | Usuario | Rol | Persona | Código | Para qué |
 |---|---|---|---|---|
-| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales | AND-001 | Acceso a todo el sistema. Cierra validación (paso de RR. HH.) y el 3.er paso de vacaciones. |
-| `jesus.pantoja` | APROBADOR | Jesús Pantoja Pantoja | AND-002 | Jefe inmediato de Juan. Primer paso de casi todos los circuitos. |
 | `juan.espinoza` | EMPLEADO | Juan Espinoza | AND-003 | Inicia permisos, horas extras y marcación. |
+| `jesus.pantoja` | JEFE | Jesús Pantoja Pantoja | AND-002 | Jefe inmediato de Juan. Primer paso de casi todos los circuitos. |
+| `carla.reyes` | RRHH | Carla Reyes Huamán | AND-004 | Segundo paso de salud, duelo, capacitación, vacaciones y horas extras. |
+| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales | AND-001 | Sistema. En la demo también cierra los pasos de **Gerencia** (es el Gerente General). |
 
-No hay cuenta con perfil RR. HH.: esos pasos quedan asignados al perfil ADMIN para poder cerrar el flujo con estas tres personas.
+El primer paso **no** usa un rol “Jefe inmediato”: se resuelve con `empleado.id_jefe_inmediato`.
 
 ## Organigrama
 
 ```
 Jesús Mechan (jesus.mechan)
-└── Jesús Pantoja (jesus.pantoja) ── Juan Espinoza (juan.espinoza)
+├── Jesús Pantoja (jesus.pantoja) ── Juan Espinoza (juan.espinoza)
+└── Carla Reyes (carla.reyes)
 ```
 
-Juan tiene jefe inmediato = Jesús Pantoja. Si Pantoja pide un permiso, el primer paso llega a Mechan.
+Si Pantoja pide un permiso, el primer paso llega a Mechan. Si Carla pide un permiso, también.
 
 Horarios:
 
@@ -48,24 +50,24 @@ Cierra sesión al cambiar de usuario (icono de salir).
 ### Camino de 2 pasos — permiso por salud u horas extras
 
 1. `juan.espinoza` registra **Permiso por salud** o **Horas extras**.
-2. `jesus.pantoja` aprueba el paso 1 en **Bandeja**. La solicitud le queda en **En seguimiento** mientras Mechan atiende el paso 2.
-3. La solicitud sigue **PENDIENTE**. El paso 2 queda **EN CURSO**.
-4. Entra con `jesus.mechan`. En **Bandeja** aparece el paso de validación. Aprobar.
+2. `jesus.pantoja` aprueba el paso 1 en **Bandeja**.
+3. La solicitud sigue **PENDIENTE**. El paso 2 queda **EN CURSO** para el perfil **RRHH**.
+4. Entra con `carla.reyes`. En **Bandeja** aparece el paso de validación. Aprobar.
 5. El flujo termina en **APROBADO**.
 
 ### Camino de 3 pasos — vacaciones
 
 1. `juan.espinoza` registra **Vacaciones**.
 2. `jesus.pantoja` aprueba el paso 1.
-3. `jesus.mechan` aprueba el paso 2 (validación).
-4. `jesus.mechan` aprueba el paso 3 (Autorización de Gerencia).
+3. `carla.reyes` aprueba el paso 2 (RR. HH.).
+4. `jesus.mechan` aprueba el paso 3 (Gerencia).
 5. Estado final **APROBADO**.
 
 ### Comisión de servicios
 
 1. `juan.espinoza` registra **Comisión de servicios**.
 2. `jesus.pantoja` aprueba el paso 1.
-3. El paso 2 es perfil **APROBADOR**: lo cierra `jesus.pantoja`.
+3. El paso 2 es perfil **GERENCIA**: lo cierra `jesus.mechan`.
 
 ## Marcación
 
@@ -73,7 +75,7 @@ Cierra sesión al cambiar de usuario (icono de salir).
 - Entra con `juan.espinoza` o `jesus.pantoja` en **Marcar** para el día de hoy si aún no hay salida.
 - Sábado y domingo la marcación está deshabilitada (zona `America/Lima`).
 - Un **INGRESO** y una **SALIDA** por día, origen WEB.
-- `jesus.mechan` ve todo en **Asistencia** y **Personal**.
+- `jesus.mechan` y `carla.reyes` ven el conjunto en **Asistencia** y **Personal**.
 
 ## Qué se conservó
 

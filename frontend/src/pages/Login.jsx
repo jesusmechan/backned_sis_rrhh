@@ -62,7 +62,7 @@ export function Login() {
           <Button className="w-full" disabled={loading}>{loading ? 'Ingresando…' : 'Ingresar'}</Button>
         </div>
         <p className="mt-4 break-any text-xs text-muted">
-          Prueba: juan.espinoza, jesus.pantoja, jesus.mechan. Contraseña: Andina2026.
+          Prueba: juan.espinoza, jesus.pantoja, carla.reyes, jesus.mechan. Contraseña: Andina2026.
         </p>
       </form>
     </div>

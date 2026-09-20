@@ -40,7 +40,7 @@ public class DesempenoService implements DesempenoUseCase {
 
     @Transactional(readOnly = true)
     public List<EvaluacionResponse> listar() {
-        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("APROBADOR")) {
+        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("JEFE") || currentUser.hasRole("GERENCIA")) {
             return evaluacionRepository.findAllByOrderByFechaDescIdEvaluacionDesc().stream().map(this::toResponse).toList();
         }
         Integer propio = currentUser.idEmpleado();
@@ -53,7 +53,7 @@ public class DesempenoService implements DesempenoUseCase {
     @Transactional(readOnly = true)
     public EvaluacionResponse obtener(Integer id) {
         EvaluacionDesempeno e = buscar(id);
-        if (!currentUser.isAdminOrRrhh() && !currentUser.hasRole("APROBADOR")) {
+        if (!currentUser.isAdminOrRrhh() && !currentUser.hasRole("JEFE") && !currentUser.hasRole("GERENCIA")) {
             Integer propio = currentUser.idEmpleado();
             if (propio == null || !propio.equals(e.getEmpleado().getIdEmpleado())) {
                 throw DomainException.forbidden("No puede consultar evaluaciones de otro trabajador");
@@ -64,8 +64,8 @@ public class DesempenoService implements DesempenoUseCase {
 
     @Transactional
     public EvaluacionResponse crear(EvaluacionRequest request) {
-        if (!currentUser.isAdminOrRrhh() && !currentUser.hasRole("APROBADOR")) {
-            throw DomainException.forbidden("Solo un aprobador o RR. HH. puede registrar evaluaciones");
+        if (!currentUser.isAdminOrRrhh() && !currentUser.hasRole("JEFE") && !currentUser.hasRole("GERENCIA")) {
+            throw DomainException.forbidden("Solo jefatura, gerencia o RR. HH. puede registrar evaluaciones");
         }
         Empleado empleado = empleadoService.buscar(request.idEmpleado());
         EvaluacionDesempeno e = new EvaluacionDesempeno();

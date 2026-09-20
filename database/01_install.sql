@@ -5,10 +5,10 @@
 -- pgAdmin:
 --   1. 00_create_database.sql   Query Tool sobre "postgres" (Auto commit)
 --   2. 01_install.sql           Query Tool sobre "rrhh_andina", F5
---   3. 02_reset.sql             Solo si quieres volver a dejar 3 cuentas limpias
+--   3. 02_reset.sql             Solo si quieres volver a dejar 4 cuentas limpias
 --
 -- Este archivo se puede repetir: borra el esquema public y lo recrea.
--- Contraseña de las 3 cuentas: Andina2026. Guía: docs/PRUEBAS.md
+-- Contraseña de las 4 cuentas: Andina2026. Guía: docs/PRUEBAS.md
 -- =============================================================================
 
 DROP SCHEMA IF EXISTS public CASCADE;
@@ -1443,7 +1443,7 @@ COMMENT ON VIEW v_reporte_asistencia IS 'CU-18: Fuente para reporte de asistenci
 COMMENT ON VIEW v_reporte_usuarios IS 'CU-19: Fuente para reporte de usuarios.';
 
 -- =============================================================================
--- Datos iniciales (catálogos, menú, 3 cuentas, flujos)
+-- Datos iniciales (catálogos, menú, 4 cuentas, flujos)
 -- =============================================================================
 
 INSERT INTO area (nombre, descripcion) VALUES
@@ -1493,10 +1493,11 @@ INSERT INTO parametro_sistema (clave, valor, descripcion) VALUES
     ('horas_mensuales_base', '240', 'Horas mensuales para valorizar la hora ordinaria');
 
 INSERT INTO rol (codigo, nombre, descripcion) VALUES
-    ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría'),
-    ('RRHH', 'Responsable de RR. HH.', 'Gestiona personal, supervisa solicitudes y genera reportes'),
-    ('APROBADOR', 'Aprobador', 'Revisa, aprueba o rechaza permisos y horas extras'),
-    ('EMPLEADO', 'Empleado', 'Registra asistencia, permisos y horas extras propias');
+    ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría. No participa en los circuitos.'),
+    ('GERENCIA', 'Gerencia', 'Autoriza vacaciones, comisiones y decisiones de alto impacto'),
+    ('RRHH', 'Recursos Humanos', 'Valida solicitudes, gestiona personal y genera reportes'),
+    ('JEFE', 'Jefe de área', 'Aprueba el primer paso de los trámites de su equipo (el asignado sale del organigrama)'),
+    ('EMPLEADO', 'Colaborador', 'Registra asistencia, permisos y horas extras propias');
 
 INSERT INTO permiso_funcional (codigo, nombre, modulo) VALUES
     ('PERSONAL_REGISTRAR', 'Registrar trabajador', 'PERSONAL'),
@@ -1533,9 +1534,9 @@ SELECT r.id_rol, p.id_permiso
 FROM rol r
 JOIN permiso_funcional p ON p.codigo IN (
     'PERSONAL_REGISTRAR', 'PERSONAL_ACTUALIZAR', 'PERSONAL_CONSULTAR', 'PERSONAL_CARGAR_EXCEL',
-    'PERMISO_CONSULTAR_PROPIO', 'PERMISO_GESTIONAR',
-    'HEXTRA_CONSULTAR_PROPIO', 'HEXTRA_GESTIONAR',
-    'ASISTENCIA_CONSULTAR_PROPIA', 'ASISTENCIA_GESTIONAR',
+    'PERMISO_REGISTRAR', 'PERMISO_CONSULTAR_PROPIO', 'PERMISO_APROBAR', 'PERMISO_GESTIONAR',
+    'HEXTRA_REGISTRAR', 'HEXTRA_CONSULTAR_PROPIO', 'HEXTRA_APROBAR', 'HEXTRA_GESTIONAR',
+    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA', 'ASISTENCIA_GESTIONAR',
     'REPORTE_PERMISOS', 'REPORTE_HORAS_EXTRAS', 'REPORTE_ASISTENCIA', 'REPORTE_USUARIOS',
     'AUDITORIA_CONSULTAR', 'FLUJO_CONFIGURAR'
 )
@@ -1545,11 +1546,23 @@ INSERT INTO rol_permiso (id_rol, id_permiso)
 SELECT r.id_rol, p.id_permiso
 FROM rol r
 JOIN permiso_funcional p ON p.codigo IN (
-    'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
-    'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
+    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
+    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
     'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA'
 )
-WHERE r.codigo = 'APROBADOR';
+WHERE r.codigo = 'JEFE';
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN (
+    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
+    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
+    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA',
+    'PERSONAL_CONSULTAR',
+    'REPORTE_PERMISOS', 'REPORTE_HORAS_EXTRAS', 'REPORTE_ASISTENCIA'
+)
+WHERE r.codigo = 'GERENCIA';
 
 INSERT INTO rol_permiso (id_rol, id_permiso)
 SELECT r.id_rol, p.id_permiso
@@ -1603,8 +1616,17 @@ WHERE m.codigo IN (
 INSERT INTO menu_rol (id_menu, id_rol)
 SELECT m.id_menu, r.id_rol
 FROM menu_item m
-JOIN rol r ON r.codigo = 'APROBADOR'
+JOIN rol r ON r.codigo = 'JEFE'
 WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL', 'DESEMPENO');
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'GERENCIA'
+WHERE m.codigo IN (
+    'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
+    'PERSONAL', 'DESEMPENO', 'REPORTES'
+);
 
 INSERT INTO menu_rol (id_menu, id_rol)
 SELECT m.id_menu, r.id_rol
@@ -1612,7 +1634,7 @@ FROM menu_item m
 JOIN rol r ON r.codigo = 'EMPLEADO'
 WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL');
 
--- Organigrama: Juan (empleado) → Jesús Pantoja (jefe) → Jesús Mechan (admin).
+-- Organigrama: Juan → Pantoja (jefe) → Mechan (gerencia). Carla (RR. HH.) reporta a Mechan.
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,
     nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
@@ -1654,13 +1676,28 @@ INSERT INTO empleado (
      'PLANILLA', 'ACTIVO',
      (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-002'));
 
+INSERT INTO empleado (
+    codigo_empleado, tipo_documento, numero_documento,
+    nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
+    correo_institucional, telefono, direccion, fecha_ingreso,
+    id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
+) VALUES
+    ('AND-004', 'DNI', '70456789', 'Carla', 'Reyes', 'Huamán', '1992-09-18', 'F',
+     'carla.reyes@andina.pe', '999111004', 'Jr. De la Unión 450, Lima', '2020-03-02',
+     (SELECT id_area FROM area WHERE nombre = 'Recursos Humanos'),
+     (SELECT id_cargo FROM cargo WHERE nombre = 'Jefe de Recursos Humanos'),
+     (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
+     'PLANILLA', 'ACTIVO',
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+
 INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, correo, password_hash, activo)
 SELECT e.id_empleado, r.id_rol, v.nombre_usuario, e.correo_institucional,
        crypt('Andina2026', gen_salt('bf')), TRUE
 FROM (VALUES
     ('AND-001', 'jesus.mechan',  'ADMIN'),
-    ('AND-002', 'jesus.pantoja', 'APROBADOR'),
-    ('AND-003', 'juan.espinoza', 'EMPLEADO')
+    ('AND-002', 'jesus.pantoja', 'JEFE'),
+    ('AND-003', 'juan.espinoza', 'EMPLEADO'),
+    ('AND-004', 'carla.reyes',   'RRHH')
 ) AS v(codigo_empleado, nombre_usuario, codigo_rol)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
 JOIN rol r ON r.codigo = v.codigo_rol;
@@ -1671,7 +1708,8 @@ SELECT v.codigo, e.id_empleado, v.modalidad::modalidad_contrato, e.id_horario, e
 FROM (VALUES
     ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC),
     ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC),
-    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC)
+    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC),
+    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC)
 ) AS v(codigo, codigo_empleado, modalidad, remuneracion)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado;
 
@@ -1707,7 +1745,7 @@ INSERT INTO configuracion_aprobacion (codigo, nombre, tipo_origen, id_tipo_permi
      'Jefe inmediato y RR. HH.'),
     ('CFG-PERMISO-COMISION', 'Comisión de servicios', 'PERMISO',
      (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'COMISION'),
-     'Jefe inmediato y rol aprobador.'),
+     'Jefe inmediato y Gerencia.'),
     ('CFG-PERMISO-DUELO', 'Permiso por duelo', 'PERMISO',
      (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'DUELO'),
      'Jefe inmediato y RR. HH.'),
@@ -1723,18 +1761,18 @@ FROM (VALUES
     ('CFG-PERMISO-DEFAULT', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
     ('CFG-PERMISO-PARTICULAR', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
     ('CFG-PERMISO-SALUD', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-SALUD', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
+    ('CFG-PERMISO-SALUD', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
     ('CFG-PERMISO-VACACIONES', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
-    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'USUARIO', NULL, 'jesus.mechan', TRUE),
+    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
+    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'ROL', 'GERENCIA', NULL, TRUE),
     ('CFG-PERMISO-CAPACITACION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
+    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
     ('CFG-PERMISO-COMISION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-COMISION', 2, 'Aprobación de jefatura', 'ROL', 'APROBADOR', NULL, TRUE),
+    ('CFG-PERMISO-COMISION', 2, 'Autorización de Gerencia', 'ROL', 'GERENCIA', NULL, TRUE),
     ('CFG-PERMISO-DUELO', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-DUELO', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE),
+    ('CFG-PERMISO-DUELO', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
     ('CFG-HEXTRA', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'ADMIN', NULL, TRUE)
+    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE)
 ) AS v(codigo, numero_paso, nombre_paso, tipo_aprobador, codigo_rol, nombre_usuario, es_obligatorio)
 JOIN configuracion_aprobacion c ON c.codigo = v.codigo
 LEFT JOIN rol r ON r.codigo = v.codigo_rol

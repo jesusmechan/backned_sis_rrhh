@@ -1,5 +1,5 @@
 -- =============================================================================
--- Limpia trámites y deja solo las 3 cuentas de prueba.
+-- Limpia trámites y deja las 4 cuentas de prueba.
 -- Conserva: áreas, cargos, horarios, tipos de permiso, parámetros, roles,
 -- permisos funcionales, menú y configuración de flujos.
 -- Vuelve a sembrar marcaciones hábiles desde el 2026-08-03 hasta hoy.
@@ -8,8 +8,7 @@
 -- Contraseña: Andina2026. Guía: docs/PRUEBAS.md
 -- =============================================================================
 
--- El paso USUARIO (vacaciones / Gerencia) no admite id_usuario NULL.
--- Se deja temporalmente como JEFE_INMEDIATO para poder borrar cuentas.
+-- Por si quedó un paso USUARIO (vacaciones antiguas) apuntando a una cuenta.
 UPDATE configuracion_aprobacion_detalle
 SET tipo_aprobador = 'JEFE_INMEDIATO', id_rol = NULL, id_usuario = NULL
 WHERE tipo_aprobador = 'USUARIO';
@@ -35,6 +34,115 @@ DELETE FROM contrato;
 DELETE FROM usuario;
 UPDATE empleado SET id_jefe_inmediato = NULL;
 DELETE FROM empleado;
+
+INSERT INTO rol (codigo, nombre, descripcion)
+SELECT v.codigo, v.nombre, v.descripcion
+FROM (VALUES
+    ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría. No participa en los circuitos.'),
+    ('GERENCIA', 'Gerencia', 'Autoriza vacaciones, comisiones y decisiones de alto impacto'),
+    ('RRHH', 'Recursos Humanos', 'Valida solicitudes, gestiona personal y genera reportes'),
+    ('JEFE', 'Jefe de área', 'Aprueba el primer paso de los trámites de su equipo (el asignado sale del organigrama)'),
+    ('EMPLEADO', 'Colaborador', 'Registra asistencia, permisos y horas extras propias')
+) AS v(codigo, nombre, descripcion)
+WHERE NOT EXISTS (SELECT 1 FROM rol r WHERE r.codigo = v.codigo);
+
+UPDATE rol SET nombre = v.nombre, descripcion = v.descripcion, activo = TRUE
+FROM (VALUES
+    ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría. No participa en los circuitos.'),
+    ('GERENCIA', 'Gerencia', 'Autoriza vacaciones, comisiones y decisiones de alto impacto'),
+    ('RRHH', 'Recursos Humanos', 'Valida solicitudes, gestiona personal y genera reportes'),
+    ('JEFE', 'Jefe de área', 'Aprueba el primer paso de los trámites de su equipo (el asignado sale del organigrama)'),
+    ('EMPLEADO', 'Colaborador', 'Registra asistencia, permisos y horas extras propias')
+) AS v(codigo, nombre, descripcion)
+WHERE rol.codigo = v.codigo;
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN (
+    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO', 'PERMISO_GESTIONAR',
+    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO', 'HEXTRA_GESTIONAR',
+    'ASISTENCIA_MARCAR'
+)
+WHERE r.codigo = 'RRHH'
+  AND NOT EXISTS (
+        SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN (
+    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
+    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
+    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA'
+)
+WHERE r.codigo = 'JEFE'
+  AND NOT EXISTS (
+        SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN (
+    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
+    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
+    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA',
+    'PERSONAL_CONSULTAR',
+    'REPORTE_PERMISOS', 'REPORTE_HORAS_EXTRAS', 'REPORTE_ASISTENCIA'
+)
+WHERE r.codigo = 'GERENCIA'
+  AND NOT EXISTS (
+        SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'JEFE'
+WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL', 'DESEMPENO')
+  AND NOT EXISTS (SELECT 1 FROM menu_rol x WHERE x.id_menu = m.id_menu AND x.id_rol = r.id_rol);
+
+INSERT INTO menu_rol (id_menu, id_rol)
+SELECT m.id_menu, r.id_rol
+FROM menu_item m
+JOIN rol r ON r.codigo = 'GERENCIA'
+WHERE m.codigo IN (
+    'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
+    'PERSONAL', 'DESEMPENO', 'REPORTES'
+)
+  AND NOT EXISTS (SELECT 1 FROM menu_rol x WHERE x.id_menu = m.id_menu AND x.id_rol = r.id_rol);
+
+DELETE FROM configuracion_aprobacion_detalle;
+INSERT INTO configuracion_aprobacion_detalle (
+    id_configuracion, numero_paso, nombre_paso, tipo_aprobador, id_rol, id_usuario, es_obligatorio
+)
+SELECT c.id_configuracion, v.numero_paso, v.nombre_paso, v.tipo_aprobador::tipo_aprobador,
+       r.id_rol, NULL, v.es_obligatorio
+FROM (VALUES
+    ('CFG-PERMISO-DEFAULT', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-PERMISO-PARTICULAR', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-PERMISO-SALUD', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-PERMISO-SALUD', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
+    ('CFG-PERMISO-VACACIONES', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
+    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'ROL', 'GERENCIA', TRUE),
+    ('CFG-PERMISO-CAPACITACION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
+    ('CFG-PERMISO-COMISION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-PERMISO-COMISION', 2, 'Autorización de Gerencia', 'ROL', 'GERENCIA', TRUE),
+    ('CFG-PERMISO-DUELO', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-PERMISO-DUELO', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
+    ('CFG-HEXTRA', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
+    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE)
+) AS v(codigo, numero_paso, nombre_paso, tipo_aprobador, codigo_rol, es_obligatorio)
+JOIN configuracion_aprobacion c ON c.codigo = v.codigo
+LEFT JOIN rol r ON r.codigo = v.codigo_rol;
+
+UPDATE configuracion_aprobacion SET descripcion = 'Jefe inmediato y Gerencia.'
+WHERE codigo = 'CFG-PERMISO-COMISION';
+
+DELETE FROM menu_rol WHERE id_rol IN (SELECT id_rol FROM rol WHERE codigo = 'APROBADOR');
+DELETE FROM rol_permiso WHERE id_rol IN (SELECT id_rol FROM rol WHERE codigo = 'APROBADOR');
+DELETE FROM rol WHERE codigo = 'APROBADOR';
 
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,
@@ -77,13 +185,28 @@ INSERT INTO empleado (
      'PLANILLA', 'ACTIVO',
      (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-002'));
 
+INSERT INTO empleado (
+    codigo_empleado, tipo_documento, numero_documento,
+    nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
+    correo_institucional, telefono, direccion, fecha_ingreso,
+    id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
+) VALUES
+    ('AND-004', 'DNI', '70456789', 'Carla', 'Reyes', 'Huamán', '1992-09-18', 'F',
+     'carla.reyes@andina.pe', '999111004', 'Jr. De la Unión 450, Lima', '2020-03-02',
+     (SELECT id_area FROM area WHERE nombre = 'Recursos Humanos'),
+     (SELECT id_cargo FROM cargo WHERE nombre = 'Jefe de Recursos Humanos'),
+     (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
+     'PLANILLA', 'ACTIVO',
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+
 INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, correo, password_hash, activo)
 SELECT e.id_empleado, r.id_rol, v.nombre_usuario, e.correo_institucional,
        crypt('Andina2026', gen_salt('bf')), TRUE
 FROM (VALUES
     ('AND-001', 'jesus.mechan',  'ADMIN'),
-    ('AND-002', 'jesus.pantoja', 'APROBADOR'),
-    ('AND-003', 'juan.espinoza', 'EMPLEADO')
+    ('AND-002', 'jesus.pantoja', 'JEFE'),
+    ('AND-003', 'juan.espinoza', 'EMPLEADO'),
+    ('AND-004', 'carla.reyes',   'RRHH')
 ) AS v(codigo_empleado, nombre_usuario, codigo_rol)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
 JOIN rol r ON r.codigo = v.codigo_rol;
@@ -94,7 +217,8 @@ SELECT v.codigo, e.id_empleado, v.modalidad::modalidad_contrato, e.id_horario, e
 FROM (VALUES
     ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC),
     ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC),
-    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC)
+    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC),
+    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC)
 ) AS v(codigo, codigo_empleado, modalidad, remuneracion)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado;
 
@@ -104,25 +228,6 @@ SELECT 'CONV-001', 'Analista contable junior', a.id_area, 1, CURRENT_DATE - 10, 
 FROM area a
 WHERE a.nombre ILIKE '%contab%'
 LIMIT 1;
-
--- Sin cuenta RRHH: el paso de validación lo atiende el administrador.
-UPDATE configuracion_aprobacion_detalle d
-SET id_rol = a.id_rol
-FROM rol old, rol a
-WHERE d.tipo_aprobador = 'ROL'
-  AND d.id_rol = old.id_rol
-  AND old.codigo = 'RRHH'
-  AND a.codigo = 'ADMIN';
-
-UPDATE configuracion_aprobacion_detalle d
-SET tipo_aprobador = 'USUARIO',
-    id_rol = NULL,
-    id_usuario = u.id_usuario
-FROM configuracion_aprobacion c, usuario u
-WHERE d.id_configuracion = c.id_configuracion
-  AND c.codigo = 'CFG-PERMISO-VACACIONES'
-  AND d.numero_paso = 3
-  AND u.nombre_usuario = 'jesus.mechan';
 
 -- Asistencia: lun-vie desde el 3 de agosto de 2026 hasta hoy (America/Lima).
 INSERT INTO marcacion (id_empleado, tipo, fecha_hora, origen, observacion, id_usuario_registro)
@@ -161,6 +266,6 @@ WHERE u.activo
 
 INSERT INTO auditoria (id_usuario, accion, entidad, id_entidad, detalle)
 SELECT id_usuario, 'RESET_PRUEBAS', 'SISTEMA', NULL,
-       jsonb_build_object('origen', '02_reset.sql', 'colaboradores', 3)
+       jsonb_build_object('origen', '02_reset.sql', 'colaboradores', 4)
 FROM usuario
 WHERE nombre_usuario = 'jesus.mechan';

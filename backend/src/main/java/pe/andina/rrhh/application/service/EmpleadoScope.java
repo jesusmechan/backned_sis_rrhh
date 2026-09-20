@@ -39,7 +39,7 @@ public class EmpleadoScope {
     }
 
     public void assertPuedeConsultar(Integer idEmpleado, boolean participo) {
-        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("APROBADOR")) {
+        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("JEFE") || currentUser.hasRole("GERENCIA")) {
             return;
         }
         if (idEmpleado.equals(currentUser.idEmpleado()) || participo) {

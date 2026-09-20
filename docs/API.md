@@ -100,14 +100,17 @@ Para combos (empleado, jefe) use `page=1&size=100`.
 
 ## Roles
 
-Los perfiles están en la tabla `rol` (mantenedor `GET/POST/PUT /api/roles`). El código del rol se publica como `ROLE_{codigo}` y los permisos funcionales de `rol_permiso` viajan como authorities. El semilla incluye ADMIN, RRHH, APROBADOR y EMPLEADO; se pueden crear más desde el mantenedor.
+Los perfiles están en la tabla `rol` (mantenedor `GET/POST/PUT /api/roles`). El código del rol se publica como `ROLE_{codigo}` y los permisos funcionales de `rol_permiso` viajan como authorities. El semilla incluye **ADMIN**, **GERENCIA**, **RRHH**, **JEFE** y **EMPLEADO**.
+
+El primer paso de cada permiso y de las horas extras es tipo `JEFE_INMEDIATO` (organigrama), no un rol.
 
 Contraseña de todos: **Andina2026**. Recorrido: [PRUEBAS.md](PRUEBAS.md).
 
 | Usuario | Rol | Colaborador |
 |---|---|---|
-| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales |
-| `jesus.pantoja` | APROBADOR | Jesús Pantoja Pantoja |
+| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales (Gerente General; en la demo cierra los pasos de Gerencia) |
+| `carla.reyes` | RRHH | Carla Reyes Huamán |
+| `jesus.pantoja` | JEFE | Jesús Pantoja Pantoja |
 | `juan.espinoza` | EMPLEADO | Juan Espinoza |
 
 ## Catálogos
@@ -245,7 +248,7 @@ En actualización, `password` es opcional.
 
 ## Permisos
 
-Auth: autenticado. Un empleado ve las suyas; ADMIN / RRHH / APROBADOR ven el conjunto operativo.
+Auth: autenticado. Un empleado ve las suyas; ADMIN, RRHH, GERENCIA y JEFE ven el conjunto operativo.
 
 | Método | Ruta | Notas |
 |---|---|---|
@@ -442,7 +445,7 @@ El cálculo usa la remuneración básica del contrato vigente, las horas extras 
 | GET | `/api/asientos` | ADMIN, RRHH | Asientos de planilla |
 | GET | `/api/asientos/{id}` | ADMIN, RRHH | Detalle con líneas |
 | GET | `/api/evaluaciones` | Autenticado | Lista (el empleado solo ve las suyas) |
-| POST | `/api/evaluaciones` | RRHH, ADMIN, APROBADOR | Registrar evaluación 1–5 |
+| POST | `/api/evaluaciones` | RRHH, ADMIN, JEFE, GERENCIA | Registrar evaluación 1–5 |
 | GET | `/api/convocatorias` | ADMIN, RRHH | Convocatorias |
 | POST | `/api/convocatorias` | ADMIN, RRHH | Publicar |
 | PUT | `/api/convocatorias/{id}` | ADMIN, RRHH | Actualizar |

@@ -27,6 +27,6 @@ public final class SecurityUtils {
     }
 
     public static boolean puedeVerConjuntoOperativo() {
-        return isAdminOrRrhh() || hasRole("APROBADOR");
+        return isAdminOrRrhh() || hasRole("JEFE") || hasRole("GERENCIA");
     }
 }
