@@ -24,6 +24,13 @@ public class PermisoReglas {
     }
 
     public void validarAlCrear(Empleado empleado, TipoPermiso tipo, PermisoRequest request) {
+        if ((request.horaInicio() == null) != (request.horaFin() == null)) {
+            throw DomainException.badRequest("Indique hora de inicio y de fin, o deje ambas vacías.");
+        }
+        if (request.horaInicio() != null && !request.horaFin().isAfter(request.horaInicio())) {
+            throw DomainException.badRequest(
+                    "La hora de fin debe ser posterior a la de inicio. Para un día completo, deje las horas vacías.");
+        }
         if ("VACACIONES".equalsIgnoreCase(tipo.getCodigo())) {
             contratoService.validarVacaciones(empleado, request.fechaInicio(), request.fechaFin());
         }

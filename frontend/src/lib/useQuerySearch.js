@@ -13,9 +13,11 @@ export function useQuerySearch() {
   }, [fromUrl]);
 
   useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q.trim()), 300);
+    const next = q.trim();
+    if (next === qDebounced) return undefined;
+    const t = setTimeout(() => setQDebounced(next), 300);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, qDebounced]);
 
   return [q, setQ, qDebounced];
 }

@@ -44,7 +44,7 @@ Query comunes: `page`, `size`, `q` (búsqueda de texto).
 | GET | `/api/convocatorias` | `estado`, `q` |
 | GET | `/api/maestros/areas` | `q`, `activo` |
 
-No se paginan catálogos, detalle por id, historial de una solicitud, ni reportes Excel/PDF/JSON.
+No se paginan catálogos, detalle por id, historial de una solicitud, notificaciones ni reportes Excel/PDF/JSON.
 
 Para combos (empleado, jefe) use `page=1&size=100`.
 
@@ -308,6 +308,41 @@ Misma convención que permisos.
 ```
 
 El `id` es `idPasoSolicitud` de la bandeja, no el id de la solicitud. Los triggers avanzan o cierran el flujo.
+
+## Notificaciones
+
+Auth: cualquier usuario autenticado. El listado no se pagina (máximo 40). El push en vivo usa **STOMP sobre SockJS** en `/ws`.
+
+El cliente se suscribe a `/user/queue/notificaciones` con el access token (`Authorization: Bearer` en CONNECT y/o `?access_token=`).
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/notificaciones` | Últimas notificaciones del usuario |
+| GET | `/api/notificaciones/no-leidas` | `{ "noLeidas": 3 }` |
+| POST | `/api/notificaciones/{id}/leer` | Marca una como leída |
+| POST | `/api/notificaciones/leer-todas` | Marca todas |
+
+Evento STOMP:
+
+```json
+{
+  "notificacion": {
+    "idNotificacion": 12,
+    "tipo": "BANDEJA",
+    "titulo": "Tiene un paso por aprobar",
+    "mensaje": "Juan Espinoza registró Permiso por salud. Le corresponde el paso «Jefe inmediato».",
+    "ruta": "/bandeja/41",
+    "tipoSolicitud": "PERMISO",
+    "idSolicitud": 8,
+    "idPaso": 41,
+    "leida": false,
+    "fechaCreacion": "2026-09-21T11:20:00-05:00"
+  },
+  "noLeidas": 1
+}
+```
+
+`tipo`: `BANDEJA` (siguiente aprobador), `APROBADA` o `RECHAZADA` (solicitante).
 
 ## Asistencia
 

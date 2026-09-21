@@ -76,9 +76,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex) {
         String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-        if (detail != null && detail.toLowerCase().contains("json")) {
+        String lower = detail == null ? "" : detail.toLowerCase();
+        if (lower.contains("json")) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiError.of(500, "Error interno", "No se pudo registrar la operación."));
+        }
+        if (lower.contains("ck_permiso_horas")) {
+            return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
+                    "La hora de fin debe ser posterior a la de inicio. Para un día completo, deje las horas vacías."));
+        }
+        if (lower.contains("ck_permiso_rango_fechas")) {
+            return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
+                    "La fecha de fin no puede ser anterior a la de inicio."));
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(409, "Conflict", "La operación entra en conflicto con un registro existente."));

@@ -18,4 +18,5 @@ public interface UsuarioPort {
     boolean existsByNombreUsuario(String nombreUsuario);
     boolean existsByCorreo(String correo);
     long countByRol_IdRol(Integer idRol);
+    List<Usuario> findByRol_CodigoAndActivoTrue(String codigoRol);
 }

@@ -4,6 +4,7 @@ import pe.andina.rrhh.application.port.in.AuditoriaUseCase;
 
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
+import pe.andina.rrhh.application.port.in.NotificacionUseCase;
 import pe.andina.rrhh.application.port.in.SolicitudUseCase;
 import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.domain.exception.DomainException;
@@ -51,6 +52,7 @@ public class SolicitudService implements SolicitudUseCase {
     private final HoraExtraReglas horaExtraReglas;
     private final EntityManager entityManager;
     private final AuditoriaUseCase auditoriaService;
+    private final NotificacionUseCase notificacionService;
 
     private final CurrentUserPort currentUser;
 
@@ -64,6 +66,7 @@ public class SolicitudService implements SolicitudUseCase {
                             HoraExtraReglas horaExtraReglas,
                             EntityManager entityManager,
                             AuditoriaUseCase auditoriaService,
+                            NotificacionUseCase notificacionService,
                            CurrentUserPort currentUser) {
         this.permisoRepository = permisoRepository;
         this.horaExtraRepository = horaExtraRepository;
@@ -75,6 +78,7 @@ public class SolicitudService implements SolicitudUseCase {
         this.horaExtraReglas = horaExtraReglas;
         this.entityManager = entityManager;
         this.auditoriaService = auditoriaService;
+        this.notificacionService = notificacionService;
         this.currentUser = currentUser;
     }
 
@@ -96,6 +100,7 @@ public class SolicitudService implements SolicitudUseCase {
         permisoRepository.saveAndFlush(s);
         entityManager.refresh(s);
         auditoriaService.registrar(currentUser.usuario(), "REGISTRAR", "PERMISO", s.getIdSolicitudPermiso(), s.getMotivo());
+        notificarPasoEnCurso(pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
         return toPermiso(s);
     }
 
@@ -114,6 +119,7 @@ public class SolicitudService implements SolicitudUseCase {
         horaExtraRepository.saveAndFlush(s);
         entityManager.refresh(s);
         auditoriaService.registrar(currentUser.usuario(), "REGISTRAR", "HORA_EXTRA", s.getIdSolicitudHoraExtra(), s.getMotivo());
+        notificarPasoEnCurso(pasoRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(s.getIdSolicitudHoraExtra()));
         return toHoraExtra(s);
     }
 
@@ -189,8 +195,18 @@ public class SolicitudService implements SolicitudUseCase {
         paso.setComentario(request.comentario());
         paso.setEstado(aprobar ? EstadoPasoAprobacion.APROBADO : EstadoPasoAprobacion.RECHAZADO);
         pasoRepository.saveAndFlush(paso);
+        entityManager.flush();
         entityManager.refresh(paso);
+        if (paso.getSolicitudPermiso() != null) {
+            entityManager.refresh(paso.getSolicitudPermiso());
+        }
+        if (paso.getSolicitudHoraExtra() != null) {
+            entityManager.refresh(paso.getSolicitudHoraExtra());
+        }
+        List<SolicitudPasoAprobacion> pasos = pasosDe(paso);
+        pasos.forEach(entityManager::refresh);
         auditoriaService.registrar(decisor, aprobar ? "APROBAR" : "RECHAZAR", "PASO_APROBACION", idPaso, request.comentario());
+        notificarTrasDecision(pasos, paso, aprobar);
         return DtoMapper.paso(paso);
     }
 
@@ -333,6 +349,34 @@ public class SolicitudService implements SolicitudUseCase {
         if (estado != EstadoSolicitud.PENDIENTE) {
             throw DomainException.badRequest("Solo se puede cancelar una solicitud pendiente");
         }
+    }
+
+    private void notificarPasoEnCurso(List<SolicitudPasoAprobacion> pasos) {
+        pasos.stream()
+                .filter(p -> p.getEstado() == EstadoPasoAprobacion.EN_CURSO)
+                .findFirst()
+                .ifPresent(p -> notificacionService.avisarPasoEnCurso(p, currentUser.idUsuario()));
+    }
+
+    private void notificarTrasDecision(List<SolicitudPasoAprobacion> pasos, SolicitudPasoAprobacion decidido, boolean aprobar) {
+        Integer actor = currentUser.idUsuario();
+        var siguiente = pasos.stream()
+                .filter(p -> p.getEstado() == EstadoPasoAprobacion.EN_CURSO)
+                .findFirst();
+        if (siguiente.isPresent()) {
+            notificacionService.avisarPasoEnCurso(siguiente.get(), actor);
+            return;
+        }
+        notificacionService.avisarResultado(decidido, aprobar, actor);
+    }
+
+    private List<SolicitudPasoAprobacion> pasosDe(SolicitudPasoAprobacion paso) {
+        if (paso.getSolicitudPermiso() != null) {
+            return pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(
+                    paso.getSolicitudPermiso().getIdSolicitudPermiso());
+        }
+        return pasoRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(
+                paso.getSolicitudHoraExtra().getIdSolicitudHoraExtra());
     }
 
     private PermisoResponse toPermiso(SolicitudPermiso s) {

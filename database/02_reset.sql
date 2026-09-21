@@ -14,6 +14,7 @@ SET tipo_aprobador = 'JEFE_INMEDIATO', id_rol = NULL, id_usuario = NULL
 WHERE tipo_aprobador = 'USUARIO';
 
 DELETE FROM refresh_token;
+DELETE FROM notificacion;
 DELETE FROM auditoria;
 DELETE FROM historial_solicitud;
 DELETE FROM solicitud_paso_aprobacion;

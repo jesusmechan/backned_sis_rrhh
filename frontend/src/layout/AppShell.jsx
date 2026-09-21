@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, CircleHelp, LogOut, Menu, PanelLeftClose, Search, X } from 'lucide-react';
-import { http, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useNotificaciones } from '../auth/NotificationContext';
 import { Avatar, Button, Modal } from '../components/ui';
 import { menuIcon } from './icons';
 
@@ -25,6 +25,15 @@ function readCollapsed() {
 
 function pathOf(ruta = '') {
   return String(ruta).split('?')[0];
+}
+
+function hace(iso) {
+  if (!iso) return '';
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60) return 'Ahora';
+  if (s < 3600) return `Hace ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `Hace ${Math.floor(s / 3600)} h`;
+  return new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDate() {
@@ -89,15 +98,17 @@ function NavItems({ groups, collapsed, onToggle, onNavigate }) {
 
 export function AppShell() {
   const { usuario, perfil, menu, logout, canAccess } = useAuth();
+  const { items, noLeidas, marcarLeida, marcarTodas } = useNotificaciones();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [sidebar, setSidebar] = useState(readSidebar);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [q, setQ] = useState(() => new URLSearchParams(location.search).get('q') || '');
-  const [pendientes, setPendientes] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
   const canInbox = canAccess('/bandeja');
 
   useEffect(() => {
@@ -105,26 +116,28 @@ export function AppShell() {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    if (!canInbox) {
-      setPendientes(0);
-      return undefined;
-    }
-    let cancelled = false;
-    async function load() {
-      try {
-        const b = await http.page(pagePath('/api/bandeja', { page: 1, size: 1 }));
-        if (!cancelled) setPendientes(b.totalElements || 0);
-      } catch {
-        if (!cancelled) setPendientes(0);
+    setNotifOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!notifOpen) return undefined;
+    function onDown(e) {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
       }
     }
-    load();
-    const t = setInterval(load, 45000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [canInbox, location.pathname]);
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [notifOpen]);
+
+  async function abrirNotificacion(n) {
+    if (!n.leida) {
+      try { await marcarLeida(n.idNotificacion); } catch { /* navegamos igual */ }
+    }
+    setNotifOpen(false);
+    setOpen(false);
+    if (n.ruta) navigate(n.ruta);
+  }
 
   function toggleGroup(name) {
     setCollapsed((prev) => {
@@ -214,21 +227,50 @@ export function AppShell() {
             />
           </form>
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            {canInbox && (
+            <div className="relative" ref={notifRef}>
               <button
                 type="button"
-                className="relative hidden rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:inline-flex"
-                title={pendientes ? `${pendientes} pendientes en bandeja` : 'Bandeja'}
-                onClick={() => navigate('/bandeja')}
+                className="relative inline-flex rounded-full p-2 text-slate-500 hover:bg-slate-100"
+                title={noLeidas ? `${noLeidas} notificaciones sin leer` : 'Notificaciones'}
+                onClick={() => setNotifOpen((v) => !v)}
+                aria-expanded={notifOpen}
               >
                 <Bell size={18} />
-                {pendientes > 0 && (
+                {noLeidas > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-4 text-white">
-                    {pendientes > 99 ? '99+' : pendientes}
+                    {noLeidas > 99 ? '99+' : noLeidas}
                   </span>
                 )}
               </button>
-            )}
+              {notifOpen && (
+                <div className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-line bg-white shadow-lg">
+                  <div className="flex items-center justify-between border-b border-line px-3 py-2">
+                    <p className="text-sm font-semibold text-navy">Notificaciones</p>
+                    {noLeidas > 0 && (
+                      <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => marcarTodas()}>
+                        Marcar todas
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {items.length === 0 ? (
+                      <p className="px-3 py-6 text-center text-sm text-muted">No hay notificaciones.</p>
+                    ) : items.map((n) => (
+                      <button
+                        key={n.idNotificacion}
+                        type="button"
+                        onClick={() => abrirNotificacion(n)}
+                        className={`block w-full border-b border-line px-3 py-2.5 text-left last:border-b-0 ${n.leida ? 'bg-white' : 'bg-slate-50'}`}
+                      >
+                        <p className={`text-sm ${n.leida ? 'font-medium text-slate-700' : 'font-semibold text-navy'}`}>{n.titulo}</p>
+                        <p className="mt-0.5 text-xs text-slate-600">{n.mensaje}</p>
+                        <p className="mt-1 text-[11px] text-muted">{hace(n.fechaCreacion)}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               className="hidden rounded-full p-2 text-slate-500 hover:bg-slate-100 sm:inline-flex"
@@ -279,6 +321,18 @@ export function AppShell() {
               <NavItems groups={menu} collapsed={collapsed} onToggle={toggleGroup} onNavigate={() => setOpen(false)} />
             </nav>
             <div className="border-t border-line">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-navy hover:bg-slate-50"
+                onClick={() => { setOpen(false); setNotifOpen(true); }}
+              >
+                Notificaciones
+                {noLeidas > 0 && (
+                  <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-5 text-white">
+                    {noLeidas > 99 ? '99+' : noLeidas}
+                  </span>
+                )}
+              </button>
               {canInbox && (
                 <button
                   type="button"
@@ -286,11 +340,6 @@ export function AppShell() {
                   onClick={() => { setOpen(false); navigate('/bandeja'); }}
                 >
                   Bandeja
-                  {pendientes > 0 && (
-                    <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-5 text-white">
-                      {pendientes > 99 ? '99+' : pendientes}
-                    </span>
-                  )}
                 </button>
               )}
               <button type="button" className="w-full px-4 py-3 text-left text-sm text-navy hover:bg-slate-50" onClick={() => { setOpen(false); setHelpOpen(true); }}>
@@ -316,7 +365,7 @@ export function AppShell() {
               <li><span className="font-medium text-navy">Marcar</span> registra un ingreso y una salida por día hábil (hora de Lima). Fines de semana no aplica.</li>
               <li><span className="font-medium text-navy">Permisos y horas extras</span> se envían al flujo configurado. Siga el estado en el detalle de cada solicitud.</li>
               {canInbox && (
-                <li><span className="font-medium text-navy">Bandeja</span> muestra los pasos que debe aprobar o rechazar. El número rojo indica pendientes.</li>
+                <li><span className="font-medium text-navy">Bandeja</span> muestra los pasos que debe aprobar o rechazar. La campana avisa en el momento si le toca el siguiente paso.</li>
               )}
               <li><span className="font-medium text-navy">Mi perfil</span> (avatar) abre sus datos y permite cambiar la contraseña.</li>
               {canAccess('/maestros') && (

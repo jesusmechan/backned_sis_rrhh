@@ -99,6 +99,7 @@ flowchart TB
   subgraph salida [Adaptadores de salida]
     JPA["adapter.out.persistence\nRepositorios JPA"]
     PDF["adapter.out.pdf\nBoletas"]
+    WS["adapter.out.ws\nSTOMP notificaciones"]
   end
 
   REST --> IN
@@ -113,6 +114,7 @@ flowchart TB
   REGLAS --> EX
   OUT --> JPA
   OUT --> PDF
+  OUT --> WS
   SEC -.->|"JwtService implementa TokenPort\nSpringCurrentUserAdapter implementa CurrentUserPort"| OUT
 ```
 
@@ -143,6 +145,7 @@ Flujo típico en pantalla:
 |---|---|---|
 | `adapter/in/web` | Solo `application.port.in` y DTOs | Recibe HTTP, valida el body y delega. **No** abre repositorios. |
 | `adapter/in/security` | Spring Security y, hacia afuera, `TokenPort` / `CurrentUserPort` | Filter JWT, `JwtService`, `UsuarioDetailsService`. |
+| `adapter/in/ws` | Handshake y CONNECT STOMP | Autentica el socket con el access token. |
 | `adapter/in/web/GlobalExceptionHandler` | `DomainException` | Traduce códigos de dominio a HTTP (404, 400, 403, 409…). |
 
 Ejemplo: `PermisoController` inyecta `SolicitudUseCase`, no `SolicitudService`. Spring entrega la implementación.
@@ -175,6 +178,7 @@ El caso de uso **pide un puerto** (`permisoRepository.save(...)`). No sabe si de
 |---|---|---|
 | `adapter/out/persistence` | PostgreSQL vía Spring Data | Cada `*Repository` **extiende** `JpaRepository` **y** el `*Port`. |
 | `adapter/out/pdf` | OpenPDF | `BoletaPdfService` implementa `BoletaPdfPort`. |
+| `adapter/out/ws` | Broker STOMP en memoria | Empuja notificaciones a `/user/queue/notificaciones`. |
 | `config/` | Adaptadores | CORS, cadena JWT, Swagger, `MenuSchemaInitializer`. |
 | `resources/db/schema.sql` | Base ya instalada | Parche idempotente al arrancar (roles, menú, cuentas de demo). |
 

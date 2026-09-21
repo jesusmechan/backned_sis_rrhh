@@ -41,6 +41,7 @@ async function parseError(response) {
 }
 
 let refreshPromise = null;
+const inflightGet = new Map();
 
 async function refreshAccess() {
   const refreshToken = getRefreshToken();
@@ -61,7 +62,7 @@ async function refreshAccess() {
   return data.accessToken;
 }
 
-export async function api(path, options = {}) {
+async function send(path, options = {}) {
   const headers = new Headers(options.headers || {});
   if (!(options.body instanceof FormData) && !headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json');
@@ -98,6 +99,20 @@ export async function api(path, options = {}) {
     return response.json();
   }
   return response.blob();
+}
+
+export function api(path, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  if (method !== 'GET' || options.body) {
+    return send(path, options);
+  }
+  const pending = inflightGet.get(path);
+  if (pending) return pending;
+  const request = send(path, options).finally(() => {
+    if (inflightGet.get(path) === request) inflightGet.delete(path);
+  });
+  inflightGet.set(path, request);
+  return request;
 }
 
 export function asPage(data) {

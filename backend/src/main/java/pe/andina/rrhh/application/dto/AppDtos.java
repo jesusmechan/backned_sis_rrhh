@@ -673,4 +673,24 @@ public final class AppDtos {
             long totalElements,
             int totalPages
     ) {}
+
+    public record NotificacionResponse(
+            Integer idNotificacion,
+            String tipo,
+            String titulo,
+            String mensaje,
+            String ruta,
+            String tipoSolicitud,
+            Integer idSolicitud,
+            Integer idPaso,
+            Boolean leida,
+            OffsetDateTime fechaCreacion
+    ) {}
+
+    public record NotificacionEvento(
+            NotificacionResponse notificacion,
+            long noLeidas
+    ) {}
+
+    public record ContadorNotificaciones(long noLeidas) {}
 }

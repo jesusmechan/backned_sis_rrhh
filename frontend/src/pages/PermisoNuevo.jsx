@@ -68,6 +68,10 @@ export function PermisoNuevo() {
       setError('Indique hora de inicio y de fin, o deje ambas vacías.');
       return;
     }
+    if (form.horaInicio && form.horaFin && form.horaFin <= form.horaInicio) {
+      setError('La hora de fin debe ser posterior a la de inicio. Para un día completo, deje las horas vacías.');
+      return;
+    }
     if (form.motivo.trim().length < 5) {
       setError('El motivo debe tener al menos 5 caracteres.');
       return;
@@ -160,7 +164,7 @@ export function PermisoNuevo() {
             <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={5} placeholder="Mínimo 5 caracteres" />
           </Field>
         </div>
-        <p className="mt-4 text-xs text-muted">Las horas son opcionales. Si las indica, deben ir las dos.</p>
+        <p className="mt-4 text-xs text-muted">Las horas son opcionales. Si las indica, deben ir las dos y la de fin debe ser posterior a la de inicio. Dejarlas vacías registra el día completo.</p>
       </section>
     </form>
   );
