@@ -4,7 +4,9 @@ Sistema de Gestión de RR. HH. — Consultora Contable Andina S.A.C.
 
 Este documento explica **qué es la arquitectura hexagonal**, cómo está organizada en este repositorio y **cómo se comunica cada carpeta** con las demás.
 
-Endpoints: [API.md](API.md). Modelo de datos: [BASE_DE_DATOS.md](BASE_DE_DATOS.md) y [MER.md](MER.md).
+Endpoints: [API.md](API.md). Modelo de datos: [BASE_DE_DATOS.md](BASE_DE_DATOS.md) y [MER.md](MER.md) ([vista interactiva](diagrams/rrhh-mer.html)).
+
+Mapa interactivo (Archify): [arquitectura hexagonal](diagrams/rrhh-hexagonal.architecture.html) · [flujo de aprobación](diagrams/rrhh-aprobacion.workflow.html) — abrir en el navegador (vistas guiadas, tema claro/oscuro, export PNG/SVG).
 
 ---
 

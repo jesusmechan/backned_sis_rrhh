@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Presentación Lab UX — RR. HH. Andina</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --navy: #0f172a; --soft: #f8fafc; --muted: #64748b; --ok: #047857; --line: #e2e8f0; }
+    * { box-sizing: border-box; }
+    html { scroll-snap-type: y mandatory; }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #0b1220; color: var(--navy); }
+    .slide {
+      min-height: 100vh; scroll-snap-align: start; padding: 64px 8vw;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .slide.dark { background: var(--navy); color: #fff; }
+    .slide.light { background: var(--soft); }
+    .eyebrow { font-size: 0.85rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); margin-bottom: 12px; }
+    .slide.dark .eyebrow { color: #34d399; }
+    h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.03em; max-width: 18ch; }
+    h2 { font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 24px; letter-spacing: -0.02em; max-width: 22ch; }
+    p.lead { font-size: 1.25rem; color: var(--muted); max-width: 40ch; line-height: 1.5; }
+    .slide.dark p.lead { color: #cbd5e1; }
+    .grid { display: grid; gap: 16px; margin-top: 28px; }
+    @media (min-width: 800px) { .grid.cols-3 { grid-template-columns: repeat(3, 1fr); } .grid.cols-2 { grid-template-columns: repeat(2, 1fr); } }
+    .card { background: #fff; border-radius: 16px; padding: 24px; border: 1px solid var(--line); }
+    .card.dark { background: var(--navy); color: #fff; border: none; }
+    .card h3 { margin: 0 0 10px; font-size: 1.1rem; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .card.dark p { color: #cbd5e1; }
+    .bar { height: 6px; background: var(--navy); border-radius: 6px 6px 0 0; margin: -24px -24px 18px; }
+    .list .row {
+      background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 10px;
+      border: 1px solid var(--line); font-weight: 500; font-size: 1.05rem;
+    }
+    .nav {
+      position: fixed; bottom: 20px; right: 20px; z-index: 10;
+      background: rgba(15,23,42,.85); color: #fff; padding: 8px 14px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .script {
+      margin-top: 28px; padding: 14px 16px; border-left: 3px solid var(--ok);
+      font-size: 0.9rem; color: var(--muted); max-width: 52ch; background: rgba(4,120,87,.06);
+    }
+    .slide.dark .script { background: rgba(255,255,255,.06); color: #94a3b8; border-color: #34d399; }
+    @media print {
+      html { scroll-snap-type: none; }
+      .slide { min-height: auto; page-break-after: always; padding: 40px; }
+      .nav { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav">Presentación · ~3 min · ↓ scroll</div>
+
+  <section class="slide dark">
+    <div class="eyebrow">Curso Integrador I · UTP Lima Sur</div>
+    <h1>Lab UX — RR. HH. Andina</h1>
+    <p class="lead">De la empatía al mockup: decisiones que reducen fricción en solicitudes y aprobaciones.</p>
+    <p style="margin-top:40px;color:#94a3b8;font-size:0.95rem">Consultora Contable Andina S.A.C. · Mag. Ing. Marco A. Flores Torres</p>
+    <div class="script"><strong>Guion (20 s):</strong> Presentar el sistema y el foco: no es solo un formulario, es calmar la incertidumbre del circuito de aprobación.</div>
+  </section>
+
+  <section class="slide light">
+    <div class="eyebrow">01 · Problema</div>
+    <h2>Juan pierde tiempo siguiendo papeles, no trabajando.</h2>
+    <div class="grid cols-3">
+      <div class="card"><h3>Hoy</h3><p>Excel, correo y WhatsApp. No sabe el paso actual. Rechazos sin explicación.</p></div>
+      <div class="card"><h3>Quiere</h3><p>Solicitud en minutos, trazabilidad del circuito y aviso cuando avanza.</p></div>
+      <div class="card dark"><h3>Insight</h3><p>La ansiedad no es el formulario: es la incertidumbre del estado.</p></div>
+    </div>
+    <div class="script"><strong>Guion (30 s):</strong> Contar el mapa de empatía en una frase: pains (pérdida, opacidad) vs gains (trazabilidad, notificación).</div>
+  </section>
+
+  <section class="slide light">
+    <div class="eyebrow">02 · Tres decisiones UX</div>
+    <h2>Del mapa de empatía al producto</h2>
+    <div class="grid cols-3">
+      <div class="card"><div class="bar"></div><h3>D1 · Flujo visible</h3><p>Mostrar Jefe → RR. HH. → Gerencia en cada solicitud.</p></div>
+      <div class="card"><div class="bar"></div><h3>D2 · Bandeja hub</h3><p>Pendientes, filtros y comentario obligatorio al rechazar.</p></div>
+      <div class="card"><div class="bar"></div><h3>D3 · Notificación live</h3><p>STOMP/WebSocket reemplaza el chase por WhatsApp.</p></div>
+    </div>
+    <div class="script"><strong>Guion (45 s):</strong> Explicar las 3 decisiones y cómo cada una ataca un pain del mapa.</div>
+  </section>
+
+  <section class="slide light">
+    <div class="eyebrow">03 · Proceso</div>
+    <h2>Sketch → Wireframe → Mockup</h2>
+    <div class="grid cols-3">
+      <div class="card dark"><h3>4 sketches</h3><p>Flujo principal visible: Login → Inicio → Permiso → Bandeja.</p></div>
+      <div class="card dark"><h3>7 wireframes</h3><p>Estructura, navegación lateral y estados (pendiente, aprobado, rechazado).</p></div>
+      <div class="card dark"><h3>5 mockups</h3><p>Sistema visual navy / surface / Inter, alineado al frontend real.</p></div>
+    </div>
+    <div class="script"><strong>Guion (40 s):</strong> Mostrar rápidamente las pantallas clave del flujo de aprobación.</div>
+  </section>
+
+  <section class="slide light">
+    <div class="eyebrow">04 · Mejoras</div>
+    <h2>Qué mejora la experiencia</h2>
+    <div class="list">
+      <div class="row">→ Menos “¿ya aprobaron?” gracias al estado visible</div>
+      <div class="row">→ Aprobadores resuelven desde una sola bandeja</div>
+      <div class="row">→ Rechazo transparente (comentario obligatorio)</div>
+      <div class="row">→ Notificación inmediata reduce latencia social</div>
+      <div class="row">→ Misma UI (tokens) reduce carga cognitiva</div>
+    </div>
+    <div class="script"><strong>Guion (30 s):</strong> Contraste antes/después en una frase por mejora.</div>
+  </section>
+
+  <section class="slide dark">
+    <div class="eyebrow">Cierre</div>
+    <h1>Diseñamos para calmar la incertidumbre del circuito.</h1>
+    <p class="lead">Empatía → 3 decisiones → flujo de aprobación claro. Gracias.</p>
+    <div class="script"><strong>Guion (15 s):</strong> Cerrar ofreciendo preguntas. Total ≈ 3:00.</div>
+  </section>
+</body>
+</html>

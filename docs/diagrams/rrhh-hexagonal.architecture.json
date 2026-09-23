@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RR. HH. Andina — arquitectura hexagonal",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Camino de una petición",
+        "focus": ["browser", "spa", "rest", "app", "domain", "jpa", "pg"],
+        "note": "El navegador habla solo con React; React llama al API; el dominio no conoce HTTP ni JPA."
+      },
+      {
+        "id": "trust-boundary",
+        "label": "Confianza JWT",
+        "focus": ["spa", "jwt", "rest", "app"],
+        "note": "El access token Bearer protege REST y el handshake STOMP."
+      },
+      {
+        "id": "side-effects",
+        "label": "Salidas laterales",
+        "focus": ["app", "stomp", "pdf", "pg"],
+        "note": "Tras una decisión de bandeja: persistir, empujar STOMP y, en planilla, emitir PDF."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Navegador",
+      "sublabel": "Usuario",
+      "pos": [48, 292],
+      "size": [118, 58]
+    },
+    {
+      "id": "spa",
+      "type": "frontend",
+      "label": "React SPA",
+      "sublabel": "Vite :5173",
+      "tag": "proxy /api /ws",
+      "pos": [220, 286],
+      "size": [140, 70]
+    },
+    {
+      "id": "jwt",
+      "type": "security",
+      "label": "JWT",
+      "sublabel": "Spring Security",
+      "tag": "Bearer",
+      "pos": [420, 118],
+      "size": [140, 64]
+    },
+    {
+      "id": "rest",
+      "type": "backend",
+      "label": "Controllers",
+      "sublabel": "adapter.in.web",
+      "pos": [420, 286],
+      "size": [140, 70]
+    },
+    {
+      "id": "app",
+      "type": "backend",
+      "label": "Casos de uso",
+      "sublabel": "application.service",
+      "pos": [620, 286],
+      "size": [150, 70]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "Dominio",
+      "sublabel": "model + reglas",
+      "tag": "centro",
+      "pos": [620, 118],
+      "size": [150, 64]
+    },
+    {
+      "id": "jpa",
+      "type": "backend",
+      "label": "Persistencia",
+      "sublabel": "adapter.out.persistence",
+      "pos": [830, 286],
+      "size": [160, 70]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "rrhh_andina",
+      "pos": [1040, 286],
+      "size": [140, 70]
+    },
+    {
+      "id": "stomp",
+      "type": "messagebus",
+      "label": "STOMP",
+      "sublabel": "/ws notificaciones",
+      "pos": [620, 460],
+      "size": [150, 64]
+    },
+    {
+      "id": "pdf",
+      "type": "backend",
+      "label": "Boletas PDF",
+      "sublabel": "adapter.out.pdf",
+      "pos": [830, 460],
+      "size": [160, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "backend/ — hexágono pe.andina.rrhh",
+      "wraps": ["jwt", "rest", "app", "domain", "jpa", "stomp", "pdf"],
+      "pad": 28
+    },
+    {
+      "kind": "security-group",
+      "label": "Límite de confianza JWT",
+      "wraps": ["jwt", "rest"],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-spa",
+      "from": "browser",
+      "to": "spa",
+      "label": "UI",
+      "variant": "emphasis"
+    },
+    {
+      "id": "spa-rest",
+      "from": "spa",
+      "to": "rest",
+      "label": "/api JSON + Bearer",
+      "variant": "emphasis",
+      "labelDy": 59
+    },
+    {
+      "id": "jwt-rest",
+      "from": "jwt",
+      "to": "rest",
+      "label": "filtra token",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "rest-app",
+      "from": "rest",
+      "to": "app",
+      "label": "UseCase",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-domain",
+      "from": "app",
+      "to": "domain",
+      "label": "reglas",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "app-jpa",
+      "from": "app",
+      "to": "jpa",
+      "label": "Port",
+      "variant": "emphasis"
+    },
+    {
+      "id": "jpa-pg",
+      "from": "jpa",
+      "to": "pg",
+      "label": "JDBC / JPA",
+      "variant": "emphasis",
+      "labelDy": 59
+    },
+    {
+      "id": "app-stomp",
+      "from": "app",
+      "to": "stomp",
+      "label": "push",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24,
+      "labelDx": -40
+    },
+    {
+      "id": "app-pdf",
+      "from": "app",
+      "to": "pdf",
+      "label": "boleta",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "stomp-spa",
+      "from": "stomp",
+      "to": "spa",
+      "label": "campana",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Frontend",
+      "items": [
+        "React 19 + Vite en :5173",
+        "Proxy /api y /ws hacia 127.0.0.1:8080"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Hexágono",
+      "items": [
+        "Controllers → UseCase → Dominio",
+        "Salidas por Port: JPA, PDF, STOMP"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Seguridad",
+      "items": [
+        "JWT Bearer en REST",
+        "Mismo access token en handshake WebSocket"
+      ]
+    }
+  ]
+}

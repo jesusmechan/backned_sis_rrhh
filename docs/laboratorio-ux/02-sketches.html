@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sketches — RR. HH. Andina</title>
+  <style>
+    :root { --ink: #334155; --navy: #0f172a; --soft: #cbd5e1; --bg: #f1f5f9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--navy); }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 20px 56px; }
+    h1 { margin: 0 0 4px; font-size: 1.6rem; }
+    .meta { color: #64748b; font-size: 0.9rem; margin-bottom: 8px; }
+    .flow {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin: 16px 0 28px; font-weight: 600; font-size: 0.9rem;
+    }
+    .flow span { background: #fff; border: 2px dashed var(--ink); padding: 6px 12px; border-radius: 8px; }
+    .flow i { font-style: normal; color: #64748b; }
+    .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .phone {
+      background: #fff;
+      border: 3px solid var(--ink);
+      border-radius: 18px;
+      padding: 14px;
+      min-height: 460px;
+      box-shadow: 6px 6px 0 rgba(15,23,42,.08);
+    }
+    .phone h2 { margin: 0 0 14px; font-size: 0.95rem; border-bottom: 2px solid var(--soft); padding-bottom: 8px; }
+    .chip { height: 14px; background: var(--soft); border-radius: 4px; margin: 6px 0; }
+    .field { border: 2px solid var(--ink); border-radius: 8px; padding: 10px; margin: 8px 0; font-size: 0.85rem; color: #64748b; }
+    .btn { background: var(--navy); color: #fff; text-align: center; padding: 12px; border-radius: 8px; margin-top: 12px; font-weight: 700; font-size: 0.9rem; }
+    .card { border: 2px solid var(--ink); border-radius: 10px; padding: 12px; margin: 10px 0; font-size: 0.82rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tile { border: 2px solid var(--ink); border-radius: 10px; padding: 14px; min-height: 64px; font-size: 0.85rem; font-weight: 600; }
+    .actions { display: flex; gap: 6px; margin-top: 8px; }
+    .actions b { flex: 1; text-align: center; border: 2px solid var(--ink); border-radius: 6px; padding: 4px; font-size: 0.75rem; }
+    .sketch-note { font-size: 0.8rem; color: #64748b; margin-top: 10px; font-style: italic; }
+    @media print { body { background: #fff; } .phone { break-inside: avoid; box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sketches — flujo principal</h1>
+    <p class="meta">Entregable 2 · Mínimo 4 pantallas · Condición: flujo principal visible · Miro / imagen</p>
+    <div class="flow">
+      <span>1. Login</span><i>→</i>
+      <span>2. Inicio</span><i>→</i>
+      <span>3. Nuevo permiso</span><i>→</i>
+      <span>4. Bandeja aprobador</span>
+    </div>
+
+    <div class="grid">
+      <article class="phone">
+        <h2>1. Login</h2>
+        <div class="chip" style="width:60%"></div>
+        <p style="font-weight:700;margin:8px 0">Andina RR. HH.</p>
+        <div class="field">Usuario</div>
+        <div class="field">Contraseña</div>
+        <div class="btn">Ingresar</div>
+        <p class="sketch-note">Acceso JWT · roles definen menú</p>
+      </article>
+
+      <article class="phone">
+        <h2>2. Inicio</h2>
+        <div class="card" style="background:#f8fafc">Buenos días, Juan</div>
+        <div class="row">
+          <div class="tile">Pendientes<br />2</div>
+          <div class="tile">Mis solicitudes<br />3</div>
+        </div>
+        <div class="card">→ Solicitar permiso</div>
+        <div class="card">→ Marcar asistencia</div>
+        <div class="card">→ Ver bandeja</div>
+        <p class="sketch-note">Hub del colaborador</p>
+      </article>
+
+      <article class="phone">
+        <h2>3. Nuevo permiso</h2>
+        <div class="field">Tipo: Vacaciones ▾</div>
+        <div class="field">Desde: ____ / ____</div>
+        <div class="field">Hasta: ____ / ____</div>
+        <div class="field" style="min-height:72px">Motivo…</div>
+        <p style="font-size:0.78rem;margin:8px 0">Circuito: Jefe → RR. HH. → Gerencia</p>
+        <div class="btn">Enviar solicitud</div>
+        <p class="sketch-note">Decisión UX D1: flujo visible</p>
+      </article>
+
+      <article class="phone">
+        <h2>4. Bandeja aprobador</h2>
+        <div class="row" style="margin-bottom:8px">
+          <div class="tile" style="text-align:center;padding:8px">Pendientes</div>
+          <div class="tile" style="text-align:center;padding:8px;opacity:.5">Seguimiento</div>
+        </div>
+        <div class="card">
+          PERMISO · Juan E.<br />Vacaciones · 5 días
+          <div class="actions"><b>Aprobar</b><b>Rechazar</b></div>
+        </div>
+        <div class="card">
+          HORA EXTRA · Carla<br />3 h · cierre
+          <div class="actions"><b>Aprobar</b><b>Rechazar</b></div>
+        </div>
+        <p class="sketch-note">Decisión UX D2: bandeja = hub</p>
+      </article>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MER — RR. HH. Andina</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "neutral",
+      securityLevel: "loose",
+      er: { layoutDirection: "TB", useMaxWidth: true }
+    });
+
+    const panels = [...document.querySelectorAll("[data-panel]")];
+    const tabs = [...document.querySelectorAll("[data-tab]")];
+
+    async function show(id) {
+      tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === id));
+      panels.forEach((p) => p.hidden = p.dataset.panel !== id);
+      const panel = document.querySelector(`[data-panel="${id}"]`);
+      const host = panel.querySelector(".mermaid-host");
+      if (host.dataset.rendered === "1") return;
+      const raw = panel.querySelector("script[type='text/plain']").textContent.trim();
+      host.textContent = raw;
+      host.removeAttribute("data-processed");
+      host.classList.add("mermaid");
+      await mermaid.run({ nodes: [host] });
+      host.dataset.rendered = "1";
+    }
+
+    tabs.forEach((t) => t.addEventListener("click", () => show(t.dataset.tab)));
+    document.getElementById("btn-print").addEventListener("click", () => window.print());
+    show("organizacion");
+  </script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #fff;
+      --line: #e2e8f0;
+      --navy: #0f172a;
+      --muted: #64748b;
+      --accent: #0f172a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--navy);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      padding: 1rem 1.25rem 0.75rem;
+    }
+    header h1 {
+      margin: 0.15rem 0 0;
+      font-size: 1.35rem;
+    }
+    header p {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      max-width: 52rem;
+    }
+    .kicker {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+      align-items: center;
+    }
+    .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; flex: 1; }
+    button.tab, #btn-print {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--navy);
+      border-radius: 999px;
+      padding: 0.4rem 0.85rem;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.tab.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    #btn-print { margin-left: auto; }
+    main { padding: 1rem 1.25rem 2rem; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .panel h2 {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+    }
+    .panel .hint {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .mermaid-host { min-height: 12rem; }
+    .legend {
+      margin-top: 1rem;
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .legend code {
+      background: #f1f5f9;
+      padding: 0.05rem 0.35rem;
+      border-radius: 4px;
+      color: var(--navy);
+    }
+    footer {
+      padding: 0 1.25rem 1.5rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    footer a { color: var(--navy); }
+    @media print {
+      header { position: static; }
+      .tabs, #btn-print { display: none !important; }
+      .panel { border: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">Base de datos · rrhh_andina</p>
+    <h1>Modelo entidad-relación</h1>
+    <p>
+      Diagrama lógico alineado a <code>database/01_install.sql</code>.
+      Cardinalidades Mermaid: <code>||--o{</code> = 1:N,
+      <code>||--|{</code> = 1:N obligatorio,
+      <code>||--o|</code> = 1:0..1,
+      <code>}o--o{</code> = N:M vía puente.
+    </p>
+    <div class="actions">
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="organizacion">1. Organización</button>
+        <button type="button" class="tab" data-tab="seguridad">2. Seguridad</button>
+        <button type="button" class="tab" data-tab="flujos">3. Flujos y trámites</button>
+        <button type="button" class="tab" data-tab="planilla">4. Planilla</button>
+        <button type="button" class="tab" data-tab="otros">5. Otros módulos</button>
+        <button type="button" class="tab" data-tab="mapa">6. Mapa completo</button>
+      </div>
+      <button type="button" id="btn-print">Imprimir / PDF</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" data-panel="organizacion">
+      <h2>Organización y asistencia</h2>
+      <p class="hint">Área, cargo, horario, organigrama (<code>id_jefe_inmediato</code>), contrato y marcaciones.</p>
+      <pre class="mermaid-host"></pre>
+      <script type="text/plain">
+erDiagram
+    AREA ||--o{ EMPLEADO : agrupa
+    CARGO ||--o{ EMPLEADO : define
+    HORARIO_LABORAL ||--o{ EMPLEADO : asigna
+    EMPLEADO ||--o{ EMPLEADO : supervisa
+    EMPLEADO ||--o{ CONTRATO : firma
+    HORARIO_LABORAL ||--o{ CONTRATO : jornada
+    EMPLEADO ||--o{ MARCACION : registra
+
+    AREA {
+        int id_area PK
+        string nombre UK
+        bool activo
+    }
+    CARGO {
+        int id_cargo PK
+        string nombre UK
+        bool activo
+    }
+    HORARIO_LABORAL {
+        int id_horario PK
+        string nombre UK
+        time hora_ingreso
+        time hora_salida
+    }
+    EMPLEADO {
+        int id_empleado PK
+        string codigo_empleado UK
+        string numero_documento
+        string nombres
+        int id_area FK
+        int id_cargo FK
+        int id_horario FK
+        int id_jefe_inmediato FK
+        string estado
+    }
+    CONTRATO {
+        int id_contrato PK
+        string codigo UK
+        int id_empleado FK
+        string modalidad
+        int id_horario FK
+        date fecha_inicio
+        numeric remuneracion_basica
+        string estado
+    }
+    MARCACION {
+        int id_marcacion PK
+        int id_empleado FK
+        string tipo
+        datetime fecha_hora
+        date fecha
+        string origen
+    }
+      </script>
+    </section>
+
+    <section class="panel" data-panel="seguridad" hidden>
+      <h2>Seguridad, menú y sesión</h2>
+      <p class="hint">Un usuario por empleado. Roles, permisos funcionales, menú dinámico, refresh JWT y notificaciones.</p>
+      <pre class="mermaid-host"></pre>
+      <script type="text/plain">
+erDiagram
+    EMPLEADO ||--o| USUARIO : accede
+    ROL ||--o{ USUARIO : otorga
+    ROL ||--o{ ROL_PERMISO : tiene
+    PERMISO_FUNCIONAL ||--o{ ROL_PERMISO : cubre
+    MENU_ITEM ||--o{ MENU_ROL : aparece
+    ROL ||--o{ MENU_ROL : ve
+    USUARIO ||--o{ REFRESH_TOKEN : posee
+    USUARIO ||--o{ NOTIFICACION : recibe
+    USUARIO ||--o{ AUDITORIA : genera
+
+    EMPLEADO {
+        int id_empleado PK
+        string codigo_empleado UK
+    }
+    ROL {
+        int id_rol PK
+        string codigo UK
+        string nombre
+        bool activo
+    }
+    PERMISO_FUNCIONAL {
+        int id_permiso PK
+        string codigo UK
+        string modulo
+    }
+    ROL_PERMISO {
+        int id_rol PK_FK
+        int id_permiso PK_FK
+    }
+    MENU_ITEM {
+        int id_menu PK
+        string codigo UK
+        string etiqueta
+        string ruta
+        string grupo
+    }
+    MENU_ROL {
+        int id_menu PK_FK
+        int id_rol PK_FK
+    }
+    USUARIO {
+        int id_usuario PK
+        int id_empleado FK_UK
+        int id_rol FK
+        string nombre_usuario UK
+        string correo UK
+        bool activo
+    }
+    REFRESH_TOKEN {
+        int id_refresh_token PK
+        int id_usuario FK
+        string token UK
+        datetime fecha_expiracion
+        bool revocado
+    }
+    NOTIFICACION {
+        int id_notificacion PK
+        int id_usuario FK
+        string tipo
+        string titulo
+        bool leida
+        string ruta
+    }
+    AUDITORIA {
+        long id_auditoria PK
+        int id_usuario FK
+        string accion
+        string entidad
+    }
+      </script>
+    </section>
+
+    <section class="panel" data-panel="flujos" hidden>
+      <h2>Flujos de aprobación y trámites</h2>
+      <p class="hint">
+        La solicitud <strong>no</strong> guarda al aprobador. El circuito se configura y se instancia en pasos.
+        XOR: un paso pertenece a permiso <em>o</em> a hora extra.
+      </p>
+      <pre class="mermaid-host"></pre>
+      <script type="text/plain">
+erDiagram
+    EMPLEADO ||--o{ SOLICITUD_PERMISO : pide
+    EMPLEADO ||--o{ SOLICITUD_HORA_EXTRA : pide
+    TIPO_PERMISO ||--o{ SOLICITUD_PERMISO : clasifica
+    TIPO_PERMISO ||--o{ CONFIGURACION_APROBACION : especializa
+    CONFIGURACION_APROBACION ||--|{ CONFIGURACION_APROBACION_DETALLE : define
+    ROL ||--o{ CONFIGURACION_APROBACION_DETALLE : atiende
+    USUARIO ||--o{ CONFIGURACION_APROBACION_DETALLE : atiende
+    CONFIGURACION_APROBACION ||--o{ SOLICITUD_PERMISO : aplica
+    CONFIGURACION_APROBACION ||--o{ SOLICITUD_HORA_EXTRA : aplica
+    CONFIGURACION_APROBACION_DETALLE ||--o{ SOLICITUD_PASO_APROBACION : instancia
+    SOLICITUD_PERMISO ||--o{ SOLICITUD_PASO_APROBACION : recorre
+    SOLICITUD_HORA_EXTRA ||--o{ SOLICITUD_PASO_APROBACION : recorre
+    SOLICITUD_PERMISO ||--o{ HISTORIAL_SOLICITUD : deja
+    SOLICITUD_HORA_EXTRA ||--o{ HISTORIAL_SOLICITUD : deja
+    SOLICITUD_PASO_APROBACION ||--o{ HISTORIAL_SOLICITUD : origina
+    USUARIO ||--o{ HISTORIAL_SOLICITUD : actua
+    USUARIO ||--o{ SOLICITUD_PASO_APROBACION : decide
+
+    TIPO_PERMISO {
+        int id_tipo_permiso PK
+        string codigo UK
+        string nombre UK
+        bool requiere_sustento
+    }
+    CONFIGURACION_APROBACION {
+        int id_configuracion PK
+        string codigo UK
+        string tipo_origen
+        int id_tipo_permiso FK
+        bool activo
+    }
+    CONFIGURACION_APROBACION_DETALLE {
+        int id_detalle PK
+        int id_configuracion FK
+        int numero_paso
+        string tipo_aprobador
+        int id_rol FK
+        int id_usuario FK
+    }
+    SOLICITUD_PERMISO {
+        int id_solicitud_permiso PK
+        int id_empleado FK
+        int id_tipo_permiso FK
+        int id_configuracion FK
+        date fecha_inicio
+        date fecha_fin
+        string estado
+    }
+    SOLICITUD_HORA_EXTRA {
+        int id_solicitud_hora_extra PK
+        int id_empleado FK
+        int id_configuracion FK
+        date fecha
+        numeric cantidad_horas
+        string estado
+    }
+    SOLICITUD_PASO_APROBACION {
+        int id_paso_solicitud PK
+        int id_solicitud_permiso FK
+        int id_solicitud_hora_extra FK
+        int id_detalle FK
+        int numero_paso
+        string tipo_aprobador
+        int id_usuario_asignado FK
+        int id_usuario_decision FK
+        string estado
+    }
+    HISTORIAL_SOLICITUD {
+        int id_historial PK
+        int id_solicitud_permiso FK
+        int id_solicitud_hora_extra FK
+        int id_paso_solicitud FK
+        int id_usuario FK
+        string accion
+    }
+      </script>
+      <div class="legend">
+        <div><code>tipo_aprobador</code>: JEFE_INMEDIATO · ROL · USUARIO</div>
+        <div><code>estado_solicitud</code>: PENDIENTE · APROBADO · RECHAZADO · CANCELADO</div>
+        <div><code>estado_paso</code>: PENDIENTE · EN_CURSO · APROBADO · RECHAZADO · OMITIDO · CANCELADO</div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="planilla" hidden>
+      <h2>Planilla y contabilidad</h2>
+      <p class="hint">Periodo → detalle por empleado/contrato → asiento contable y líneas.</p>
+      <pre class="mermaid-host"></pre>
+      <script type="text/plain">
+erDiagram
+    EMPLEADO ||--o{ PLANILLA_DETALLE : liquida
+    CONTRATO ||--o{ PLANILLA_DETALLE : referencia
+    PLANILLA ||--|{ PLANILLA_DETALLE : contiene
+    PLANILLA ||--o{ ASIENTO_CONTABLE : genera
+    ASIENTO_CONTABLE ||--|{ ASIENTO_LINEA : detalla
+    CUENTA_CONTABLE ||--o{ ASIENTO_LINEA : clasifica
+
+    PLANILLA {
+        int id_planilla PK
+        int anio
+        int mes
+        string estado
+        numeric total_neto
+    }
+    PLANILLA_DETALLE {
+        int id_detalle PK
+        int id_planilla FK
+        int id_empleado FK
+        int id_contrato FK
+        numeric remuneracion_basica
+        numeric neto
+    }
+    ASIENTO_CONTABLE {
+        int id_asiento PK
+        string codigo UK
+        int id_planilla FK
+        date fecha
+        string estado
+    }
+    ASIENTO_LINEA {
+        int id_linea PK
+        int id_asiento FK
+        string cuenta
+        numeric debe
+        numeric haber
+    }
+    CUENTA_CONTABLE {
+        int id_cuenta PK
+        string codigo UK
+        string nombre
+        string uso UK
+    }
+    EMPLEADO {
+        int id_empleado PK
+        string codigo_empleado UK
+    }
+    CONTRATO {
+        int id_contrato PK
+        string codigo UK
+        numeric remuneracion_basica
+    }
+      </script>
+    </section>
+
+    <section class="panel" data-panel="otros" hidden>
+      <h2>Carga masiva, desempeño y reclutamiento</h2>
+      <p class="hint">Módulos complementarios del instalador.</p>
+      <pre class="mermaid-host"></pre>
+      <script type="text/plain">
+erDiagram
+    USUARIO ||--o{ CARGA_MASIVA : ejecuta
+    CARGA_MASIVA ||--|{ CARGA_MASIVA_DETALLE : contiene
+    EMPLEADO ||--o{ CARGA_MASIVA_DETALLE : resulta
+    USUARIO ||--o{ REPORTE_GENERADO : emite
+    EMPLEADO ||--o{ EVALUACION_DESEMPENO : recibe
+    USUARIO ||--o{ EVALUACION_DESEMPENO : evalua
+    AREA ||--o{ CONVOCATORIA : publica
+    CONVOCATORIA ||--o{ POSTULACION : recibe
+
+    CARGA_MASIVA {
+        int id_carga PK
+        int id_usuario FK
+        string nombre_archivo
+        string estado
+    }
+    CARGA_MASIVA_DETALLE {
+        int id_detalle PK
+        int id_carga FK
+        int numero_fila
+        string resultado
+        int id_empleado FK
+    }
+    REPORTE_GENERADO {
+        int id_reporte PK
+        int id_usuario FK
+        string tipo
+        string formato
+    }
+    EVALUACION_DESEMPENO {
+        int id_evaluacion PK
+        int id_empleado FK
+        int id_evaluador FK
+        string periodo
+        numeric promedio
+        string estado
+    }
+    CONVOCATORIA {
+        int id_convocatoria PK
+        string codigo UK
+        string puesto
+        int id_area FK
+        string estado
+    }
+    POSTULACION {
+        int id_postulacion PK
+        int id_convocatoria FK
+        string candidato
+        string estado
+    }
+    AREA {
+        int id_area PK
+        string nombre UK
+    }
+    EMPLEADO {
+        int id_empleado PK
+        string codigo_empleado UK
+    }
+    USUARIO {
+        int id_usuario PK
+        string nombre_usuario UK
+    }
+      </script>
+    </section>
+
+    <section class="panel" data-panel="mapa" hidden>
+      <h2>Mapa de relaciones (sin atributos)</h2>
+      <p class="hint">Vista de curso: solo entidades y cardinalidades del núcleo operativo.</p>
+      <pre class="mermaid-host"></pre>
+      <script type="text/plain">
+erDiagram
+    AREA ||--o{ EMPLEADO : agrupa
+    CARGO ||--o{ EMPLEADO : define
+    HORARIO_LABORAL ||--o{ EMPLEADO : asigna
+    EMPLEADO ||--o{ EMPLEADO : supervisa
+    EMPLEADO ||--o| USUARIO : accede
+    ROL ||--o{ USUARIO : otorga
+    EMPLEADO ||--o{ CONTRATO : firma
+    EMPLEADO ||--o{ MARCACION : registra
+    EMPLEADO ||--o{ SOLICITUD_PERMISO : pide
+    EMPLEADO ||--o{ SOLICITUD_HORA_EXTRA : pide
+    TIPO_PERMISO ||--o{ SOLICITUD_PERMISO : clasifica
+    CONFIGURACION_APROBACION ||--|{ CONFIGURACION_APROBACION_DETALLE : define
+    CONFIGURACION_APROBACION ||--o{ SOLICITUD_PERMISO : aplica
+    CONFIGURACION_APROBACION ||--o{ SOLICITUD_HORA_EXTRA : aplica
+    SOLICITUD_PERMISO ||--o{ SOLICITUD_PASO_APROBACION : recorre
+    SOLICITUD_HORA_EXTRA ||--o{ SOLICITUD_PASO_APROBACION : recorre
+    CONFIGURACION_APROBACION_DETALLE ||--o{ SOLICITUD_PASO_APROBACION : instancia
+    USUARIO ||--o{ NOTIFICACION : recibe
+    PLANILLA ||--|{ PLANILLA_DETALLE : contiene
+    EMPLEADO ||--o{ PLANILLA_DETALLE : liquida
+    PLANILLA ||--o{ ASIENTO_CONTABLE : genera
+      </script>
+    </section>
+  </main>
+
+  <footer>
+    Fuente documental: <a href="../MER.md">docs/MER.md</a> ·
+    Scripts: <a href="../../database/01_install.sql">database/01_install.sql</a> ·
+    Para PDF: usa <strong>Imprimir / PDF</strong> con la pestaña activa.
+  </footer>
+</body>
+</html>

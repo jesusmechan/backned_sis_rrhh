@@ -1,0 +1,189 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "RR. HH. Andina — flujo de aprobación",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Camino feliz",
+        "focus": ["crear", "pasos", "jefe", "rrhh", "gerencia", "aprobado"],
+        "note": "Vacaciones: Jefe → RRHH → GERENCIA hasta APROBADO."
+      },
+      {
+        "id": "reject-path",
+        "label": "Rechazo",
+        "focus": ["jefe", "rrhh", "gerencia", "rechazado"],
+        "note": "Cualquier paso puede rechazar; el flujo cierra en RECHAZADO."
+      },
+      {
+        "id": "notify-path",
+        "label": "Notificaciones",
+        "focus": ["pasos", "stomp", "aprobado", "rechazado"],
+        "note": "STOMP avisa al siguiente destinatario o informa el resultado."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "solicitante", "label": "Solicitante" },
+    { "id": "circuito", "label": "Circuito" },
+    { "id": "sistema", "label": "Sistema" }
+  ],
+  "phases": [
+    { "id": "registro", "label": "Registro", "fromCol": 0, "toCol": 1 },
+    { "id": "aprobacion", "label": "Aprobación", "fromCol": 2, "toCol": 4, "variant": "emphasis" },
+    { "id": "cierre", "label": "Cierre", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    {
+      "id": "gates",
+      "label": "Pasos del flujo",
+      "lane": "circuito",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": ["crear", "pasos", "jefe", "rrhh", "gerencia", "aprobado"],
+  "nodes": [
+    {
+      "id": "crear",
+      "lane": "solicitante",
+      "col": 0,
+      "type": "frontend",
+      "label": "Crear solicitud",
+      "sublabel": "Permiso / hextras",
+      "width": 132
+    },
+    {
+      "id": "aprobado",
+      "lane": "solicitante",
+      "col": 5,
+      "type": "backend",
+      "label": "APROBADO",
+      "sublabel": "Cierre OK",
+      "width": 120
+    },
+    {
+      "id": "jefe",
+      "lane": "circuito",
+      "col": 2,
+      "type": "security",
+      "label": "Jefe inmediato",
+      "sublabel": "JEFE_INMEDIATO",
+      "tag": "Paso 1",
+      "width": 132
+    },
+    {
+      "id": "rrhh",
+      "lane": "circuito",
+      "col": 3,
+      "type": "security",
+      "label": "RR. HH.",
+      "sublabel": "ROL RRHH",
+      "tag": "Paso 2",
+      "width": 120
+    },
+    {
+      "id": "gerencia",
+      "lane": "circuito",
+      "col": 4,
+      "type": "security",
+      "label": "Gerencia",
+      "sublabel": "ROL GERENCIA",
+      "tag": "Paso 3",
+      "width": 132
+    },
+    {
+      "id": "rechazado",
+      "lane": "circuito",
+      "col": 5,
+      "type": "security",
+      "label": "RECHAZADO",
+      "sublabel": "Motivo obligatorio",
+      "width": 128
+    },
+    {
+      "id": "pasos",
+      "lane": "sistema",
+      "col": 1,
+      "type": "backend",
+      "label": "Instanciar pasos",
+      "sublabel": "paso_aprobacion",
+      "width": 140
+    },
+    {
+      "id": "stomp",
+      "lane": "sistema",
+      "col": 5,
+      "type": "messagebus",
+      "label": "STOMP",
+      "sublabel": "/queue/notificaciones",
+      "width": 132
+    }
+  ],
+  "edges": [
+    { "id": "crear-pasos", "from": "crear", "to": "pasos", "label": "POST", "variant": "emphasis" },
+    { "id": "pasos-jefe", "from": "pasos", "to": "jefe", "label": "EN_CURSO", "variant": "emphasis" },
+    { "id": "jefe-rrhh", "from": "jefe", "to": "rrhh", "label": "aprobar", "variant": "emphasis" },
+    { "id": "rrhh-gerencia", "from": "rrhh", "to": "gerencia", "label": "aprobar", "variant": "emphasis" },
+    { "id": "gerencia-aprobado", "from": "gerencia", "to": "aprobado", "label": "aprobar", "variant": "emphasis" },
+    {
+      "id": "jefe-rechazo",
+      "from": "jefe",
+      "to": "rechazado",
+      "label": "rechazar",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "rrhh-rechazo",
+      "from": "rrhh",
+      "to": "rechazado",
+      "label": "rechazar",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "gerencia-rechazo",
+      "from": "gerencia",
+      "to": "rechazado",
+      "label": "rechazar",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "pasos-stomp",
+      "from": "pasos",
+      "to": "stomp",
+      "label": "avisar",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "aprobado-stomp",
+      "from": "aprobado",
+      "to": "stomp",
+      "label": "resultado",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Registro",
+      "items": ["El empleado crea la solicitud y el sistema instancia los pasos del flujo."]
+    },
+    {
+      "dot": "emerald",
+      "title": "Circuito",
+      "items": ["Paso 1 = JEFE_INMEDIATO. Vacaciones continúa con RRHH y GERENCIA."]
+    },
+    {
+      "dot": "rose",
+      "title": "Cierre",
+      "items": ["Rechazar en cualquier paso cierra el flujo; STOMP notifica el avance."]
+    }
+  ]
+}

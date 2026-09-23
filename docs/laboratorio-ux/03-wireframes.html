@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wireframes — RR. HH. Andina</title>
+  <style>
+    :root {
+      --navy: #0f172a; --muted: #64748b; --line: #e2e8f0; --surface: #f8fafc;
+      --ok: #047857; --danger: #dc2626; --warn: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, "Segoe UI", system-ui, sans-serif; background: #eef2f7; color: var(--navy); }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 20px 64px; }
+    h1 { margin: 0 0 4px; font-size: 1.55rem; }
+    .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+    .screens { display: grid; gap: 24px; }
+    .screen {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(15,23,42,.06);
+    }
+    .screen > header {
+      padding: 10px 16px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .app { display: grid; grid-template-columns: 180px 1fr; min-height: 320px; }
+    .app.login { grid-template-columns: 1fr; min-height: 380px; place-items: center; }
+    .side { background: #fff; border-right: 1px solid var(--line); padding: 16px 12px; }
+    .side a {
+      display: block; padding: 8px 10px; border-radius: 6px;
+      font-size: 0.85rem; color: var(--navy); text-decoration: none; margin-bottom: 2px;
+    }
+    .side a.active { background: #e2e8f0; font-weight: 600; }
+    .main { padding: 16px 20px 24px; }
+    .top {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #fff; border-bottom: 1px solid var(--line);
+      padding: 10px 16px; font-size: 0.85rem; font-weight: 700;
+      grid-column: 1 / -1;
+    }
+    .shell { display: grid; grid-template-rows: auto 1fr; }
+    h2 { margin: 0 0 12px; font-size: 1.2rem; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+    .card .k { font-size: 0.75rem; color: var(--muted); }
+    .card .v { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+    .btn {
+      display: inline-block; background: var(--navy); color: #fff;
+      border: none; border-radius: 8px; padding: 10px 16px; font-weight: 600; font-size: 0.85rem;
+    }
+    .btn.ghost { background: #fff; color: var(--muted); border: 1px solid var(--line); }
+    .btn.ok { background: var(--ok); }
+    .btn.danger { background: var(--danger); }
+    .field {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      padding: 10px 12px; margin: 8px 0; font-size: 0.85rem; color: var(--muted);
+    }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; }
+    th { text-align: left; padding: 10px; font-size: 0.7rem; text-transform: uppercase; color: var(--muted); background: #f1f5f9; }
+    td { padding: 10px; border-top: 1px solid var(--line); }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700; background: #e2e8f0;
+    }
+    .badge.warn { background: #ffedd5; color: var(--warn); }
+    .badge.ok { background: #d1fae5; color: var(--ok); }
+    .badge.bad { background: #fee2e2; color: var(--danger); }
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab { padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; background: #fff; border: 1px solid var(--line); }
+    .tab.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .row-actions { display: flex; gap: 6px; }
+    .steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+    .step { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 0.8rem; background: #fff; }
+    .step.now { background: #e2e8f0; font-weight: 600; }
+    .login-box {
+      width: min(360px, 92%); background: #fff; border: 1px solid var(--line);
+      border-radius: 12px; padding: 28px; margin: 24px auto;
+    }
+    .note { font-size: 0.8rem; color: var(--muted); margin-top: 12px; }
+    @media print {
+      body { background: #fff; }
+      .screen { break-inside: avoid; box-shadow: none; margin-bottom: 16px; }
+    }
+    @media (max-width: 700px) {
+      .app { grid-template-columns: 1fr; }
+      .side { display: none; }
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Wireframes — 7 pantallas</h1>
+    <p class="meta">Entregable 3 · Estructura, navegación y estados básicos · Miro / PDF</p>
+
+    <div class="screens">
+      <!-- WF1 -->
+      <section class="screen">
+        <header>WF1 · Login</header>
+        <div class="app login">
+          <div class="login-box">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted)">CONSULTORA CONTABLE ANDINA</div>
+            <h2 style="margin-top:6px">Ingreso al sistema</h2>
+            <p class="note" style="margin-top:0">Gestión de RR. HH.</p>
+            <div class="field">Usuario</div>
+            <div class="field">Contraseña</div>
+            <button class="btn" style="width:100%;margin-top:8px">Ingresar</button>
+            <p class="note">Estados: vacío · loading · error de credenciales</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- WF2 -->
+      <section class="screen">
+        <header>WF2 · Inicio (hub)</header>
+        <div class="shell">
+          <div class="top"><span>Andina RR. HH.</span><span style="font-weight:500;color:var(--muted)">Juan Espinoza ▾</span></div>
+          <div class="app">
+            <nav class="side">
+              <a class="active" href="#">Inicio</a>
+              <a href="#">Bandeja</a>
+              <a href="#">Permisos</a>
+              <a href="#">Horas extras</a>
+              <a href="#">Marcar</a>
+              <a href="#">Planillas</a>
+            </nav>
+            <div class="main">
+              <h2>Buenos días, Juan</h2>
+              <div class="cards">
+                <div class="card"><div class="k">Pendientes</div><div class="v">2</div></div>
+                <div class="card"><div class="k">Mis solicitudes</div><div class="v">3</div></div>
+                <div class="card"><div class="k">Asistencia hoy</div><div class="v" style="font-size:1.1rem;margin-top:10px">Entrada OK</div></div>
+              </div>
+              <div class="cards">
+                <div class="card">→ Solicitar permiso</div>
+                <div class="card">→ Marcar asistencia</div>
+                <div class="card">→ Ir a bandeja</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WF3 -->
+      <section class="screen">
+        <header>WF3 · Permisos (lista + estados)</header>
+        <div class="shell">
+          <div class="top"><span>Andina RR. HH.</span><span style="font-weight:500;color:var(--muted)">Usuario ▾</span></div>
+          <div class="app">
+            <nav class="side">
+              <a href="#">Inicio</a><a href="#">Bandeja</a><a class="active" href="#">Permisos</a>
+              <a href="#">Horas extras</a><a href="#">Marcar</a><a href="#">Planillas</a>
+            </nav>
+            <div class="main">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                <h2 style="margin:0">Mis permisos</h2>
+                <button class="btn">+ Nuevo</button>
+              </div>
+              <div style="display:flex;gap:8px;margin:12px 0">
+                <div class="field" style="flex:1;margin:0">Buscar…</div>
+                <div class="field" style="width:140px;margin:0">Estado ▾</div>
+              </div>
+              <table>
+                <thead><tr><th>ID</th><th>Tipo</th><th>Fechas</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td>#120</td><td>Vacaciones</td><td>12–16 Mar</td><td><span class="badge warn">PENDIENTE</span></td><td>Ver</td></tr>
+                  <tr><td>#119</td><td>Salud</td><td>02 Mar</td><td><span class="badge ok">APROBADO</span></td><td>Ver</td></tr>
+                  <tr><td>#118</td><td>Vacaciones</td><td>10–14 Feb</td><td><span class="badge bad">RECHAZADO</span></td><td>Ver</td></tr>
+                  <tr><td>#117</td><td>Personal</td><td>20 Ene</td><td><span class="badge">EN CURSO</span></td><td>Ver</td></tr>
+                </tbody>
+              </table>
+              <p class="note">Estados básicos visibles en lista y detalle</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WF4 -->
+      <section class="screen">
+        <header>WF4 · Nuevo permiso (formulario + circuito)</header>
+        <div class="shell">
+          <div class="top"><span>Andina RR. HH.</span><span style="font-weight:500;color:var(--muted)">Usuario ▾</span></div>
+          <div class="main" style="max-width:560px">
+            <h2>Nueva solicitud de permiso</h2>
+            <div class="field">Tipo: Vacaciones ▾</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div class="field">Desde</div>
+              <div class="field">Hasta</div>
+            </div>
+            <div class="field" style="min-height:80px">Motivo / justificación</div>
+            <p style="font-size:0.85rem;font-weight:600;margin:12px 0 6px">Circuito previsto</p>
+            <div class="steps">
+              <div class="step now">1. Jefe</div>
+              <div class="step">2. RR. HH.</div>
+              <div class="step">3. Gerencia</div>
+            </div>
+            <button class="btn">Enviar</button>
+            <button class="btn ghost">Cancelar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- WF5 -->
+      <section class="screen">
+        <header>WF5 · Detalle permiso + historial</header>
+        <div class="shell">
+          <div class="top"><span>Andina RR. HH.</span><span style="font-weight:500;color:var(--muted)">Usuario ▾</span></div>
+          <div class="app">
+            <nav class="side">
+              <a href="#">Inicio</a><a href="#">Bandeja</a><a class="active" href="#">Permisos</a>
+              <a href="#">Horas extras</a><a href="#">Marcar</a><a href="#">Planillas</a>
+            </nav>
+            <div class="main">
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                <h2 style="margin:0">Permiso #120 · Vacaciones</h2>
+                <span class="badge warn">PENDIENTE</span>
+              </div>
+              <div class="cards" style="margin-top:16px;grid-template-columns:1.4fr 1fr">
+                <div class="card">
+                  <div class="k">Datos</div>
+                  <p style="margin:8px 0 0;font-size:0.9rem;line-height:1.6">
+                    Desde: 12 Mar 2026<br />Hasta: 16 Mar 2026<br />Días: 5<br />Motivo: Viaje familiar
+                  </p>
+                </div>
+                <div class="card">
+                  <div class="k">Circuito</div>
+                  <p style="margin:8px 0 0;font-size:0.9rem;line-height:1.7">
+                    ● Jefe inmediato (actual)<br />○ RR. HH.<br />○ Gerencia
+                  </p>
+                </div>
+              </div>
+              <div class="card">
+                <div class="k">Historial</div>
+                <p style="margin:8px 0 0;font-size:0.85rem;color:var(--muted);line-height:1.6">
+                  12 Mar 09:10 · Creada por Juan<br />
+                  12 Mar 09:11 · Enviada a Jefe inmediato<br />
+                  — Esperando decisión
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WF6 -->
+      <section class="screen">
+        <header>WF6 · Bandeja pendientes</header>
+        <div class="shell">
+          <div class="top"><span>Andina RR. HH.</span><span style="font-weight:500;color:var(--muted)">Jefe ▾</span></div>
+          <div class="app">
+            <nav class="side">
+              <a href="#">Inicio</a><a class="active" href="#">Bandeja</a><a href="#">Permisos</a>
+              <a href="#">Horas extras</a><a href="#">Marcar</a><a href="#">Planillas</a>
+            </nav>
+            <div class="main">
+              <h2>Bandeja de aprobación</h2>
+              <div class="tabs">
+                <div class="tab on">Pendientes (3)</div>
+                <div class="tab">Seguimiento</div>
+                <div class="tab">Tipo: Todos ▾</div>
+              </div>
+              <div class="card" style="margin-bottom:10px">
+                <div class="k">PERMISO</div>
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px">
+                  <strong>Juan Espinoza · Vacaciones 5d</strong>
+                  <div class="row-actions"><button class="btn ok">Aprobar</button><button class="btn danger">Rechazar</button></div>
+                </div>
+              </div>
+              <div class="card" style="margin-bottom:10px">
+                <div class="k">HORA EXTRA</div>
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px">
+                  <strong>Carla Reyes · 3h cierre</strong>
+                  <div class="row-actions"><button class="btn ok">Aprobar</button><button class="btn danger">Rechazar</button></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="k">PERMISO</div>
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:6px">
+                  <strong>Pedro Quispe · Salud 1d</strong>
+                  <div class="row-actions"><button class="btn ok">Aprobar</button><button class="btn danger">Rechazar</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WF7 -->
+      <section class="screen">
+        <header>WF7 · Decisión (detalle + comentario)</header>
+        <div class="shell">
+          <div class="top"><span>Andina RR. HH.</span><span style="font-weight:500;color:var(--muted)">Jefe ▾</span></div>
+          <div class="main" style="max-width:640px">
+            <h2>Decidir solicitud #120</h2>
+            <div class="card">
+              Vacaciones · Juan Espinoza<br />
+              12–16 Mar · 5 días hábiles<br />
+              Paso actual: <strong>Jefe inmediato</strong>
+            </div>
+            <div class="field" style="min-height:72px;margin-top:12px">Comentario (obligatorio si rechaza)…</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+              <button class="btn ok">Aprobar</button>
+              <button class="btn danger">Rechazar</button>
+              <button class="btn ghost">Volver</button>
+            </div>
+            <p class="note">Estados: validación de comentario · loading en botón · éxito / error</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
