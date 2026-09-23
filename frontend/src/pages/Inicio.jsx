@@ -50,7 +50,7 @@ async function safePage(path, params) {
   }
 }
 
-function BarRow({ label, value, max, tone = 'bg-navy' }) {
+function BarRow({ label, value, max, tone = 'bg-primary' }) {
   const width = max > 0 ? Math.max(value > 0 ? 6 : 0, Math.round((value / max) * 100)) : 0;
   return (
     <div>
@@ -74,9 +74,9 @@ function TramiteBars({ title, to, pend, apro, rech }) {
         {to && <Link to={to} className="text-xs font-medium text-navy hover:underline">Ver listado</Link>}
       </div>
       <div className="space-y-3">
-        <BarRow label="Pendientes" value={pend} max={max} tone="bg-amber-500" />
-        <BarRow label="Aprobados" value={apro} max={max} tone="bg-emerald-600" />
-        <BarRow label="Rechazados" value={rech} max={max} tone="bg-red-500" />
+        <BarRow label="Pendientes" value={pend} max={max} tone="bg-warn" />
+        <BarRow label="Aprobados" value={apro} max={max} tone="bg-ok" />
+        <BarRow label="Rechazados" value={rech} max={max} tone="bg-danger" />
       </div>
     </Panel>
   );
@@ -426,7 +426,7 @@ function PanelList({ title, empty, moreTo, moreLabel, children }) {
 
 function MarcaBox({ label, value, done }) {
   return (
-    <div className={`rounded-lg px-3 py-3 ${done ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+    <div className={`rounded-lg px-3 py-3 ${done ? 'bg-ok-soft' : 'bg-slate-50'}`}>
       <p className="text-xs text-slate-500">{label}</p>
       <p className={`mt-1 text-sm font-semibold ${done ? 'text-ok' : 'text-muted'}`}>{value}</p>
     </div>

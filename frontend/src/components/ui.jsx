@@ -32,10 +32,10 @@ export function initials(name = '') {
 }
 
 const buttonVariants = {
-  primary: 'bg-navy text-white hover:bg-slate-800',
-  secondary: 'border border-line bg-white text-slate-700 hover:bg-slate-50',
-  danger: 'bg-red-50 text-red-700 hover:bg-red-100',
-  ghost: 'text-slate-600 hover:bg-slate-100'
+  primary: 'bg-primary text-white hover:bg-primary-hover',
+  secondary: 'border border-line bg-white text-slate-700 hover:bg-surface',
+  danger: 'bg-danger-soft text-danger hover:bg-danger-hover',
+  ghost: 'text-muted hover:bg-surface'
 };
 
 export function Button({ children, variant = 'primary', className = '', ...props }) {
@@ -100,31 +100,31 @@ export function Avatar({ name, className = '' }) {
 
 export function Badge({ value }) {
   const tone = {
-    PENDIENTE: 'bg-amber-50 text-warn',
-    EN_CURSO: 'bg-amber-50 text-warn',
-    APROBADO: 'bg-emerald-50 text-ok',
-    ACTIVO: 'bg-emerald-50 text-ok',
-    COMPLETADA: 'bg-emerald-50 text-ok',
-    INGRESO: 'bg-sky-50 text-sky-700',
+    PENDIENTE: 'bg-warn-soft text-warn',
+    EN_CURSO: 'bg-warn-soft text-warn',
+    APROBADO: 'bg-ok-soft text-ok',
+    ACTIVO: 'bg-ok-soft text-ok',
+    COMPLETADA: 'bg-ok-soft text-ok',
+    INGRESO: 'bg-info-soft text-info',
     SALIDA: 'bg-slate-100 text-slate-600',
-    RECHAZADO: 'bg-red-50 text-danger',
-    CANCELADO: 'bg-red-50 text-danger',
-    INACTIVO: 'bg-red-50 text-danger',
-    CESADO: 'bg-red-50 text-danger',
+    RECHAZADO: 'bg-danger-soft text-danger',
+    CANCELADO: 'bg-danger-soft text-danger',
+    INACTIVO: 'bg-danger-soft text-danger',
+    CESADO: 'bg-danger-soft text-danger',
     OBLIGATORIO: 'bg-slate-100 text-navy',
-    OPCIONAL: 'bg-amber-50 text-warn',
+    OPCIONAL: 'bg-warn-soft text-warn',
     BORRADOR: 'bg-slate-100 text-muted',
-    CALCULADA: 'bg-sky-50 text-sky-700',
-    CERRADA: 'bg-emerald-50 text-ok',
-    CONTABILIZADO: 'bg-emerald-50 text-ok',
-    ABIERTA: 'bg-emerald-50 text-ok',
+    CALCULADA: 'bg-info-soft text-info',
+    CERRADA: 'bg-ok-soft text-ok',
+    CONTABILIZADO: 'bg-ok-soft text-ok',
+    ABIERTA: 'bg-ok-soft text-ok',
     POSTULADO: 'bg-slate-100 text-muted',
-    ENTREVISTA: 'bg-amber-50 text-warn',
-    SELECCIONADO: 'bg-sky-50 text-sky-700',
-    CONTRATADO: 'bg-emerald-50 text-ok',
-    DESCARTADO: 'bg-red-50 text-danger',
-    ANULADA: 'bg-red-50 text-danger',
-    ANULADO: 'bg-red-50 text-danger'
+    ENTREVISTA: 'bg-warn-soft text-warn',
+    SELECCIONADO: 'bg-info-soft text-info',
+    CONTRATADO: 'bg-ok-soft text-ok',
+    DESCARTADO: 'bg-danger-soft text-danger',
+    ANULADA: 'bg-danger-soft text-danger',
+    ANULADO: 'bg-danger-soft text-danger'
   }[value] || 'bg-slate-100 text-muted';
 
   return <span className={cn('inline-block rounded-md px-2 py-0.5 text-xs font-medium', tone)}>{value || '—'}</span>;
@@ -133,7 +133,7 @@ export function Badge({ value }) {
 export function Alert({ children, ok }) {
   if (!children) return null;
   return (
-    <div className={cn('mb-4 rounded-lg px-3 py-2 text-sm', ok ? 'bg-emerald-50 text-ok' : 'bg-red-50 text-danger')}>
+    <div className={cn('mb-4 rounded-lg px-3 py-2 text-sm', ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger')}>
       {children}
     </div>
   );
@@ -167,9 +167,9 @@ export function Field({ label, children, full, hint, required: requiredProp }) {
       <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-xs font-medium text-slate-500">
           {label}
-          {required && <span className="ml-1 text-red-600">*</span>}
+          {required && <span className="ml-1 text-danger">*</span>}
         </span>
-        {empty && <span className="text-[11px] font-medium text-red-600">{requiredText}</span>}
+        {empty && <span className="text-[11px] font-medium text-danger">{requiredText}</span>}
       </span>
       {children}
       {hint && <span className="text-[11px] text-muted">{hint}</span>}
@@ -253,7 +253,7 @@ export function Pager({ page = 1, totalPages = 1, totalElements = 0, size = 10, 
             key={n}
             type="button"
             onClick={() => onPage(n)}
-            className={`h-8 w-8 rounded-md text-sm ${n === page ? 'bg-navy text-white' : 'hover:bg-slate-100'}`}
+            className={`h-8 w-8 rounded-md text-sm ${n === page ? 'bg-primary text-white' : 'hover:bg-surface'}`}
           >
             {n}
           </button>

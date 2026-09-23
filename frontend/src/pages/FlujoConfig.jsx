@@ -223,7 +223,7 @@ export function FlujoConfig() {
               </Field>
             </div>
             {conflicto && (
-              <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-warn">
+              <p className="mt-4 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
                 Ya existe un flujo activo para este origen
                 {form.idTipoPermiso ? ` y tipo` : ' por defecto'}: {conflicto.nombre} ({conflicto.codigo}).
                 El sistema usará uno de los dos según el más específico.

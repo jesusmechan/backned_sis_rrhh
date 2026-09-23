@@ -162,7 +162,7 @@ export function Marcar() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="overflow-hidden rounded-2xl border border-line bg-navy px-5 py-6 text-white shadow-sm sm:px-7 sm:py-7">
+        <section className="overflow-hidden rounded-2xl border border-line bg-primary px-5 py-6 text-white shadow-sm sm:px-7 sm:py-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Hora Lima</p>
@@ -170,7 +170,7 @@ export function Marcar() {
               <p className="mt-2 text-sm capitalize text-slate-300">{fechaLarga}</p>
             </div>
             <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-              finDeSemana ? 'bg-white/10 text-slate-200' : jornadaCerrada ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/15 text-white'
+              finDeSemana ? 'bg-white/10 text-slate-200' : jornadaCerrada ? 'bg-ok/20 text-ok-soft' : 'bg-white/15 text-white'
             }`}>
               {estadoDia}
             </span>
@@ -214,14 +214,14 @@ export function Marcar() {
                   key={t.id}
                   className={`flex items-center gap-3 rounded-xl px-3 py-3 ring-1 ${
                     done
-                      ? 'bg-emerald-50 ring-emerald-100'
+                      ? 'bg-ok-soft ring-ok/20'
                       : current
                         ? 'bg-slate-50 ring-navy/20'
                         : 'bg-slate-50 ring-line'
                   }`}
                 >
                   <span className={`grid h-10 w-10 place-items-center rounded-lg ${
-                    done ? 'bg-white text-ok' : current ? 'bg-navy text-white' : 'bg-white text-slate-400 ring-1 ring-line'
+                    done ? 'bg-white text-ok' : current ? 'bg-primary text-white' : 'bg-white text-slate-400 ring-1 ring-line'
                   }`}>
                     {done ? <CheckCircle2 size={18} /> : <Icon size={18} />}
                   </span>
@@ -238,9 +238,9 @@ export function Marcar() {
           </ol>
 
           {jornadaCerrada ? (
-            <div className="mt-5 rounded-xl bg-emerald-50 px-4 py-4 text-center">
+            <div className="mt-5 rounded-xl bg-ok-soft px-4 py-4 text-center">
               <p className="text-sm font-semibold text-ok">Jornada de hoy completa</p>
-              <p className="mt-1 text-xs text-emerald-800">
+              <p className="mt-1 text-xs text-ok">
                 {formatTime(entrada.fechaHora)} – {formatTime(salida.fechaHora)} · {formatDuration(trabajadoMs)}
               </p>
               {canAccess('/asistencia') && (

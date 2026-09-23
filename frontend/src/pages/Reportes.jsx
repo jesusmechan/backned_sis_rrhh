@@ -171,7 +171,7 @@ function PreviewTable({ vista, rows }) {
               <p className="font-medium text-navy">{r.empleado}</p>
               <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
                   {r.tipo}
                 </span>
                 <span className="text-xs text-muted">{r.origen || 'WEB'}</span>
@@ -203,7 +203,7 @@ function PreviewTable({ vista, rows }) {
                     </div>
                   </td>
                   <td>
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
                       {r.tipo}
                     </span>
                   </td>

@@ -77,9 +77,9 @@ export function codigoDesdeNombre(nombre) {
 }
 
 function Down({ label, tone = 'neutral' }) {
-  const line = tone === 'ok' ? 'bg-emerald-400' : 'bg-slate-300';
-  const tip = tone === 'ok' ? 'border-t-emerald-400' : 'border-t-slate-300';
-  const text = tone === 'ok' ? 'text-emerald-700' : 'text-slate-500';
+  const line = tone === 'ok' ? 'bg-ok' : 'bg-slate-300';
+  const tip = tone === 'ok' ? 'border-t-ok' : 'border-t-slate-300';
+  const text = tone === 'ok' ? 'text-ok' : 'text-slate-500';
   return (
     <div className="flex flex-col items-center py-0.5">
       {label && <span className={`text-[10px] font-semibold ${text}`}>{label}</span>}
@@ -92,8 +92,8 @@ function Down({ label, tone = 'neutral' }) {
 function Terminal({ children, tone = 'start' }) {
   const skin = {
     start: 'border-line bg-white text-navy',
-    ok: 'border-emerald-200 bg-emerald-50 text-ok',
-    no: 'border-red-200 bg-red-50 text-danger'
+    ok: 'border-ok/30 bg-ok-soft text-ok',
+    no: 'border-danger/30 bg-danger-soft text-danger'
   }[tone];
   return (
     <div className={`min-w-[9.5rem] rounded-full border px-4 py-2 text-center text-xs font-semibold ${skin}`}>
@@ -118,7 +118,7 @@ function PasoBox({ paso, index, roles, usuarios }) {
   return (
     <div className="w-[220px] rounded-lg border border-line bg-white px-3 py-3">
       <div className="flex items-start gap-2">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-navy text-[11px] font-semibold text-white">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-[11px] font-semibold text-white">
           {paso.numeroPaso || index + 1}
         </span>
         <div className="min-w-0">
@@ -150,8 +150,8 @@ export function Flujograma({ pasos, roles, usuarios }) {
             <div className="relative flex flex-col items-center">
               <Diamond />
               <div className="mt-2 flex items-center gap-2 lg:absolute lg:left-full lg:top-1/2 lg:mt-0 lg:-translate-y-1/2 lg:pl-2">
-                <span className="text-[10px] font-semibold text-red-700">No</span>
-                <div className="h-px w-8 bg-red-300" />
+                <span className="text-[10px] font-semibold text-danger">No</span>
+                <div className="h-px w-8 bg-danger/40" />
                 <Terminal tone="no">Rechazado</Terminal>
               </div>
             </div>
@@ -181,7 +181,7 @@ export function FlujogramaCompact({ pasos, roles, usuarios }) {
           <div key={p.key || p.numeroPaso || i} className="flex items-center gap-1">
             <div className="rounded-md border border-line bg-white px-2 py-1" title={`${APROBADOR[p.tipoAprobador]?.label || ''} · ${quien}`}>
               <div className="flex items-center gap-1.5">
-                <span className="grid h-5 w-5 place-items-center rounded bg-navy text-[10px] font-semibold text-white">
+                <span className="grid h-5 w-5 place-items-center rounded bg-primary text-[10px] font-semibold text-white">
                   {p.numeroPaso || i + 1}
                 </span>
                 <Icon size={12} className="text-slate-400" />
@@ -193,14 +193,14 @@ export function FlujogramaCompact({ pasos, roles, usuarios }) {
           </div>
         );
       })}
-      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-ok">Aprobado</span>
+      <span className="rounded-full border border-ok/30 bg-ok-soft px-2.5 py-1 text-[11px] font-medium text-ok">Aprobado</span>
     </div>
   );
 }
 
 const PASO_DOT = {
   APROBADO: 'bg-ok',
-  EN_CURSO: 'bg-navy',
+  EN_CURSO: 'bg-primary',
   RECHAZADO: 'bg-danger',
   PENDIENTE: 'bg-slate-300',
   OMITIDO: 'bg-slate-300',
@@ -217,7 +217,7 @@ export function PasosInstancia({ pasos }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium text-navy">Paso {p.numeroPaso}: {p.nombrePaso}</p>
             {p.estado === 'EN_CURSO' && (
-              <span className="rounded bg-navy px-1.5 py-0.5 text-[10px] font-semibold text-white">EN CURSO</span>
+              <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white">EN CURSO</span>
             )}
           </div>
           <p className="text-xs text-muted">{p.rol || p.usuarioAsignado || APROBADOR[p.tipoAprobador]?.label || p.tipoAprobador}</p>
@@ -233,12 +233,12 @@ export function PasosInstancia({ pasos }) {
 
 function BadgeLite({ value }) {
   const tone = {
-    PENDIENTE: 'bg-amber-50 text-warn',
+    PENDIENTE: 'bg-warn-soft text-warn',
     EN_CURSO: 'bg-slate-100 text-navy',
-    APROBADO: 'bg-emerald-50 text-ok',
-    RECHAZADO: 'bg-red-50 text-danger',
+    APROBADO: 'bg-ok-soft text-ok',
+    RECHAZADO: 'bg-danger-soft text-danger',
     OMITIDO: 'bg-slate-100 text-muted',
-    CANCELADO: 'bg-red-50 text-danger'
+    CANCELADO: 'bg-danger-soft text-danger'
   }[value] || 'bg-slate-100 text-muted';
   return <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${tone}`}>{value || '—'}</span>;
 }

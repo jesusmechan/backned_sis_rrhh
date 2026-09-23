@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { http } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Avatar, Badge, Button, Field, PageHeader, Panel } from '../components/ui';
+import { calcAge } from '../lib/format';
 
 const SEXO = { M: 'Masculino', F: 'Femenino' };
 const CONTRATO = {
@@ -180,6 +181,12 @@ export function Perfil() {
                       : ficha.numeroDocumento}
                   />
                   <Item label="Fecha de nacimiento" value={formatDate(ficha.fechaNacimiento)} />
+                  <Item
+                    label="Edad"
+                    value={ficha.fechaNacimiento != null && ficha.fechaNacimiento !== ''
+                      ? `${calcAge(ficha.fechaNacimiento)} años`
+                      : '—'}
+                  />
                 </Section>
                 <div className="border-t border-line" />
                 <Section title="Contacto">
@@ -215,7 +222,7 @@ export function Perfil() {
               <p className="text-4xl font-bold tabular-nums text-navy">{disponibles}</p>
               <p className="mt-1 text-sm text-muted">días disponibles</p>
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-navy" style={{ width: `${vacPct}%` }} />
+                <div className="h-full rounded-full bg-primary" style={{ width: `${vacPct}%` }} />
               </div>
               <p className="mt-2 text-xs text-muted">
                 {usados} usados de {ganados} ganados

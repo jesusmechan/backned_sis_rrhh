@@ -38,3 +38,15 @@ export function fmtMoney(value, empty = '—') {
 export function hhmm(value) {
   return value ? String(value).slice(0, 5) : '';
 }
+
+/** Edad en años cumplidos a partir de ISO `YYYY-MM-DD`. */
+export function calcAge(fechaISO, empty = '') {
+  if (!fechaISO) return empty;
+  const birth = new Date(`${String(fechaISO).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return empty;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1;
+  return age >= 0 ? age : empty;
+}

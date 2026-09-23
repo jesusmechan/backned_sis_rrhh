@@ -140,7 +140,7 @@ export function PermisoNuevo() {
                   Saldo de vacaciones: <strong>{saldo.diasDisponibles}</strong> días
                   {' '}({saldo.diasGanados} ganados en {saldo.mesesCompletos} meses · {saldo.tasaMensual} por mes).
                   {Number(saldo.diasDisponibles) <= 0 && (
-                    <span className="mt-1 block text-red-600">Aún no ha ganado días. No puede registrar vacaciones.</span>
+                    <span className="mt-1 block text-danger">Aún no ha ganado días. No puede registrar vacaciones.</span>
                   )}
                 </p>
               ) : (

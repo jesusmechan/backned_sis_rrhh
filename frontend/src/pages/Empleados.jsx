@@ -5,6 +5,7 @@ import { api, emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/c
 import { Alert, Avatar, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
 import { correoAndina, hoyISO, siguienteCodigo } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { calcAge } from '../lib/format';
 import { address, documentNumber, email, isEmail, isEmployeeCode, isLetters, letters, phone } from '../lib/input';
 
 const CONTRATO = {
@@ -399,7 +400,7 @@ export function Empleados() {
                   key={label}
                   type="button"
                   onClick={() => { if (n < step || editId) { setError(''); setStep(n); } }}
-                  className={`rounded-lg px-2 py-2 text-xs font-medium ${step === n ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600'}`}
+                  className={`rounded-lg px-2 py-2 text-xs font-medium ${step === n ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}
                 >
                   {n}. {label}
                 </button>
@@ -451,11 +452,19 @@ export function Empleados() {
                 <Field label="Apellido paterno" hint="Solo letras">
                   <input value={form.apellidoPaterno} onChange={(e) => setNombre('apellidoPaterno', e.target.value)} required />
                 </Field>
-                <Field label="Apellido materno" hint="Solo letras" full>
+                <Field label="Apellido materno" hint="Solo letras">
                   <input value={form.apellidoMaterno} onChange={(e) => set('apellidoMaterno', letters(e.target.value))} required />
                 </Field>
-                <Field label="Nacimiento">
+                <Field label="Fecha de nacimiento">
                   <DatePicker value={form.fechaNacimiento} onChange={(v) => set('fechaNacimiento', v)} max={hoyISO()} />
+                </Field>
+                <Field label="Edad" hint="Se calcula automáticamente">
+                  <input
+                    value={form.fechaNacimiento ? `${calcAge(form.fechaNacimiento)} años` : ''}
+                    placeholder="—"
+                    readOnly
+                    tabIndex={-1}
+                  />
                 </Field>
               </>
             )}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { http } from '../api/client';
-import { Alert, Avatar, BackLink, Badge, Button, Field } from '../components/ui';
+import { Alert, Avatar, BackLink, Badge, Button, Field, Modal } from '../components/ui';
 import { SolicitudHistorial } from '../components/solicitud/SolicitudHistorial';
 import { ORIGEN, PasosInstancia } from './flujoShared';
 import { TIPO, factsOf, solicitudPath } from './bandejaShared';
@@ -19,6 +19,7 @@ export function BandejaDecision() {
   const [ok, setOk] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmReject, setConfirmReject] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,19 +70,29 @@ export function BandejaDecision() {
     return () => { cancelled = true; };
   }, [idPaso, tipo, id, deciding]);
 
-  async function decidir(accion) {
+  function pedirRechazo() {
     if (!idPaso) return;
-    const text = comentario.trim();
-    if (accion === 'rechazar' && text.length < 3) {
+    if (comentario.trim().length < 3) {
       setError('Indique el motivo del rechazo.');
       return;
     }
-    if (accion === 'rechazar' && !window.confirm('¿Rechazar esta solicitud? El flujo se cierra.')) return;
+    setError('');
+    setConfirmReject(true);
+  }
+
+  async function decidir(accion) {
+    if (!idPaso) return;
+    const textComentario = comentario.trim();
+    if (accion === 'rechazar' && textComentario.length < 3) {
+      setError('Indique el motivo del rechazo.');
+      setConfirmReject(false);
+      return;
+    }
     setError('');
     setOk('');
     setSaving(true);
     try {
-      await http.post(`/api/pasos/${idPaso}/${accion}`, { comentario: text || 'Conforme' });
+      await http.post(`/api/pasos/${idPaso}/${accion}`, { comentario: textComentario || 'Conforme' });
       navigate('/bandeja', {
         replace: true,
         state: {
@@ -91,6 +102,7 @@ export function BandejaDecision() {
       });
     } catch (e) {
       setError(e.message);
+      setConfirmReject(false);
     } finally {
       setSaving(false);
     }
@@ -162,7 +174,7 @@ export function BandejaDecision() {
                   <Button disabled={saving} onClick={() => decidir('aprobar')}>
                     {saving ? 'Guardando…' : 'Aprobar paso'}
                   </Button>
-                  <Button variant="danger" disabled={saving} onClick={() => decidir('rechazar')}>
+                  <Button variant="danger" disabled={saving} onClick={pedirRechazo}>
                     Rechazar solicitud
                   </Button>
                   <Button type="button" variant="secondary" onClick={() => navigate('/bandeja')}>
@@ -181,6 +193,28 @@ export function BandejaDecision() {
             <SolicitudHistorial historial={historial} />
           </div>
         </div>
+      )}
+
+      {confirmReject && (
+        <Modal title="Rechazar solicitud" onClose={() => !saving && setConfirmReject(false)}>
+          <p className="text-sm text-slate-600">
+            ¿Confirma el rechazo? El flujo se cierra y la solicitud quedará visible en seguimiento.
+          </p>
+          {comentario.trim() && (
+            <p className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-navy">
+              <span className="block text-xs font-medium text-muted">Motivo</span>
+              {comentario.trim()}
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => setConfirmReject(false)}>
+              Volver
+            </Button>
+            <Button type="button" variant="danger" disabled={saving} onClick={() => decidir('rechazar')}>
+              {saving ? 'Procesando…' : 'Confirmar rechazo'}
+            </Button>
+          </div>
+        </Modal>
       )}
     </div>
   );

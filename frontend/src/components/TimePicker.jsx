@@ -104,7 +104,7 @@ export function TimePicker({
                 onClick={() => setHour(h)}
                 className={cn(
                   'h-9 rounded-md text-sm font-medium',
-                  hour === h ? 'bg-navy text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  hour === h ? 'bg-primary text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                 )}
               >
                 {pad(h)}
@@ -122,7 +122,7 @@ export function TimePicker({
                 onClick={() => setMinute(m)}
                 className={cn(
                   'h-9 rounded-md text-sm font-medium',
-                  minute === m ? 'bg-navy text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  minute === m ? 'bg-primary text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                 )}
               >
                 {pad(m)}
@@ -148,7 +148,7 @@ export function TimePicker({
               Limpiar
             </button>
           )}
-          <button type="button" className="rounded-lg bg-navy px-3 py-1.5 text-sm font-medium text-white" onClick={() => apply(hour, minute)}>
+          <button type="button" className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover" onClick={() => apply(hour, minute)}>
             Listo
           </button>
         </div>

@@ -216,7 +216,7 @@ export function Bandeja() {
           value={counts.total}
           label="Por atender"
           hint="Pasos que esperan su decisión"
-          accent="bg-amber-100 text-amber-800"
+          accent="bg-warn-soft text-warn"
           onClick={() => cambiarVista('pendientes')}
         />
         <VistaCard
@@ -394,7 +394,7 @@ function Chip({ active, onClick, children }) {
       onClick={onClick}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition',
-        active ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        active ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
       )}
     >
       {children}
@@ -415,7 +415,7 @@ function TipoPill({ tipo }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+    <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-medium text-info">
       <CalendarDays size={12} /> Permiso
     </span>
   );

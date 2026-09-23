@@ -184,7 +184,7 @@ export function DatePicker({
               onClick={() => pick(day)}
               className={cn(
                 'h-10 touch-manipulation rounded-md text-sm font-medium disabled:cursor-not-allowed disabled:opacity-30',
-                isSel ? 'bg-navy text-white' : isToday ? 'bg-slate-100 text-navy' : 'text-slate-700 hover:bg-slate-100'
+                isSel ? 'bg-primary text-white' : isToday ? 'bg-slate-100 text-navy' : 'text-slate-700 hover:bg-slate-100'
               )}
             >
               {day}

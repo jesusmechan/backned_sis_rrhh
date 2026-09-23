@@ -80,7 +80,7 @@ function NavItems({ groups, collapsed, onToggle, onNavigate }) {
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm ${
-                      isActive ? 'bg-navy font-medium text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-navy'
+                      isActive ? 'bg-primary font-medium text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-navy'
                     }`
                   }
                 >
@@ -237,7 +237,7 @@ export function AppShell() {
               >
                 <Bell size={18} />
                 {noLeidas > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-4 text-white">
+                  <span className="absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-4 text-white">
                     {noLeidas > 99 ? '99+' : noLeidas}
                   </span>
                 )}
@@ -328,7 +328,7 @@ export function AppShell() {
               >
                 Notificaciones
                 {noLeidas > 0 && (
-                  <span className="rounded-full bg-red-600 px-1.5 text-[10px] font-semibold leading-5 text-white">
+                  <span className="rounded-full bg-danger px-1.5 text-[10px] font-semibold leading-5 text-white">
                     {noLeidas > 99 ? '99+' : noLeidas}
                   </span>
                 )}

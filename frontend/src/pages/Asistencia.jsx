@@ -187,7 +187,7 @@ export function Asistencia() {
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="page-title">Asistencia</h1>
-            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium capitalize text-sky-800">
+            <span className="rounded-full bg-info-soft px-2.5 py-1 text-xs font-medium capitalize text-info">
               Periodo {periodo}
             </span>
           </div>
@@ -236,7 +236,7 @@ export function Asistencia() {
                   <p className="font-medium text-navy">{r.empleado}</p>
                   <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
                       {r.tipo}
                     </span>
                     <span className="text-xs text-muted">{r.origen || 'WEB'} · {r.observacion || 'Jornada ordinaria'}</span>
@@ -273,7 +273,7 @@ export function Asistencia() {
                         </div>
                       </td>
                       <td>
-                        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
+                        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
                           {r.tipo}
                         </span>
                       </td>
@@ -286,7 +286,7 @@ export function Asistencia() {
                         <p className="text-xs text-muted">{browser}</p>
                       </td>
                       <td>
-                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800">
+                        <span className="rounded-full bg-info-soft px-2 py-0.5 text-xs font-medium text-info">
                           {r.tipo === 'INGRESO' ? 'Entrada registrada' : 'Salida registrada'}
                         </span>
                       </td>
@@ -345,7 +345,7 @@ function Metric({ icon, label, value, hint, pct }) {
       <p className="text-xs text-muted">{hint}</p>
       {pct != null && (
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full bg-navy" style={{ width: `${Math.min(100, Math.round(pct))}%` }} />
+          <div className="h-full bg-primary" style={{ width: `${Math.min(100, Math.round(pct))}%` }} />
         </div>
       )}
     </Panel>
