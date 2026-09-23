@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Download } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, downloadBlob } from '../components/ui';
+import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, downloadBlob } from '../components/ui';
 import { fmtMoney } from '../lib/format';
 
 const MESES = [
@@ -113,41 +113,66 @@ export function Planillas() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay planillas en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idPlanilla} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="font-semibold text-navy">{r.periodo}</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Bruto {fmtMoney(r.totalBruto)} · Neto {fmtMoney(r.totalNeto)} · Aportes {fmtMoney(r.totalAportes)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.estado} />
-                  <div className="flex flex-wrap gap-2">
-                    {(r.estado === 'CALCULADA' || r.estado === 'CERRADA') && (
-                      <Button variant="secondary" disabled={pdfId === r.idPlanilla} onClick={() => bajarPdf(r)}>
-                        <Download size={14} /> {pdfId === r.idPlanilla ? 'Descargando…' : 'PDF'}
-                      </Button>
-                    )}
-                    <Button variant="secondary" onClick={() => navigate(`/planillas/${r.idPlanilla}`)}>Ver boletas</Button>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay planillas en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idPlanilla}
+            title={r.periodo}
+            meta={`Bruto ${fmtMoney(r.totalBruto)} · Neto ${fmtMoney(r.totalNeto)}`}
+            badge={<Badge value={r.estado} />}
+            actions={(
+              <>
+                {(r.estado === 'CALCULADA' || r.estado === 'CERRADA') && (
+                  <Button variant="secondary" className="px-3 py-1.5 text-xs" disabled={pdfId === r.idPlanilla} onClick={() => bajarPdf(r)}>
+                    <Download size={14} /> {pdfId === r.idPlanilla ? '…' : 'PDF'}
+                  </Button>
+                )}
+                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/planillas/${r.idPlanilla}`)}>Ver boletas</Button>
+              </>
+            )}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Periodo</th>
+                <th>Bruto</th>
+                <th>Neto</th>
+                <th>Aportes</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idPlanilla}>
+                  <td className="font-medium text-navy">{r.periodo}</td>
+                  <td className="text-sm">{fmtMoney(r.totalBruto)}</td>
+                  <td className="text-sm">{fmtMoney(r.totalNeto)}</td>
+                  <td className="text-sm">{fmtMoney(r.totalAportes)}</td>
+                  <td><Badge value={r.estado} /></td>
+                  <td>
+                    <ListActions>
+                      {(r.estado === 'CALCULADA' || r.estado === 'CERRADA') && (
+                        <Button variant="secondary" className="px-3 py-1.5 text-xs" disabled={pdfId === r.idPlanilla} onClick={() => bajarPdf(r)}>
+                          <Download size={14} /> {pdfId === r.idPlanilla ? '…' : 'PDF'}
+                        </Button>
+                      )}
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/planillas/${r.idPlanilla}`)}>Ver boletas</Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title="Abrir planilla" onClose={() => setOpen(false)}>

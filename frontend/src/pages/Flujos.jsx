@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Copy, GitBranch, Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Badge, Button, Empty, FilterBar, Kpi, KpiRow, Pager, SearchField } from '../components/ui';
+import { Alert, Badge, Button, DataList, FilterBar, Kpi, KpiRow, ListActions, MobileRow, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { FlujogramaCompact, ORIGEN, codigoDesdeNombre, toForm, toPayload } from './flujoShared';
 
@@ -132,57 +132,88 @@ export function Flujos() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay flujos en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idConfiguracion} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex min-w-0 flex-1 gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
-                    <GitBranch size={16} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <button
-                      type="button"
-                      className="text-left font-semibold text-navy hover:underline"
-                      onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}
-                    >
-                      {r.nombre}
-                    </button>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {r.codigo} · {ORIGEN[r.tipoOrigen] || r.tipoOrigen}
-                      {r.tipoPermiso ? ` · ${r.tipoPermiso}` : r.tipoOrigen === 'PERMISO' ? ' · Por defecto' : ''}
-                      {' · '}{(r.pasos || []).length} paso{(r.pasos || []).length === 1 ? '' : 's'}
-                    </p>
-                    {r.descripcion && <p className="mt-2 text-sm text-slate-600">{r.descripcion}</p>}
-                    <div className="mt-3">
-                      <FlujogramaCompact pasos={r.pasos} roles={roles} usuarios={usuarios} />
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay flujos en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idConfiguracion}
+            leading={(
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
+                <GitBranch size={16} />
+              </span>
+            )}
+            title={r.nombre}
+            meta={`${r.codigo} · ${ORIGEN[r.tipoOrigen] || r.tipoOrigen} · ${(r.pasos || []).length} pasos`}
+            badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            actions={(
+              <>
+                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}>Configurar</Button>
+                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => duplicar(r)}><Copy size={14} /> Duplicar</Button>
+                <Button variant={r.activo ? 'danger' : 'secondary'} className="px-3 py-1.5 text-xs" onClick={() => cambiarEstado(r)}>
+                  {r.activo ? 'Desactivar' : 'Activar'}
+                </Button>
+              </>
+            )}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Flujo</th>
+                <th>Circuito</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idConfiguracion}>
+                  <td>
+                    <div className="flex items-start gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
+                        <GitBranch size={16} />
+                      </span>
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          className="text-left font-medium text-navy hover:underline"
+                          onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}
+                        >
+                          {r.nombre}
+                        </button>
+                        <p className="text-xs text-muted">
+                          {r.codigo} · {ORIGEN[r.tipoOrigen] || r.tipoOrigen}
+                          {r.tipoPermiso ? ` · ${r.tipoPermiso}` : r.tipoOrigen === 'PERMISO' ? ' · Por defecto' : ''}
+                          {' · '}{(r.pasos || []).length} paso{(r.pasos || []).length === 1 ? '' : 's'}
+                        </p>
+                        {r.descripcion ? <p className="mt-1 text-sm text-slate-600">{r.descripcion}</p> : null}
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}>Configurar</Button>
-                    <Button variant="secondary" onClick={() => duplicar(r)}><Copy size={14} /> Duplicar</Button>
-                    <Button variant={r.activo ? 'danger' : 'secondary'} onClick={() => cambiarEstado(r)}>
-                      {r.activo ? 'Desactivar' : 'Activar'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+                  </td>
+                  <td>
+                    <FlujogramaCompact pasos={r.pasos} roles={roles} usuarios={usuarios} />
+                  </td>
+                  <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}>Configurar</Button>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => duplicar(r)}><Copy size={14} /> Duplicar</Button>
+                      <Button variant={r.activo ? 'danger' : 'secondary'} className="px-3 py-1.5 text-xs" onClick={() => cambiarEstado(r)}>
+                        {r.activo ? 'Desactivar' : 'Activar'}
+                      </Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Modal, Pager, SearchField } from '../components/ui';
+import { Alert, Avatar, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { hoyISO } from './altaShared';
 import { text } from '../lib/input';
@@ -84,7 +84,7 @@ export function Desempeno() {
             Evaluación de puntualidad, calidad, cooperación e iniciativa (escala 1 a 5). El promedio se calcula al guardar.
           </p>
         </div>
-        {puedeRegistrar && <Button onClick={() => { setError(''); setForm({ ...empty, fecha: hoyISO() }); setOpen(true); }}><Plus size={16} /> Nueva evaluación</Button>}
+        {puedeRegistrar && <Button onClick={() => { setError(''); setForm({ ...fecha: hoyISO() }); setOpen(true); }}><Plus size={16} /> Nueva evaluación</Button>}
       </div>
 
       <Alert>{error}</Alert>
@@ -94,39 +94,59 @@ export function Desempeno() {
         <SearchField placeholder="Buscar colaborador, periodo o comentario" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay evaluaciones registradas." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idEvaluacion} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 gap-3">
-                  <Avatar name={r.empleado} />
-                  <div>
-                    <p className="font-semibold text-navy">{r.empleado}</p>
-                    <p className="text-xs text-muted">{r.periodo} · {r.fecha}{r.evaluador ? ` · ${r.evaluador}` : ''}</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Puntualidad {r.puntualidad} · Calidad {r.calidad} · Cooperación {r.cooperacion} · Iniciativa {r.iniciativa}
-                    </p>
-                    {r.comentario && <p className="mt-1 text-sm text-slate-600">{r.comentario}</p>}
-                  </div>
-                </div>
-                <div className="flex flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.estado} />
-                  <p className="text-lg font-semibold text-navy">{Number(r.promedio).toFixed(2)}</p>
-                </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay evaluaciones registradas."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idEvaluacion}
+            leading={<Avatar name={r.empleado} />}
+            title={r.empleado}
+            meta={`${r.periodo} · ${r.fecha}${r.evaluador ? ` · ${r.evaluador}` : ''}`}
+            badge={(
+              <div className="text-right">
+                <Badge value={r.estado} />
+                <p className="mt-1 text-sm font-semibold text-navy">{Number(r.promedio).toFixed(2)}</p>
               </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+            )}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Periodo</th>
+                <th>Criterios</th>
+                <th>Promedio</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idEvaluacion}>
+                  <td>
+                    <PersonCell name={r.empleado} meta={r.evaluador ? `Evaluador: ${r.evaluador}` : undefined} />
+                  </td>
+                  <td>
+                    <p className="text-sm text-navy">{r.periodo}</p>
+                    <p className="text-xs text-muted">{r.fecha}</p>
+                  </td>
+                  <td className="text-sm text-muted">
+                    Punt. {r.puntualidad} · Cal. {r.calidad} · Coop. {r.cooperacion} · Ini. {r.iniciativa}
+                    {r.comentario ? <p className="mt-1 text-xs">{r.comentario}</p> : null}
+                  </td>
+                  <td className="text-sm font-semibold text-navy">{Number(r.promedio).toFixed(2)}</td>
+                  <td><Badge value={r.estado} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title="Nueva evaluación" onClose={() => setOpen(false)}>

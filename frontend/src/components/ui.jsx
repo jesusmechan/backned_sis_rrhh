@@ -190,6 +190,51 @@ export function StackTable({ cards, table }) {
   );
 }
 
+/** Listado estándar: un panel, tabla en desktop y filas compactas en móvil. */
+export function DataList({ empty, emptyText = 'Sin registros.', cards, table, footer }) {
+  return (
+    <Panel padded={false}>
+      {empty ? <Empty text={emptyText} /> : <StackTable cards={cards} table={table} />}
+      {footer}
+    </Panel>
+  );
+}
+
+export function PersonCell({ name, meta, leading, showAvatar = true }) {
+  const left = leading !== undefined ? leading : (showAvatar ? <Avatar name={name} /> : null);
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      {left}
+      <div className="min-w-0">
+        <p className="truncate font-medium text-navy">{name || '—'}</p>
+        {meta ? <p className="truncate text-xs text-muted">{meta}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+export function MobileRow({ leading, title, meta, badge, actions }) {
+  return (
+    <div className="flex gap-3 px-4 py-3">
+      {leading}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-medium text-navy">{title}</p>
+            {meta ? <p className="mt-0.5 text-xs text-muted">{meta}</p> : null}
+          </div>
+          {badge ? <div className="shrink-0">{badge}</div> : null}
+        </div>
+        {actions ? <div className="mt-2 flex flex-wrap gap-2">{actions}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+export function ListActions({ children }) {
+  return <div className="flex flex-wrap items-center justify-end gap-2">{children}</div>;
+}
+
 export function Kpi({ value, label, hint, active, onClick }) {
   const className = cn(
     'w-full rounded-xl border bg-white p-4 text-left',

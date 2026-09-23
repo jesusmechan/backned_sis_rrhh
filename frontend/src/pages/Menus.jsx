@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { MENU_ICON_OPTIONS, menuIcon } from '../layout/icons';
-import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
+import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { code, digits, label, routePath, text } from '../lib/input';
 
@@ -181,51 +181,87 @@ export function Menus() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay opciones de menú en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => {
-            const Icon = menuIcon(r.icono);
-            return (
-              <article key={r.idMenu} className="rounded-xl border border-line bg-white p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex min-w-0 gap-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
-                      <Icon size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-navy">{r.etiqueta}</p>
-                      <p className="text-xs text-muted">{r.codigo} · {r.ruta} · {r.grupo} · orden {r.orden}</p>
-                      {r.descripcion && <p className="mt-2 text-sm text-slate-600">{r.descripcion}</p>}
-                      <div className="mt-2 flex flex-wrap gap-1.5">
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay opciones de menú en este filtro."
+        cards={rows.map((r) => {
+          const Icon = menuIcon(r.icono);
+          return (
+            <MobileRow
+              key={r.idMenu}
+              leading={(
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
+                  <Icon size={16} />
+                </span>
+              )}
+              title={r.etiqueta}
+              meta={`${r.codigo} · ${r.ruta} · ${r.grupo}`}
+              badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+              actions={(
+                <>
+                  <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                  <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => eliminar(r)}>Eliminar</Button>
+                </>
+              )}
+            />
+          );
+        })}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Opción</th>
+                <th>Ruta</th>
+                <th>Grupo</th>
+                <th>Perfiles</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const Icon = menuIcon(r.icono);
+                return (
+                  <tr key={r.idMenu}>
+                    <td>
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
+                          <Icon size={16} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-medium text-navy">{r.etiqueta}</p>
+                          <p className="text-xs text-muted">{r.codigo} · orden {r.orden}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-sm">{r.ruta}</td>
+                    <td className="text-sm">{r.grupo}</td>
+                    <td>
+                      <div className="flex max-w-xs flex-wrap gap-1">
                         {(r.perfiles || []).length === 0 ? (
                           <span className="text-xs text-muted">Sin perfiles</span>
                         ) : (r.perfiles || []).map((p) => (
                           <span key={p} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-navy">{p}</span>
                         ))}
                       </div>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                    <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                      <Button variant="danger" onClick={() => eliminar(r)}>Eliminar</Button>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+                    </td>
+                    <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                    <td>
+                      <ListActions>
+                        <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                        <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => eliminar(r)}>Eliminar</Button>
+                      </ListActions>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title={editId ? 'Editar opción' : 'Nueva opción'} onClose={() => setOpen(false)}>

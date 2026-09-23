@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
+import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { code, label, text } from '../lib/input';
 
@@ -177,40 +177,64 @@ export function Roles() {
         <SearchField placeholder="Buscar código, nombre o menú" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay roles en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idRol} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold text-navy">{r.nombre}</p>
-                  <p className="text-xs text-muted">{r.codigo} · {r.usuarios} {r.usuarios === 1 ? 'cuenta' : 'cuentas'}</p>
-                  {r.descripcion && <p className="mt-2 text-sm text-slate-600">{r.descripcion}</p>}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {(r.menus || []).length === 0 ? (
-                      <span className="text-xs text-muted">Sin opciones de menú</span>
-                    ) : (r.menus || []).map((m) => (
-                      <span key={m} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-navy">{m}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />
-                  <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay roles en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idRol}
+            title={r.nombre}
+            meta={`${r.codigo} · ${r.usuarios} ${r.usuarios === 1 ? 'cuenta' : 'cuentas'}`}
+            badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            actions={<Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Rol</th>
+                <th>Cuentas</th>
+                <th>Menú</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idRol}>
+                  <td>
+                    <p className="font-medium text-navy">{r.nombre}</p>
+                    <p className="text-xs text-muted">{r.codigo}{r.descripcion ? ` · ${r.descripcion}` : ''}</p>
+                  </td>
+                  <td className="text-sm">{r.usuarios}</td>
+                  <td>
+                    <div className="flex max-w-md flex-wrap gap-1">
+                      {(r.menus || []).length === 0 ? (
+                        <span className="text-xs text-muted">Sin opciones</span>
+                      ) : (r.menus || []).slice(0, 6).map((m) => (
+                        <span key={m} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-navy">{m}</span>
+                      ))}
+                      {(r.menus || []).length > 6 && (
+                        <span className="text-xs text-muted">+{(r.menus || []).length - 6}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title={editId ? 'Editar rol' : 'Nuevo rol'} onClose={() => setOpen(false)}>

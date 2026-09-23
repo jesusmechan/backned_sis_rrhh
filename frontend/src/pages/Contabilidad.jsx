@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Empty, FilterBar, Pager } from '../components/ui';
+import { Alert, Badge, DataList, FilterBar, MobileRow, Pager } from '../components/ui';
 import { fmtDate, fmtMoney } from '../lib/format';
 
 export function Contabilidad() {
@@ -19,6 +19,10 @@ export function Contabilidad() {
       .catch((e) => setError(e.message));
   }, [page]);
 
+  function toggle(id) {
+    setAbierto((cur) => (cur === id ? null : id));
+  }
+
   return (
     <div>
       <div className="mb-6 border-b border-line pb-5">
@@ -34,52 +38,101 @@ export function Contabilidad() {
         <p className="text-sm text-muted">{meta.totalElements || 0} asientos</p>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="Aún no hay asientos. Cierre una planilla calculada para generarlos." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idAsiento} className="rounded-xl border border-line bg-white p-4">
-              <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={() => setAbierto(abierto === r.idAsiento ? null : r.idAsiento)}>
-                <div>
-                  <p className="font-semibold text-navy">{r.codigo}</p>
-                  <p className="mt-1 text-sm text-slate-600">{r.glosa}</p>
-                  <p className="mt-1 text-xs text-muted">{fmtDate(r.fecha)} · Debe {fmtMoney(r.totalDebe)} · Haber {fmtMoney(r.totalHaber)}</p>
-                </div>
-                <Badge value={r.estado} />
-              </button>
-              {abierto === r.idAsiento && (
-                <table className="mt-4 min-w-full text-sm">
-                  <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+      <DataList
+        empty={rows.length === 0}
+        emptyText="Aún no hay asientos. Cierre una planilla calculada para generarlos."
+        cards={rows.map((r) => (
+          <div key={r.idAsiento}>
+            <button type="button" className="w-full text-left" onClick={() => toggle(r.idAsiento)}>
+              <MobileRow
+                title={r.codigo}
+                meta={`${fmtDate(r.fecha)} · Debe ${fmtMoney(r.totalDebe)} · Haber ${fmtMoney(r.totalHaber)}`}
+                badge={<Badge value={r.estado} />}
+              />
+            </button>
+            {abierto === r.idAsiento && (
+              <div className="border-t border-line px-4 pb-3">
+                <p className="py-2 text-sm text-slate-600">{r.glosa}</p>
+                <LineasTable lineas={r.lineas} />
+              </div>
+            )}
+          </div>
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Asiento</th>
+                <th>Fecha</th>
+                <th>Debe</th>
+                <th>Haber</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <Fragment key={r.idAsiento}>
+                  <tr>
+                    <td>
+                      <p className="font-medium text-navy">{r.codigo}</p>
+                      <p className="text-xs text-muted">{r.glosa}</p>
+                    </td>
+                    <td className="text-sm">{fmtDate(r.fecha)}</td>
+                    <td className="text-sm">{fmtMoney(r.totalDebe)}</td>
+                    <td className="text-sm">{fmtMoney(r.totalHaber)}</td>
+                    <td><Badge value={r.estado} /></td>
+                    <td>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-navy hover:underline"
+                        onClick={() => toggle(r.idAsiento)}
+                      >
+                        {abierto === r.idAsiento ? 'Ocultar' : 'Ver líneas'}
+                      </button>
+                    </td>
+                  </tr>
+                  {abierto === r.idAsiento && (
                     <tr>
-                      <th className="py-2">Cuenta</th>
-                      <th className="py-2">Nombre</th>
-                      <th className="py-2 text-right">Debe</th>
-                      <th className="py-2 text-right">Haber</th>
+                      <td colSpan={6} className="bg-surface px-4 py-3">
+                        <LineasTable lineas={r.lineas} />
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {(r.lineas || []).map((l) => (
-                      <tr key={l.idLinea} className="border-t border-line">
-                        <td className="py-2 font-medium text-navy">{l.cuenta}</td>
-                        <td className="py-2">{l.nombreCuenta}</td>
-                        <td className="py-2 text-right">{Number(l.debe) ? fmtMoney(l.debe) : ''}</td>
-                        <td className="py-2 text-right">{Number(l.haber) ? fmtMoney(l.haber) : ''}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
     </div>
+  );
+}
+
+function LineasTable({ lineas }) {
+  return (
+    <table className="min-w-full text-sm">
+      <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th className="py-2">Cuenta</th>
+          <th className="py-2">Nombre</th>
+          <th className="py-2 text-right">Debe</th>
+          <th className="py-2 text-right">Haber</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(lineas || []).map((l) => (
+          <tr key={l.idLinea} className="border-t border-line">
+            <td className="py-2 font-medium text-navy">{l.cuenta}</td>
+            <td className="py-2">{l.nombreCuenta}</td>
+            <td className="py-2 text-right">{Number(l.debe) ? fmtMoney(l.debe) : ''}</td>
+            <td className="py-2 text-right">{Number(l.haber) ? fmtMoney(l.haber) : ''}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

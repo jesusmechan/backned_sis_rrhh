@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
+import { Alert, Avatar, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { hoyISO } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { decimal, text } from '../lib/input';
@@ -191,51 +191,70 @@ export function Contratos() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay contratos en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idContrato} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 gap-3">
-                  <Avatar name={r.empleado} />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-navy">{r.empleado}</p>
-                    <p className="text-xs text-muted">{r.codigo} · {r.codigoEmpleado}</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {MODALIDAD[r.modalidad] || r.modalidad}
-                      {r.horario ? ` · ${r.horario}` : ''}
-                      {r.horaIngreso && r.horaSalida ? ` (${r.horaIngreso.slice(0, 5)}–${r.horaSalida.slice(0, 5)})` : ''}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      {fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin)}
-                      {r.remuneracionBasica ? ` · ${fmtMoney(r.remuneracionBasica)}` : ''}
-                    </p>
-                    {r.vacaciones && (
-                      <p className="mt-1 text-xs text-slate-600">
-                        Vacaciones: {r.vacaciones.diasDisponibles} días disponibles
-                        {' '}({r.vacaciones.diasGanados} ganados · {r.vacaciones.mesesCompletos} meses)
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.estado} />
-                  <Badge value={r.modalidad} />
-                  <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay contratos en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idContrato}
+            leading={<Avatar name={r.empleado} />}
+            title={r.empleado}
+            meta={`${r.codigoEmpleado} · ${MODALIDAD[r.modalidad] || r.modalidad} · ${fmtDate(r.fechaInicio)} → ${fmtDate(r.fechaFin)}`}
+            badge={<Badge value={r.estado} />}
+            actions={<Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Trabajador</th>
+                <th>Modalidad</th>
+                <th>Horario</th>
+                <th>Vigencia</th>
+                <th>Remuneración</th>
+                <th>Vacaciones</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idContrato}>
+                  <td>
+                    <PersonCell name={r.empleado} meta={`${r.codigo} · ${r.codigoEmpleado}`} />
+                  </td>
+                  <td>{MODALIDAD[r.modalidad] || r.modalidad}</td>
+                  <td>
+                    <p className="text-sm text-navy">{r.horario || '—'}</p>
+                    {r.horaIngreso && r.horaSalida ? (
+                      <p className="text-xs text-muted">{r.horaIngreso.slice(0, 5)}–{r.horaSalida.slice(0, 5)}</p>
+                    ) : null}
+                  </td>
+                  <td className="text-sm">
+                    {fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin)}
+                  </td>
+                  <td className="text-sm">{r.remuneracionBasica ? fmtMoney(r.remuneracionBasica) : '—'}</td>
+                  <td className="text-sm text-muted">
+                    {r.vacaciones
+                      ? `${r.vacaciones.diasDisponibles} disp. (${r.vacaciones.diasGanados} ganados)`
+                      : '—'}
+                  </td>
+                  <td><Badge value={r.estado} /></td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title={editId ? 'Editar contrato' : 'Nuevo contrato'} onClose={() => setOpen(false)}>

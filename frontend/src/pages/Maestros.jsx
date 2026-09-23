@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField, TimePicker } from '../components/ui';
+import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField, TimePicker } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { code, digits, label, text } from '../lib/input';
 import { fmtTime } from '../lib/format';
@@ -240,37 +240,53 @@ export function Maestros() {
         )}
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text={`No hay ${current.label.toLowerCase()} en este filtro.`} />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={String(rowId(tab, r))} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold text-navy">{r.nombre || r.clave}</p>
-                  {detalle(tab, r) ? <p className="mt-1 text-xs text-muted">{detalle(tab, r)}</p> : null}
-                  {r.descripcion ? <p className="mt-2 text-sm text-slate-600">{r.descripcion}</p> : null}
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  {tab === 'parametros' ? (
-                    <Badge value="SISTEMA" />
-                  ) : (
-                    <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />
-                  )}
-                  <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText={`No hay ${current.label.toLowerCase()} en este filtro.`}
+        cards={rows.map((r) => (
+          <MobileRow
+            key={String(rowId(tab, r))}
+            title={r.nombre || r.clave}
+            meta={detalle(tab, r) || undefined}
+            badge={tab === 'parametros' ? <Badge value="SISTEMA" /> : <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            actions={<Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Detalle</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={String(rowId(tab, r))}>
+                  <td>
+                    <p className="font-medium text-navy">{r.nombre || r.clave}</p>
+                    {r.descripcion ? <p className="text-xs text-muted">{r.descripcion}</p> : null}
+                  </td>
+                  <td className="text-sm text-muted">{detalle(tab, r) || '—'}</td>
+                  <td>
+                    {tab === 'parametros' ? <Badge value="SISTEMA" /> : <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+                  </td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title={editId != null ? `Editar ${current.label.toLowerCase().replace(/s$/, '')}` : current.nuevo} onClose={() => setOpen(false)}>

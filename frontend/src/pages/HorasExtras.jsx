@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { Alert, Avatar, Badge, Button, Empty, FilterBar, Kpi, KpiRow, Pager, SearchField } from '../components/ui';
+import { Alert, Avatar, Badge, Button, DataList, FilterBar, Kpi, KpiRow, ListActions, MobileRow, Pager, PersonCell, SearchField } from '../components/ui';
 import { useSolicitudList } from '../lib/useSolicitudList';
 import { fmtDate, fmtTime } from '../lib/format';
 
@@ -41,41 +41,63 @@ export function HorasExtras() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay solicitudes en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idSolicitudHoraExtra} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 gap-3">
-                  <Avatar name={r.empleado} />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-navy">{r.empleado}</p>
-                    <p className="text-xs text-muted">Horas extras · #{r.idSolicitudHoraExtra}</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {fmtDate(r.fecha)} · {fmtTime(r.horaInicio)} – {fmtTime(r.horaFin)} · {r.cantidadHoras} h
-                    </p>
-                    {r.motivo && <p className="mt-1 text-sm text-slate-600">{r.motivo}</p>}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.estado} />
-                  <Button variant="secondary" onClick={() => navigate(`/horas-extras/${r.idSolicitudHoraExtra}`)}>
-                    Ver
-                  </Button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay solicitudes en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idSolicitudHoraExtra}
+            leading={<Avatar name={r.empleado} />}
+            title={r.empleado}
+            meta={`${fmtDate(r.fecha)} · ${fmtTime(r.horaInicio)} – ${fmtTime(r.horaFin)} · ${r.cantidadHoras} h`}
+            badge={<Badge value={r.estado} />}
+            actions={(
+              <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/horas-extras/${r.idSolicitudHoraExtra}`)}>
+                Ver
+              </Button>
+            )}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Solicitante</th>
+                <th>Fecha</th>
+                <th>Horario</th>
+                <th>Horas</th>
+                <th>Motivo</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idSolicitudHoraExtra}>
+                  <td>
+                    <PersonCell name={r.empleado} meta={`#${r.idSolicitudHoraExtra}`} />
+                  </td>
+                  <td className="text-sm">{fmtDate(r.fecha)}</td>
+                  <td className="text-sm">{fmtTime(r.horaInicio)} – {fmtTime(r.horaFin)}</td>
+                  <td className="text-sm">{r.cantidadHoras} h</td>
+                  <td className="max-w-xs truncate text-sm text-muted">{r.motivo || '—'}</td>
+                  <td><Badge value={r.estado} /></td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/horas-extras/${r.idSolicitudHoraExtra}`)}>
+                        Ver
+                      </Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
     </div>
   );
 }

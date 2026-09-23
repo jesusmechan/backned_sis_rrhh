@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Badge, Button, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField } from '../components/ui';
+import { Alert, Avatar, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { correoAndina, slugCuenta } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { email, isEmail, isUsername, username } from '../lib/input';
@@ -253,44 +253,67 @@ export function Usuarios() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay cuentas en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idUsuario} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 gap-3">
-                  <Avatar name={r.nombreCompleto || r.nombreUsuario} />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-navy">{r.nombreCompleto || r.nombreUsuario}</p>
-                    <p className="text-xs text-muted">{r.nombreUsuario} · {r.correo}</p>
-                    <p className="mt-2 text-sm text-slate-600">{r.perfil || r.rol}</p>
-                    <p className="mt-1 text-xs text-muted">{fmtAccess(r.ultimoAcceso)}</p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay cuentas en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idUsuario}
+            leading={<Avatar name={r.nombreCompleto || r.nombreUsuario} />}
+            title={r.nombreCompleto || r.nombreUsuario}
+            meta={`${r.nombreUsuario} · ${r.perfil || r.rol || ''}`}
+            badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            actions={esAdmin ? (
+              <>
+                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                <Button variant={r.activo ? 'danger' : 'secondary'} className="px-3 py-1.5 text-xs" onClick={() => cambiarEstado(r)}>
+                  {r.activo ? 'Desactivar' : 'Activar'}
+                </Button>
+              </>
+            ) : null}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Cuenta</th>
+                <th>Usuario</th>
+                <th>Perfil</th>
+                <th>Último acceso</th>
+                <th>Estado</th>
+                {esAdmin && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idUsuario}>
+                  <td>
+                    <PersonCell name={r.nombreCompleto || r.nombreUsuario} meta={r.correo} />
+                  </td>
+                  <td className="text-sm">{r.nombreUsuario}</td>
+                  <td className="text-sm">{r.perfil || r.rol || '—'}</td>
+                  <td className="text-sm text-muted">{fmtAccess(r.ultimoAcceso)}</td>
+                  <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
                   {esAdmin && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                      <Button variant={r.activo ? 'danger' : 'secondary'} onClick={() => cambiarEstado(r)}>
-                        {r.activo ? 'Desactivar' : 'Activar'}
-                      </Button>
-                    </div>
+                    <td>
+                      <ListActions>
+                        <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                        <Button variant={r.activo ? 'danger' : 'secondary'} className="px-3 py-1.5 text-xs" onClick={() => cambiarEstado(r)}>
+                          {r.activo ? 'Desactivar' : 'Activar'}
+                        </Button>
+                      </ListActions>
+                    </td>
                   )}
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title={editId ? 'Editar cuenta' : 'Nueva cuenta de acceso'} onClose={() => { setOpen(false); setDesdeAlta(false); }}>

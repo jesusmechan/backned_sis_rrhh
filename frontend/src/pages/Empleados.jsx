@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, Plus, Upload } from 'lucide-react';
-import { api, emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Kpi, KpiRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
+import { apiPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
+import { Alert, Avatar, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField, downloadBlob } from '../components/ui';
 import { correoAndina, hoyISO, siguienteCodigo } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { calcAge } from '../lib/format';
@@ -343,47 +343,71 @@ export function Empleados() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay colaboradores en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idEmpleado} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 gap-3">
-                  <Avatar name={r.nombreCompleto} />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-navy">{r.nombreCompleto}</p>
-                    <p className="text-xs text-muted">{r.codigoEmpleado} · {r.area} · {r.cargo}</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {CONTRATO[r.tipoContrato] || r.tipoContrato}
-                      {r.horario ? ` · ${r.horario}` : ''}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      Jefe: {r.jefeInmediato || 'Sin jefe inmediato'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.estado} />
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" onClick={() => abrir(r)}>Editar</Button>
-                    {sinCuenta(r.idEmpleado) && (
-                      <Button variant="secondary" onClick={() => irCrearCuenta(r)}>Crear cuenta</Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay colaboradores en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idEmpleado}
+            leading={<Avatar name={r.nombreCompleto} />}
+            title={r.nombreCompleto}
+            meta={`${r.codigoEmpleado} · ${r.area} · ${r.cargo}`}
+            badge={<Badge value={r.estado} />}
+            actions={(
+              <>
+                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                {sinCuenta(r.idEmpleado) && (
+                  <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => irCrearCuenta(r)}>Crear cuenta</Button>
+                )}
+              </>
+            )}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Área / Cargo</th>
+                <th>Contrato</th>
+                <th>Jefe</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idEmpleado}>
+                  <td>
+                    <PersonCell name={r.nombreCompleto} meta={r.codigoEmpleado} />
+                  </td>
+                  <td>
+                    <p className="text-sm text-navy">{r.area || '—'}</p>
+                    <p className="text-xs text-muted">{r.cargo || '—'}</p>
+                  </td>
+                  <td>
+                    <p className="text-sm">{CONTRATO[r.tipoContrato] || r.tipoContrato}</p>
+                    <p className="text-xs text-muted">{r.horario || '—'}</p>
+                  </td>
+                  <td className="text-sm text-muted">{r.jefeInmediato || 'Sin jefe'}</td>
+                  <td><Badge value={r.estado} /></td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                      {sinCuenta(r.idEmpleado) && (
+                        <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => irCrearCuenta(r)}>Crear cuenta</Button>
+                      )}
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {open && (
         <Modal title={editId ? 'Editar colaborador' : 'Registrar colaborador'} onClose={() => setOpen(false)}>

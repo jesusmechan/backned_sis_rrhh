@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { Alert, Avatar, Badge, Button, Empty, FilterBar, Kpi, KpiRow, Pager, SearchField } from '../components/ui';
+import { Alert, Avatar, Badge, Button, DataList, FilterBar, Kpi, KpiRow, ListActions, MobileRow, Pager, PersonCell, SearchField } from '../components/ui';
 import { useSolicitudList } from '../lib/useSolicitudList';
 import { fmtDate, fmtTime } from '../lib/format';
 
@@ -41,42 +41,66 @@ export function Permisos() {
         </select>
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay solicitudes en este filtro." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idSolicitudPermiso} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 gap-3">
-                  <Avatar name={r.empleado} />
-                  <div className="min-w-0">
-                    <p className="font-semibold text-navy">{r.empleado}</p>
-                    <p className="text-xs text-muted">{r.tipoPermiso} · #{r.idSolicitudPermiso}</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin)}
-                      {r.horaInicio ? ` · ${fmtTime(r.horaInicio)} – ${fmtTime(r.horaFin)}` : ''}
-                    </p>
-                    {r.motivo && <p className="mt-1 text-sm text-slate-600">{r.motivo}</p>}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.estado} />
-                  <Button variant="secondary" onClick={() => navigate(`/permisos/${r.idSolicitudPermiso}`)}>
-                    Ver
-                  </Button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay solicitudes en este filtro."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idSolicitudPermiso}
+            leading={<Avatar name={r.empleado} />}
+            title={r.empleado}
+            meta={`${r.tipoPermiso} · ${fmtDate(r.fechaInicio)} → ${fmtDate(r.fechaFin)}`}
+            badge={<Badge value={r.estado} />}
+            actions={(
+              <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/permisos/${r.idSolicitudPermiso}`)}>
+                Ver
+              </Button>
+            )}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Solicitante</th>
+                <th>Tipo</th>
+                <th>Periodo</th>
+                <th>Motivo</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idSolicitudPermiso}>
+                  <td>
+                    <PersonCell name={r.empleado} meta={`#${r.idSolicitudPermiso}`} />
+                  </td>
+                  <td className="text-sm">{r.tipoPermiso}</td>
+                  <td className="text-sm">
+                    {fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin)}
+                    {r.horaInicio ? (
+                      <p className="text-xs text-muted">{fmtTime(r.horaInicio)} – {fmtTime(r.horaFin)}</p>
+                    ) : null}
+                  </td>
+                  <td className="max-w-xs truncate text-sm text-muted">{r.motivo || '—'}</td>
+                  <td><Badge value={r.estado} /></td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/permisos/${r.idSolicitudPermiso}`)}>
+                        Ver
+                      </Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, DatePicker, Empty, Field, FilterBar, FormGrid, Modal, Pager, SearchField } from '../components/ui';
+import { Alert, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { hoyISO } from './altaShared';
 import { email, letters, phone, text } from '../lib/input';
@@ -137,37 +137,61 @@ export function Reclutamiento() {
         <SearchField placeholder="Buscar puesto, código o área" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       </FilterBar>
 
-      {rows.length === 0 ? (
-        <div className="rounded-xl border border-line bg-white">
-          <Empty text="No hay convocatorias." />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <article key={r.idConvocatoria} className="rounded-xl border border-line bg-white p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="font-semibold text-navy">{r.puesto}</p>
-                  <p className="text-xs text-muted">{r.codigo}{r.area ? ` · ${r.area}` : ''} · {r.vacantes} vacante{r.vacantes === 1 ? '' : 's'} · {r.postulantes} postulantes</p>
-                  <p className="mt-1 text-xs text-muted">{fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin, 'Abierta')}</p>
-                </div>
-                <div className="flex flex-col items-start gap-2 sm:items-end">
-                  <Badge value={r.estado} />
-                  <Button variant="secondary" onClick={() => abrir(r)}>Postulantes</Button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </div>
+      <DataList
+        empty={rows.length === 0}
+        emptyText="No hay convocatorias."
+        cards={rows.map((r) => (
+          <MobileRow
+            key={r.idConvocatoria}
+            title={r.puesto}
+            meta={`${r.codigo}${r.area ? ` · ${r.area}` : ''} · ${r.postulantes} postulantes`}
+            badge={<Badge value={r.estado} />}
+            actions={<Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Postulantes</Button>}
+          />
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Puesto</th>
+                <th>Área</th>
+                <th>Vigencia</th>
+                <th>Vacantes</th>
+                <th>Postulantes</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idConvocatoria}>
+                  <td>
+                    <p className="font-medium text-navy">{r.puesto}</p>
+                    <p className="text-xs text-muted">{r.codigo}</p>
+                  </td>
+                  <td className="text-sm">{r.area || '—'}</td>
+                  <td className="text-sm">{fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin, 'Abierta')}</td>
+                  <td className="text-sm">{r.vacantes}</td>
+                  <td className="text-sm">{r.postulantes}</td>
+                  <td><Badge value={r.estado} /></td>
+                  <td>
+                    <ListActions>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Postulantes</Button>
+                    </ListActions>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {sel && (
-        <section className="mt-6 rounded-xl border border-line bg-white p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mt-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-semibold text-navy">{sel.puesto}</p>
               <p className="text-xs text-muted">Seguimiento de postulantes</p>
@@ -176,31 +200,62 @@ export function Reclutamiento() {
               <Button onClick={() => { setPost(emptyPost); setOpenPost(true); }}><Plus size={16} /> Postulante</Button>
             )}
           </div>
-          {postulantes.length === 0 ? (
-            <Empty text="Sin postulantes registrados." />
-          ) : (
-            <ul className="space-y-3">
-              {postulantes.map((p) => (
-                <li key={p.idPostulacion} className="flex flex-col gap-2 border-b border-line pb-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-navy">{p.nombreCompleto}</p>
-                    <p className="text-xs text-muted">{p.documento}{p.correo ? ` · ${p.correo}` : ''}{p.puntaje != null ? ` · ${p.puntaje} pts` : ''}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge value={p.estado} />
-                    <select className="w-auto" value={p.estado} onChange={(e) => cambiarEstado(p, e.target.value)}>
-                      <option value="POSTULADO">Postulado</option>
-                      <option value="ENTREVISTA">Entrevista</option>
-                      <option value="SELECCIONADO">Seleccionado</option>
-                      <option value="CONTRATADO">Contratado</option>
-                      <option value="DESCARTADO">Descartado</option>
-                    </select>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          <DataList
+            empty={postulantes.length === 0}
+            emptyText="Sin postulantes registrados."
+            cards={postulantes.map((p) => (
+              <MobileRow
+                key={p.idPostulacion}
+                title={p.nombreCompleto}
+                meta={`${p.documento}${p.correo ? ` · ${p.correo}` : ''}${p.puntaje != null ? ` · ${p.puntaje} pts` : ''}`}
+                badge={<Badge value={p.estado} />}
+                actions={(
+                  <select className="w-auto" value={p.estado} onChange={(e) => cambiarEstado(p, e.target.value)}>
+                    <option value="POSTULADO">Postulado</option>
+                    <option value="ENTREVISTA">Entrevista</option>
+                    <option value="SELECCIONADO">Seleccionado</option>
+                    <option value="CONTRATADO">Contratado</option>
+                    <option value="DESCARTADO">Descartado</option>
+                  </select>
+                )}
+              />
+            ))}
+            table={(
+              <table>
+                <thead>
+                  <tr>
+                    <th>Postulante</th>
+                    <th>Contacto</th>
+                    <th>Puntaje</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {postulantes.map((p) => (
+                    <tr key={p.idPostulacion}>
+                      <td>
+                        <PersonCell name={p.nombreCompleto} meta={p.documento} showAvatar={false} />
+                      </td>
+                      <td className="text-sm text-muted">{p.correo || '—'}</td>
+                      <td className="text-sm">{p.puntaje != null ? `${p.puntaje} pts` : '—'}</td>
+                      <td><Badge value={p.estado} /></td>
+                      <td>
+                        <select className="w-auto" value={p.estado} onChange={(e) => cambiarEstado(p, e.target.value)}>
+                          <option value="POSTULADO">Postulado</option>
+                          <option value="ENTREVISTA">Entrevista</option>
+                          <option value="SELECCIONADO">Seleccionado</option>
+                          <option value="CONTRATADO">Contratado</option>
+                          <option value="DESCARTADO">Descartado</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          />
+        </div>
       )}
 
       {open && (

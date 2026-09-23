@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, Download, Timer } from 'lucide-react';
 import { emptyPage, http, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Button, DatePicker, Empty, Field, FilterBar, Modal, Pager, Panel, SearchField, StackTable, TimePicker, downloadBlob } from '../components/ui';
+import { Alert, Avatar, Button, DataList, DatePicker, Field, FilterBar, Modal, Pager, Panel, SearchField, TimePicker, downloadBlob } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 
 function sameMonth(iso, d = new Date()) {
@@ -226,85 +226,85 @@ export function Asistencia() {
         {canSupervise && <Button variant="secondary" onClick={exportar}><Download size={14} /> Exportar</Button>}
       </FilterBar>
 
-      <Panel padded={false}>
-        {rows.length === 0 ? <Empty text="Sin marcaciones en esta vista." /> : (
-          <StackTable
-            cards={rows.map((r) => (
-              <div key={r.idMarcacion} className="flex gap-3 px-4 py-3">
-                <Avatar name={r.empleado} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-navy">{r.empleado}</p>
-                  <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+      <DataList
+        empty={rows.length === 0}
+        emptyText="Sin marcaciones en esta vista."
+        cards={rows.map((r) => (
+          <div key={r.idMarcacion} className="flex gap-3 px-4 py-3">
+            <Avatar name={r.empleado} />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-navy">{r.empleado}</p>
+              <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
+                  {r.tipo}
+                </span>
+                <span className="text-xs text-muted">{r.origen || 'WEB'} · {r.observacion || 'Jornada ordinaria'}</span>
+                {canSupervise && (
+                  <Button variant="secondary" className="ml-auto px-3 py-1.5 text-xs" onClick={() => abrirCorreccion(r)}>Corregir</Button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        table={(
+          <table>
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Tipo</th>
+                <th>Fecha y hora</th>
+                <th>Origen</th>
+                <th>Estado</th>
+                <th>Observación</th>
+                {canSupervise && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.idMarcacion}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={r.empleado} />
+                      <div>
+                        <p className="font-medium text-navy">{r.empleado}</p>
+                        <p className="text-xs text-muted">#{r.idEmpleado} · {r.tipo}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
                     <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
                       {r.tipo}
                     </span>
-                    <span className="text-xs text-muted">{r.origen || 'WEB'} · {r.observacion || 'Jornada ordinaria'}</span>
-                    {canSupervise && (
-                      <Button variant="secondary" className="ml-auto px-3 py-1.5 text-xs" onClick={() => abrirCorreccion(r)}>Corregir</Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            table={(
-              <table>
-                <thead>
-                  <tr>
-                    <th>Colaborador</th>
-                    <th>Tipo</th>
-                    <th>Fecha y hora</th>
-                    <th>Origen</th>
-                    <th>Estado</th>
-                    <th>Observación</th>
-                    {canSupervise && <th></th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.idMarcacion}>
-                      <td>
-                        <div className="flex items-center gap-3">
-                          <Avatar name={r.empleado} />
-                          <div>
-                            <p className="font-medium text-navy">{r.empleado}</p>
-                            <p className="text-xs text-muted">#{r.idEmpleado} · {r.tipo}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
-                          {r.tipo}
-                        </span>
-                      </td>
-                      <td>
-                        <p>{formatStamp(r.fechaHora)}</p>
-                        <p className="text-xs text-muted">Hora del registro</p>
-                      </td>
-                      <td>
-                        <p className="text-sm">{r.origen || 'WEB'}</p>
-                        <p className="text-xs text-muted">{browser}</p>
-                      </td>
-                      <td>
-                        <span className="rounded-full bg-info-soft px-2 py-0.5 text-xs font-medium text-info">
-                          {r.tipo === 'INGRESO' ? 'Entrada registrada' : 'Salida registrada'}
-                        </span>
-                      </td>
-                      <td className="text-sm text-muted">{r.observacion || 'Jornada ordinaria'}</td>
-                      {canSupervise && (
-                        <td>
-                          <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrirCorreccion(r)}>Corregir</Button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          />
+                  </td>
+                  <td>
+                    <p>{formatStamp(r.fechaHora)}</p>
+                    <p className="text-xs text-muted">Hora del registro</p>
+                  </td>
+                  <td>
+                    <p className="text-sm">{r.origen || 'WEB'}</p>
+                    <p className="text-xs text-muted">{browser}</p>
+                  </td>
+                  <td>
+                    <span className="rounded-full bg-info-soft px-2 py-0.5 text-xs font-medium text-info">
+                      {r.tipo === 'INGRESO' ? 'Entrada registrada' : 'Salida registrada'}
+                    </span>
+                  </td>
+                  <td className="text-sm text-muted">{r.observacion || 'Jornada ordinaria'}</td>
+                  {canSupervise && (
+                    <td>
+                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrirCorreccion(r)}>Corregir</Button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
-        <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
-      </Panel>
+        footer={(
+          <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
+        )}
+      />
 
       {edit && (
         <Modal title="Corregir marcación" onClose={() => !saving && setEdit(null)}>
