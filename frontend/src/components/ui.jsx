@@ -139,10 +139,13 @@ export function Alert({ children, ok }) {
   );
 }
 
-export function Modal({ title, children, onClose }) {
+export function Modal({ title, children, onClose, wide = false }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-slate-900/40 p-0 sm:place-items-center sm:p-4">
-      <div className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-xl bg-white shadow-lg sm:rounded-xl">
+      <div className={cn(
+        'flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl bg-white shadow-lg sm:rounded-xl',
+        wide ? 'max-w-5xl' : 'max-w-3xl'
+      )}>
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-4 sm:px-6">
           <h3 className="min-w-0 text-base font-semibold text-navy sm:text-lg">{title}</h3>
           <Button variant="secondary" type="button" className="shrink-0 px-3 py-2" onClick={onClose}>Cerrar</Button>
@@ -235,28 +238,50 @@ export function ListActions({ children }) {
   return <div className="flex flex-wrap items-center justify-end gap-2">{children}</div>;
 }
 
+/** Filtro/contador compacto: etiqueta + cifra en una sola fila (reemplaza cards KPI altos). */
 export function Kpi({ value, label, hint, active, onClick }) {
   const className = cn(
-    'w-full rounded-xl border bg-white p-4 text-left',
-    onClick && 'cursor-pointer hover:border-slate-300',
-    active ? 'border-navy ring-1 ring-navy' : 'border-line'
+    'inline-flex max-w-full items-center gap-2 rounded-lg border px-3 py-1.5 text-left transition',
+    onClick && 'cursor-pointer',
+    active
+      ? 'border-navy bg-navy text-white'
+      : 'border-line bg-white text-navy hover:border-slate-300'
   );
   const body = (
     <>
-      <p className="text-2xl font-bold text-navy">{value}</p>
-      <p className="mt-1 text-sm font-medium text-navy">{label}</p>
-      {hint && <p className="text-xs text-muted">{hint}</p>}
+      <span className="truncate text-sm font-medium">{label}</span>
+      <span
+        className={cn(
+          'shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+          active ? 'bg-white/20 text-white' : 'bg-slate-100 text-navy'
+        )}
+      >
+        {value}
+      </span>
     </>
   );
   if (onClick) {
-    return <button type="button" className={className} onClick={onClick} aria-pressed={Boolean(active)}>{body}</button>;
+    return (
+      <button
+        type="button"
+        className={className}
+        onClick={onClick}
+        aria-pressed={Boolean(active)}
+        title={hint || undefined}
+      >
+        {body}
+      </button>
+    );
   }
-  return <div className={className}>{body}</div>;
+  return <div className={className} title={hint || undefined}>{body}</div>;
 }
 
-export function KpiRow({ children, cols = 3 }) {
-  const grid = cols === 2 ? 'sm:grid-cols-2' : cols === 4 ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3';
-  return <div className={cn('mb-4 grid gap-3', grid)}>{children}</div>;
+export function KpiRow({ children }) {
+  return (
+    <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Resumen y filtros">
+      {children}
+    </div>
+  );
 }
 
 export function FilterBar({ children }) {
@@ -281,29 +306,74 @@ export function Empty({ text }) {
 }
 
 export function Pager({ page = 1, totalPages = 1, totalElements = 0, size = 10, onPage }) {
-  if (totalElements === 0) return null;
-  const from = (page - 1) * size + 1;
-  const to = Math.min(page * size, totalElements);
-  const start = Math.max(1, page - 2);
-  const end = Math.min(totalPages, start + 4);
+  const total = Number(totalElements) || 0;
+  if (total <= 0) return null;
+
+  const pageSize = Math.max(1, Number(size) || 10);
+  const pages = Math.max(1, Number(totalPages) || Math.ceil(total / pageSize));
+  const current = Math.min(Math.max(1, Number(page) || 1), pages);
+
+  const from = (current - 1) * pageSize + 1;
+  const to = Math.min(current * pageSize, total);
+
+  const windowSize = 5;
+  let start = Math.max(1, current - Math.floor(windowSize / 2));
+  let end = Math.min(pages, start + windowSize - 1);
+  start = Math.max(1, end - windowSize + 1);
+
   const nums = [];
   for (let n = start; n <= end; n += 1) nums.push(n);
+
+  function go(n) {
+    const next = Math.min(Math.max(1, n), pages);
+    if (next !== Number(page)) onPage?.(next);
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-3 py-3 text-sm text-muted sm:px-4">
-      <p className="text-xs sm:text-sm">{from}–{to} de {totalElements}</p>
+      <p className="text-xs sm:text-sm">{from}–{to} de {total}</p>
       <div className="flex gap-1">
-        <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className="h-8 rounded-md px-2 hover:bg-slate-100 disabled:opacity-40">‹</button>
+        <button
+          type="button"
+          disabled={current <= 1}
+          onClick={() => go(current - 1)}
+          className="h-8 rounded-md px-2 hover:bg-slate-100 disabled:opacity-40"
+          aria-label="Página anterior"
+        >
+          ‹
+        </button>
+        {start > 1 && (
+          <>
+            <button type="button" onClick={() => go(1)} className="h-8 w-8 rounded-md text-sm hover:bg-surface">1</button>
+            {start > 2 && <span className="grid h-8 w-6 place-items-center text-slate-400">…</span>}
+          </>
+        )}
         {nums.map((n) => (
           <button
             key={n}
             type="button"
-            onClick={() => onPage(n)}
-            className={`h-8 w-8 rounded-md text-sm ${n === page ? 'bg-primary text-white' : 'hover:bg-surface'}`}
+            onClick={() => go(n)}
+            aria-current={n === current ? 'page' : undefined}
+            className={`h-8 w-8 rounded-md text-sm ${n === current ? 'bg-primary text-white' : 'hover:bg-surface'}`}
           >
             {n}
           </button>
         ))}
-        <button type="button" disabled={page >= totalPages} onClick={() => onPage(page + 1)} className="h-8 rounded-md px-2 hover:bg-slate-100 disabled:opacity-40">›</button>
+        {end < pages && (
+          <>
+            {end < pages - 1 && <span className="grid h-8 w-6 place-items-center text-slate-400">…</span>}
+            <button type="button" onClick={() => go(pages)} className="h-8 w-8 rounded-md text-sm hover:bg-surface">{pages}</button>
+          </>
+        )}
+        <button
+          type="button"
+          disabled={current >= pages}
+          onClick={() => go(current + 1)}
+          className="h-8 rounded-md px-2 hover:bg-slate-100 disabled:opacity-40"
+          aria-label="Página siguiente"
+        >
+          ›
+        </button>
       </div>
     </div>
   );

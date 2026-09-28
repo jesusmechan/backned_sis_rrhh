@@ -15,16 +15,28 @@ import java.util.Map;
 @Service
 public class JwtService implements TokenPort {
 
+    private static final int MIN_SECRET_BYTES = 32;
+
     private final JwtProperties properties;
     private final SecretKey key;
 
     public JwtService(JwtProperties properties) {
         this.properties = properties;
-        byte[] secret = properties.getSecret().getBytes(StandardCharsets.UTF_8);
-        if (secret.length < 32) {
-            secret = java.util.Arrays.copyOf(secret, 32);
+        this.key = Keys.hmacShaKeyFor(requireSecret(properties.getSecret()));
+    }
+
+    private static byte[] requireSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_SECRET no está definido. Configúralo en backend/.env (mínimo 32 caracteres).");
         }
-        this.key = Keys.hmacShaKeyFor(secret);
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET es demasiado corto (" + bytes.length
+                            + " bytes). Use al menos " + MIN_SECRET_BYTES + " caracteres.");
+        }
+        return bytes;
     }
 
     public String generateAccessToken(Integer idUsuario, String nombreUsuario, String rol) {

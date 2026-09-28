@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, Check, Clock3, Download, Inbox, Timer, X } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Avatar, Badge, Button, Field, Modal, PageHeader, Pager, SearchField, cn, downloadBlob } from '../components/ui';
+import { CalendarDays, Check, Download, Inbox, Timer, X } from 'lucide-react';
+import { http, PAGE_SIZE, pagePath } from '../api/client';
+import { Alert, Avatar, Badge, Button, DatePicker, Field, Kpi, KpiRow, Modal, PageHeader, Pager, SearchField, cn, downloadBlob } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { fmtDateTime, fmtRelative } from '../lib/format';
 import { TIPO } from './bandejaShared';
 import { text } from '../lib/input';
@@ -16,34 +17,84 @@ const ESTADOS_SEGUIMIENTO = [
   { value: 'CANCELADO', label: 'Cancelado' }
 ];
 
+function limaToday() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+}
+
+function shiftDays(iso, days) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+function startOfMonth(iso) {
+  return `${iso.slice(0, 8)}01`;
+}
+
 export function Bandeja() {
   const navigate = useNavigate();
   const location = useLocation();
   const [tab, setTab] = useState(location.state?.tab === 'seguimiento' ? 'seguimiento' : 'pendientes');
-  const [items, setItems] = useState([]);
-  const [seguimiento, setSeguimiento] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [counts, setCounts] = useState({ total: 0, permiso: 0, hora: 0, seguimiento: 0 });
   const [q, setQ, qDebounced] = useQuerySearch();
   const [tipo, setTipo] = useState('');
   const [estadoSeguimiento, setEstadoSeguimiento] = useState('');
+  const [tramite, setTramite] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const [orden, setOrden] = useState('DESC');
+  const [rangoRapido, setRangoRapido] = useState('');
+  const [tiposPermiso, setTiposPermiso] = useState([]);
   const [checked, setChecked] = useState({});
-  const [error, setError] = useState('');
   const [ok, setOk] = useState(location.state?.ok || '');
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [bulk, setBulk] = useState(null);
   const [bulkComment, setBulkComment] = useState('');
   const selectAllRef = useRef(null);
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
-  useEffect(() => { setChecked({}); }, [tipo, qDebounced, tab]);
+  const filtrosActivos = Boolean(
+    qDebounced
+    || tipo
+    || estadoSeguimiento
+    || tramite
+    || desde
+    || hasta
+    || orden !== 'DESC'
+  );
+
+  const { page, setPage, rows, meta, error, setError, loading, reload } = usePagedLoad(
+    [tab, qDebounced, tipo, estadoSeguimiento, tramite, desde, hasta, orden],
+    (pageNum) => {
+      const base = { page: pageNum, size: PAGE_SIZE, q: qDebounced, tipo, tramite, desde, hasta, orden };
+      if (tab === 'pendientes') {
+        return http.page(pagePath('/api/bandeja', base));
+      }
+      return http.page(pagePath('/api/bandeja', {
+        ...base,
+        vista: 'SEGUIMIENTO',
+        estado: estadoSeguimiento
+      }));
+    }
+  );
+
+  useEffect(() => { setChecked({}); }, [tipo, qDebounced, tab, tramite, desde, hasta, estadoSeguimiento]);
 
   useEffect(() => {
     if (location.state?.ok) {
       navigate(location.pathname, { replace: true, state: {} });
     }
+  }, []);
+
+  useEffect(() => {
+    http.get('/api/catalogos/tipos-permiso')
+      .then((rowsCat) => setTiposPermiso(Array.isArray(rowsCat) ? rowsCat : []))
+      .catch(() => setTiposPermiso([]));
   }, []);
 
   async function loadCounts() {
@@ -60,41 +111,11 @@ export function Bandeja() {
     });
   }
 
-  async function fetchLista() {
-    if (tab === 'pendientes') {
-      return http.page(pagePath('/api/bandeja', { page, size: PAGE_SIZE, q: qDebounced, tipo }));
-    }
-    return http.page(pagePath('/api/bandeja', {
-      page,
-      size: PAGE_SIZE,
-      q: qDebounced,
-      tipo,
-      vista: 'SEGUIMIENTO',
-      estado: estadoSeguimiento
-    }));
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    setError('');
-    setLoading(true);
-    fetchLista()
-      .then((b) => {
-        if (cancelled) return;
-        if (tab === 'pendientes') setItems(b.content || []);
-        else setSeguimiento(b.content || []);
-        setMeta(b);
-      })
-      .catch((e) => { if (!cancelled) setError(e.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [page, tab, qDebounced, tipo, estadoSeguimiento]);
-
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
-  const lista = tab === 'pendientes' ? items : seguimiento;
+  const lista = rows;
   const seleccionados = Object.values(checked).filter(Boolean).length;
-  const pageIds = items.map((it) => it.idPasoSolicitud).filter(Boolean);
+  const pageIds = tab === 'pendientes' ? rows.map((it) => it.idPasoSolicitud).filter(Boolean) : [];
   const allOnPage = pageIds.length > 0 && pageIds.every((id) => checked[id]);
   const someOnPage = pageIds.some((id) => checked[id]);
 
@@ -108,14 +129,42 @@ export function Bandeja() {
     setTab(next);
     setPage(1);
     setChecked({});
-    setItems([]);
-    setSeguimiento([]);
-    setMeta(emptyPage);
-    setLoading(true);
   }
 
   function cambiarTipo(next) {
     setTipo((prev) => (prev === next ? '' : next));
+    if (next === 'HORA_EXTRA') setTramite('');
+    setPage(1);
+  }
+
+  function aplicarRango(preset) {
+    const hoy = limaToday();
+    setRangoRapido(preset);
+    if (preset === 'hoy') {
+      setDesde(hoy);
+      setHasta(hoy);
+    } else if (preset === '7d') {
+      setDesde(shiftDays(hoy, -6));
+      setHasta(hoy);
+    } else if (preset === 'mes') {
+      setDesde(startOfMonth(hoy));
+      setHasta(hoy);
+    } else {
+      setDesde('');
+      setHasta('');
+    }
+    setPage(1);
+  }
+
+  function limpiarFiltros() {
+    setQ('');
+    setTipo('');
+    setEstadoSeguimiento('');
+    setTramite('');
+    setDesde('');
+    setHasta('');
+    setOrden('DESC');
+    setRangoRapido('');
     setPage(1);
   }
 
@@ -163,35 +212,38 @@ export function Bandeja() {
       setChecked({});
       setBulk(null);
       setBulkComment('');
-      const [b] = await Promise.all([fetchLista(), loadCounts()]);
-      setItems(b.content || []);
-      setMeta(b);
+      await Promise.all([reload(), loadCounts()]);
     } catch (e) {
       setError(okCount ? `${okCount} procesado(s). Luego falló: ${e.message}` : e.message);
-      const [b] = await Promise.all([fetchLista(), loadCounts()]);
-      setItems(b.content || []);
-      setMeta(b);
+      await Promise.all([reload(), loadCounts()]);
     } finally {
       setSaving(false);
     }
   }
 
   function exportar() {
-    const rows = tab === 'pendientes'
+    const rowsCsv = tab === 'pendientes'
       ? [['Solicitante', 'Tipo', 'Trámite', 'Paso', 'Motivo', 'Desde']].concat(
-        items.map((it) => [it.solicitante, TIPO[it.tipoSolicitud] || it.tipoSolicitud, it.tipoTramite, `${it.numeroPaso} ${it.nombrePaso}`, it.motivo, it.fechaInicio || ''])
+        rows.map((it) => [it.solicitante, TIPO[it.tipoSolicitud] || it.tipoSolicitud, it.tipoTramite, `${it.numeroPaso} ${it.nombrePaso}`, it.motivo, it.fechaInicio || ''])
       )
       : [['Solicitante', 'Tipo', 'Trámite', 'Estado', 'Paso', 'Motivo', 'Fecha']].concat(
-        seguimiento.map((it) => [it.solicitante, TIPO[it.tipoSolicitud] || it.tipoSolicitud, it.tipoTramite, it.estadoSolicitud, it.nombrePaso, it.motivo, it.fechaInicio || ''])
+        rows.map((it) => [it.solicitante, TIPO[it.tipoSolicitud] || it.tipoSolicitud, it.tipoTramite, it.estadoSolicitud, it.nombrePaso, it.motivo, it.fechaInicio || ''])
       );
-    const csv = rows.map((r) => r.map((c) => `"${String(c ?? '').replaceAll('"', '""')}"`).join(';')).join('\n');
+    const csv = rowsCsv.map((r) => r.map((c) => `"${String(c ?? '').replaceAll('"', '""')}"`).join(';')).join('\n');
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `bandeja-${tab}.csv`);
   }
 
   const vacio = !loading && lista.length === 0;
   const vacioTexto = tab === 'pendientes'
-    ? (tipo ? `No hay ${tipo === 'PERMISO' ? 'permisos' : 'horas extras'} por atender.` : 'No tiene pasos por atender.')
-    : 'No hay solicitudes en seguimiento con este filtro.';
+    ? (filtrosActivos ? 'Ningún paso coincide con los filtros.' : 'No tiene pasos por atender.')
+    : (filtrosActivos ? 'Ninguna solicitud coincide con los filtros.' : 'No hay solicitudes en seguimiento.');
+
+  const opcionesTramite = tipo === 'HORA_EXTRA'
+    ? [{ value: 'Horas extras', label: 'Horas extras' }]
+    : [
+        ...tiposPermiso.map((t) => ({ value: t.nombre, label: t.nombre })),
+        ...(tipo === 'PERMISO' ? [] : [{ value: 'Horas extras', label: 'Horas extras' }])
+      ];
 
   return (
     <div>
@@ -209,26 +261,22 @@ export function Bandeja() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2">
-        <VistaCard
-          active={tab === 'pendientes'}
-          icon={Inbox}
+      <KpiRow>
+        <Kpi
           value={counts.total}
           label="Por atender"
           hint="Pasos que esperan su decisión"
-          accent="bg-warn-soft text-warn"
+          active={tab === 'pendientes'}
           onClick={() => cambiarVista('pendientes')}
         />
-        <VistaCard
-          active={tab === 'seguimiento'}
-          icon={Clock3}
+        <Kpi
           value={counts.seguimiento}
           label="En seguimiento"
           hint="Creadas o ya decididas por usted"
-          accent="bg-slate-200 text-slate-700"
+          active={tab === 'seguimiento'}
           onClick={() => cambiarVista('seguimiento')}
         />
-      </div>
+      </KpiRow>
 
       {seleccionados > 0 && tab === 'pendientes' && (
         <div className="mb-3 flex flex-col gap-3 rounded-xl border border-navy/15 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -259,10 +307,11 @@ export function Bandeja() {
       <div className="overflow-hidden rounded-xl border border-line bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-line px-4 py-3">
           <SearchField
-            placeholder="Buscar colaborador, trámite o motivo"
+            placeholder="Buscar colaborador, trámite, paso o motivo"
             value={q}
             onChange={(e) => { setQ(e.target.value); setPage(1); }}
           />
+
           <div className="flex flex-wrap items-center gap-1.5">
             <Chip active={!tipo} onClick={() => { setTipo(''); setPage(1); }}>
               Todas
@@ -304,6 +353,73 @@ export function Bandeja() {
               </label>
             )}
           </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-500">Trámite</span>
+              <select
+                className="w-full"
+                value={tramite}
+                onChange={(e) => { setTramite(e.target.value); setPage(1); }}
+              >
+                <option value="">Todos los trámites</option>
+                {opcionesTramite.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-500">Desde</span>
+              <DatePicker
+                value={desde}
+                onChange={(v) => {
+                  setDesde(v);
+                  setRangoRapido('');
+                  setPage(1);
+                }}
+                max={hasta || undefined}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-500">Hasta</span>
+              <DatePicker
+                value={hasta}
+                onChange={(v) => {
+                  setHasta(v);
+                  setRangoRapido('');
+                  setPage(1);
+                }}
+                min={desde || undefined}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-slate-500">Orden</span>
+              <select
+                className="w-full"
+                value={orden}
+                onChange={(e) => { setOrden(e.target.value); setPage(1); }}
+              >
+                <option value="DESC">Más recientes primero</option>
+                <option value="ASC">Más antiguos primero</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] font-medium text-slate-500">Rango:</span>
+            <Chip active={rangoRapido === 'hoy'} onClick={() => aplicarRango(rangoRapido === 'hoy' ? '' : 'hoy')}>Hoy</Chip>
+            <Chip active={rangoRapido === '7d'} onClick={() => aplicarRango(rangoRapido === '7d' ? '' : '7d')}>Últimos 7 días</Chip>
+            <Chip active={rangoRapido === 'mes'} onClick={() => aplicarRango(rangoRapido === 'mes' ? '' : 'mes')}>Este mes</Chip>
+            {filtrosActivos && (
+              <button
+                type="button"
+                onClick={limpiarFiltros}
+                className="ml-auto text-xs font-medium text-navy hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -314,6 +430,11 @@ export function Bandeja() {
               <Inbox size={22} />
             </div>
             <p className="text-sm text-muted">{vacioTexto}</p>
+            {filtrosActivos && (
+              <button type="button" onClick={limpiarFiltros} className="mt-3 text-sm font-medium text-navy hover:underline">
+                Quitar filtros
+              </button>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-line">
@@ -361,29 +482,6 @@ export function Bandeja() {
         </Modal>
       )}
     </div>
-  );
-}
-
-function VistaCard({ active, icon: Icon, value, label, hint, accent, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'flex items-start gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition',
-        active ? 'border-navy ring-1 ring-navy' : 'border-line hover:border-slate-300'
-      )}
-    >
-      <div className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl', accent)}>
-        <Icon size={20} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-2xl font-bold tabular-nums text-navy">{value}</p>
-        <p className="mt-0.5 text-sm font-medium text-navy">{label}</p>
-        <p className="text-xs text-muted">{hint}</p>
-      </div>
-    </button>
   );
 }
 

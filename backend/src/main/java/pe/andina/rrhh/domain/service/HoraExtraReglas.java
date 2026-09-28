@@ -15,6 +15,9 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.EnumSet;
 
+/**
+ * Reglas de negocio que se validan antes de registrar horas extras.
+ */
 @Component
 public class HoraExtraReglas {
 
@@ -26,6 +29,15 @@ public class HoraExtraReglas {
         this.parametros = parametros;
     }
 
+    /**
+     * Suma las horas {@code PENDIENTE} y {@code APROBADO} del empleado y verifica que, con la
+     * nueva solicitud, no se superen {@code max_horas_extras_diarias} (4 por defecto) ni
+     * {@code max_horas_extras_semanales} (12 por defecto, semana de lunes a domingo).
+     *
+     * @param empleado solicitante
+     * @param request  fecha y cantidad de horas
+     * @throws DomainException 400 si se supera algún tope
+     */
     public void validarAlCrear(Empleado empleado, HoraExtraRequest request) {
         validarTope(empleado.getIdEmpleado(), request.fecha(), request.cantidadHoras());
     }

@@ -21,7 +21,10 @@ public final class PageResponses {
         int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
         int p = page == null || page < 1 ? 1 : page;
         long total = items.size();
-        int pages = (int) Math.max(1, Math.ceil(total / (double) s));
+        int pages = total == 0 ? 0 : (int) Math.ceil(total / (double) s);
+        if (pages == 0) {
+            return new PageResponse<>(List.of(), 1, s, 0L, 0);
+        }
         if (p > pages) {
             p = pages;
         }

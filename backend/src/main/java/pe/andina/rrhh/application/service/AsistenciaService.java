@@ -46,17 +46,23 @@ public class AsistenciaService implements AsistenciaUseCase {
     public MarcacionResponse marcar(MarcacionRequest request) {
         String origen = request.origen() != null ? request.origen() : "WEB";
         Empleado empleado = empleadoScope.resolverSolicitante(request.idEmpleado());
-        if (currentUser.isAdminOrRrhh() && request.idEmpleado() != null && request.origen() == null) {
+        boolean gestor = currentUser.isAdminOrRrhh();
+        if (gestor && request.idEmpleado() != null && request.origen() == null) {
             origen = "MANUAL";
         }
-        OffsetDateTime fechaHora = request.fechaHora() != null ? request.fechaHora() : OffsetDateTime.now();
+        // Solo RR. HH./Admin registran marcaciones manuales o con otra hora; el colaborador marca "ahora".
+        if (!gestor && !"MOVIL".equals(origen)) {
+            origen = "WEB";
+        }
+        OffsetDateTime fechaHora = gestor && request.fechaHora() != null ? request.fechaHora() : OffsetDateTime.now();
         LocalDate fecha = fechaHora.atZoneSameInstant(LIMA).toLocalDate();
         DayOfWeek dia = fecha.getDayOfWeek();
-        if ("WEB".equals(origen) && (dia == DayOfWeek.SATURDAY || dia == DayOfWeek.SUNDAY)) {
+        if (("WEB".equals(origen) || "MOVIL".equals(origen))
+                && (dia == DayOfWeek.SATURDAY || dia == DayOfWeek.SUNDAY)) {
             throw DomainException.badRequest("No se puede marcar asistencia los sábados ni los domingos");
         }
         if (!marcacionRepository.findByEmpleado_IdEmpleadoAndTipoAndFecha(empleado.getIdEmpleado(), request.tipo(), fecha).isEmpty()
-                && "WEB".equals(origen)) {
+                && ("WEB".equals(origen) || "MOVIL".equals(origen))) {
             throw DomainException.conflict("Ya existe una marcación de " + request.tipo() + " para hoy");
         }
         Marcacion m = new Marcacion();

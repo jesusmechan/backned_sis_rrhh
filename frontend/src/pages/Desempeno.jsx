@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
+import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Avatar, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { hoyISO } from './altaShared';
 import { text } from '../lib/input';
 import { useAuth } from '../auth/AuthContext';
@@ -14,18 +15,26 @@ const empty = {
 export function Desempeno() {
   const { hasAnyRole } = useAuth();
   const puedeRegistrar = hasAnyRole('ADMIN', 'RRHH', 'JEFE', 'GERENCIA');
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [empleados, setEmpleados] = useState([]);
   const [form, setForm] = useState(empty);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
   const [q, setQ, qDebounced] = useQuerySearch();
+  const [idEmpleado, setIdEmpleado] = useState('');
+  const [periodo, setPeriodo] = useState('');
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, idEmpleado, periodo, empleados],
+    (pageNum) => {
+      const empName = empleados.find((e) => String(e.idEmpleado) === String(idEmpleado))?.nombreCompleto;
+      return http.page(pagePath('/api/evaluaciones', {
+        page: pageNum,
+        size: PAGE_SIZE,
+        q: [qDebounced, empName, periodo].filter(Boolean).join(' ')
+      }));
+    }
+  );
 
   useEffect(() => {
     if (!puedeRegistrar) return;
@@ -33,15 +42,6 @@ export function Desempeno() {
       .then((data) => setEmpleados(data.content || []))
       .catch((e) => setError(e.message));
   }, [puedeRegistrar]);
-
-  useEffect(() => {
-    http.page(pagePath('/api/evaluaciones', { page, size: PAGE_SIZE, q: qDebounced }))
-      .then((data) => {
-        setRows(data.content || []);
-        setMeta(data);
-      })
-      .catch((e) => setError(e.message));
-  }, [page, qDebounced]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -63,10 +63,8 @@ export function Desempeno() {
       setOk('Evaluación registrada');
       setOpen(false);
       setForm(empty);
-      const data = await http.page(pagePath('/api/evaluaciones', { page: 1, size: PAGE_SIZE, q: qDebounced }));
-      setRows(data.content || []);
-      setMeta(data);
       setPage(1);
+      await reload(1);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,7 +82,7 @@ export function Desempeno() {
             Evaluación de puntualidad, calidad, cooperación e iniciativa (escala 1 a 5). El promedio se calcula al guardar.
           </p>
         </div>
-        {puedeRegistrar && <Button onClick={() => { setError(''); setForm({ ...fecha: hoyISO() }); setOpen(true); }}><Plus size={16} /> Nueva evaluación</Button>}
+        {puedeRegistrar && <Button onClick={() => { setError(''); setForm({ ...empty, fecha: hoyISO() }); setOpen(true); }}><Plus size={16} /> Nueva evaluación</Button>}
       </div>
 
       <Alert>{error}</Alert>
@@ -92,6 +90,29 @@ export function Desempeno() {
 
       <FilterBar>
         <SearchField placeholder="Buscar colaborador, periodo o comentario" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        {puedeRegistrar && (
+          <select className="w-auto" value={idEmpleado} onChange={(e) => { setIdEmpleado(e.target.value); setPage(1); }}>
+            <option value="">Todos los colaboradores</option>
+            {empleados.map((e) => (
+              <option key={e.idEmpleado} value={e.idEmpleado}>{e.nombreCompleto}</option>
+            ))}
+          </select>
+        )}
+        <input
+          className="w-auto min-w-[9rem]"
+          placeholder="Periodo (ej. 2026-Q1)"
+          value={periodo}
+          onChange={(e) => { setPeriodo(e.target.value); setPage(1); }}
+        />
+        {(qDebounced || idEmpleado || periodo) && (
+          <button
+            type="button"
+            className="text-xs font-medium text-navy hover:underline"
+            onClick={() => { setQ(''); setIdEmpleado(''); setPeriodo(''); setPage(1); }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

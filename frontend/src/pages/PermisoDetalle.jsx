@@ -18,7 +18,11 @@ export function PermisoDetalle() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Trámites</p>
           <h1 className="page-title mt-1">Solicitud de permiso</h1>
           {detalle && (
-            <p className="mt-2 text-sm text-muted">{detalle.tipoPermiso} · #{detalle.idSolicitudPermiso}</p>
+            <p className="mt-2 text-sm text-muted">
+              {detalle.tipoPermiso}
+              <span className="mx-1.5 text-slate-300">·</span>
+              <span className="font-medium text-navy">#{detalle.idSolicitudPermiso}</span>
+            </p>
           )}
         </div>
         <SolicitudAcciones

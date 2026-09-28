@@ -160,7 +160,7 @@ Query: `page`, `size`, `q`, `activo` (excepto parámetros).
 { "nombre": "Turno tarde", "horaIngreso": "14:00", "horaSalida": "22:00", "minutosRefrigerio": 45, "activo": true }
 ```
 
-El cierre de planilla toma código y nombre de la cuenta activa según `uso` (`SUELDOS`, `ESSALUD_GASTO`, `ONP_POR_PAGAR`, `ESSALUD_POR_PAGAR`, `REMU_POR_PAGAR`, `DESC_AUSENCIAS`). Si la cuenta está inactiva se usan los códigos PCGE de respaldo.
+El cierre de planilla toma código y nombre de la cuenta activa según `uso` (`SUELDOS`, `ESSALUD_GASTO`, `ONP_POR_PAGAR`, `AFP_POR_PAGAR`, `QUINTA_POR_PAGAR`, `ESSALUD_POR_PAGAR`, `REMU_POR_PAGAR`, `DESC_AUSENCIAS`). Si la cuenta está inactiva se usan los códigos PCGE de respaldo.
 
 ## Personal
 
@@ -299,7 +299,7 @@ Misma convención que permisos.
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/bandeja` | Por defecto pasos `EN_CURSO` asignados. `vista=SEGUIMIENTO` lista solicitudes creadas o ya decididas por el usuario (`tipo`, `q`, `estado`) |
+| GET | `/api/bandeja` | Por defecto pasos `EN_CURSO` asignados. `vista=SEGUIMIENTO` lista solicitudes creadas o ya decididas por el usuario (`tipo`, `q`, `estado`, `tramite`, `desde`, `hasta`, `orden=ASC\|DESC`) |
 | POST | `/api/pasos/{id}/aprobar` | Aprobar el paso |
 | POST | `/api/pasos/{id}/rechazar` | Rechazar (cierra la solicitud) |
 
@@ -451,6 +451,32 @@ Cuerpo típico:
 | 401 | Sin token o token inválido |
 | 403 | Rol insuficiente |
 | 404 | Recurso inexistente |
+| 409 | Conflicto (p. ej. Idempotency-Key en curso o planilla ya cerrada) |
+| 422 | Idempotency-Key reutilizada con otro cuerpo/ruta |
+| 429 | Rate limit superado |
+| 500 | Error interno (sin stack trace al cliente) |
+
+Los errores 5xx no incluyen stack traces ni detalles de base de datos en la respuesta.
+
+## Idempotencia
+
+En operaciones críticas puedes enviar:
+
+```
+Idempotency-Key: <uuid-o-clave-unica>
+```
+
+Si reintentas con la misma clave, el mismo token y el mismo cuerpo, la API devolvió la **misma respuesta** del primer intento (cabecera `Idempotency-Replayed: true`).
+
+Aplica a:
+
+- `POST /api/planillas/{id}/calcular`
+- `POST /api/planillas/{id}/cerrar`
+- `POST /api/pasos/{id}/aprobar`
+- `POST /api/pasos/{id}/rechazar`
+- `POST /api/asistencias/marcar`
+
+La cabecera es opcional; sin ella el comportamiento es el habitual. TTL por defecto: 24 h (`IDEMPOTENCY_TTL_HOURS`).
 
 ## Variables de entorno
 
@@ -460,13 +486,38 @@ Archivo `backend/.env` (se carga al arrancar):
 |---|---|
 | `DB_URL` | JDBC de PostgreSQL |
 | `DB_USERNAME` | Usuario de la base |
-| `DB_PASSWORD` | Contraseña |
-| `JWT_SECRET` | Firma de los tokens |
+| `DB_PASSWORD` | Contraseña (**obligatoria**) |
+| `JWT_SECRET` | Firma de los tokens (**obligatoria**, ≥ 32 caracteres; sin default en código). Para rotar: cambia el valor y fuerza logout (tokens previos dejan de validarse) |
 | `CORS_ORIGINS` | Orígenes permitidos, separados por coma |
+| `RATE_LIMIT_ENABLED` | Activa el cupo por IP |
+| `RATE_LIMIT_API` | Requests/minuto a `/api/**` |
+| `RATE_LIMIT_AUTH` | Requests/minuto a login/refresh |
+| `IDEMPOTENCY_ENABLED` | Activa reutilización por `Idempotency-Key` |
+| `IDEMPOTENCY_TTL_HOURS` | Ventana de la caché de idempotencia |
+
+## Seguridad operativa
+
+- Escaneo de dependencias: `mvn -f backend/pom.xml -DskipTests org.owasp:dependency-check-maven:check`
+- Autorización por recurso: el colaborador solo ve su ficha/contrato/asistencia; un JEFE solo evalúa a su equipo directo.
+- HTTPS: terminarlo en el reverse proxy (nginx, Caddy, etc.) delante de la API.
 
 ## Planillas y remuneraciones
 
-El cálculo usa la remuneración básica del contrato vigente, las horas extras **aprobadas** del mes (`valor hora = básico / 240 × 1.25`) y los permisos aprobados que no son vacaciones (descuento a `básico / 30` por día). Los colaboradores tienen ONP (13 %) y EsSalud (9 %); los practicantes solo subvención. Al cerrar se genera el asiento con las cuentas del maestro (`uso` SUELDOS, ESSALUD_GASTO, ONP_POR_PAGAR, ESSALUD_POR_PAGAR, REMU_POR_PAGAR, DESC_AUSENCIAS; respaldo 6211 / 6271 / 4031 / 4032 / 4111 / 4699).
+El cálculo sigue un **modelo de planilla peruana (2026)** configurable por parámetros:
+
+| Concepto | Regla |
+|----------|--------|
+| Remuneración básica | Del contrato vigente, prorrateada × días/30 si ingreso o cese en el mes |
+| Asignación familiar | 10% RMV si el contrato marca hijos (Ley 25129); computable |
+| Horas extras | Aprobadas del mes: primeras 2 h × 1.25, resto × 1.35 (D. Leg. 854); valor hora = ordinaria / 240 |
+| ONP | 13% sobre base de aportes (colaboradores en ONP) |
+| AFP | 10% fondo + comisión por AFP + seguro (~1.37%) |
+| Renta 5ta | Retención mensual simplificada: proyección ×14 − 7 UIT y escala progresiva / 12 |
+| Ausencias | Permisos aprobados (no vacaciones) × básica/30 |
+| EsSalud | 9% a cargo del **empleador** (mínimo sobre RMV); no descuenta al trabajador |
+| Practicantes | Sin pensión ni EsSalud; solo subvención + HE si aplica |
+
+Régimen pensionario, AFP y asignación familiar se configuran en el **contrato**. Al cerrar se genera el asiento con usos `SUELDOS`, `ESSALUD_GASTO`, `ONP_POR_PAGAR`, `AFP_POR_PAGAR`, `QUINTA_POR_PAGAR`, `ESSALUD_POR_PAGAR`, `REMU_POR_PAGAR`, `DESC_AUSENCIAS`.
 
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|

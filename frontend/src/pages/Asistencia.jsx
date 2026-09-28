@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, Download, Timer } from 'lucide-react';
-import { emptyPage, http, pagePath, SELECT_SIZE } from '../api/client';
+import { http, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Avatar, Button, DataList, DatePicker, Field, FilterBar, Modal, Pager, Panel, SearchField, TimePicker, downloadBlob } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 
 function sameMonth(iso, d = new Date()) {
   const x = new Date(iso);
@@ -53,40 +54,49 @@ function limaTime(iso) {
 export function Asistencia() {
   const { usuario, hasAnyRole } = useAuth();
   const canSupervise = hasAnyRole('ADMIN', 'RRHH');
-  const [rows, setRows] = useState([]);
   const [mineRows, setMineRows] = useState([]);
   const [mineTotal, setMineTotal] = useState(0);
   const [equipoTotal, setEquipoTotal] = useState(0);
-  const [meta, setMeta] = useState({ ...emptyPage, size: 7 });
   const [horario, setHorario] = useState('');
-  const [error, setError] = useState('');
   const [tab, setTab] = useState('mias');
   const [tipoFiltro, setTipoFiltro] = useState('');
   const [q, setQ, qDebounced] = useQuerySearch();
-  const [page, setPage] = useState(1);
+  const [desde, setDesde] = useState(() => monthRange().desde);
+  const [hasta, setHasta] = useState(() => monthRange().hasta);
   const [edit, setEdit] = useState(null);
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState('');
   const pageSize = 7;
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, tipoFiltro, tab, desde, hasta, usuario?.idEmpleado],
+    (pageNum) => http.page(pagePath('/api/asistencias', {
+      desde,
+      hasta,
+      page: pageNum,
+      size: pageSize,
+      tipo: tipoFiltro,
+      q: qDebounced,
+      idEmpleado: tab === 'mias' ? usuario?.idEmpleado : undefined
+    }))
+  );
 
   function monthRange() {
     const d = new Date();
-    const desde = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-    const hasta = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return { desde, hasta };
+    const desdeMes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    const hastaHoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return { desde: desdeMes, hasta: hastaHoy };
   }
 
   async function loadMetrics() {
-    const { desde, hasta } = monthRange();
+    const rango = monthRange();
     const mine = await http.page(pagePath('/api/asistencias', {
-      desde, hasta, page: 1, size: SELECT_SIZE, idEmpleado: usuario?.idEmpleado
+      desde: rango.desde, hasta: rango.hasta, page: 1, size: SELECT_SIZE, idEmpleado: usuario?.idEmpleado
     }));
     setMineRows(mine.content);
     setMineTotal(mine.totalElements);
     if (canSupervise) {
-      const team = await http.page(pagePath('/api/asistencias', { desde, hasta, page: 1, size: 1 }));
+      const team = await http.page(pagePath('/api/asistencias', { desde: rango.desde, hasta: rango.hasta, page: 1, size: 1 }));
       setEquipoTotal(team.totalElements || 0);
     }
     if (usuario?.idEmpleado) {
@@ -99,23 +109,7 @@ export function Asistencia() {
     }
   }
 
-  async function loadTable() {
-    const { desde, hasta } = monthRange();
-    const data = await http.page(pagePath('/api/asistencias', {
-      desde,
-      hasta,
-      page,
-      size: pageSize,
-      tipo: tipoFiltro,
-      q: qDebounced,
-      idEmpleado: tab === 'mias' ? usuario?.idEmpleado : undefined
-    }));
-    setRows(data.content);
-    setMeta(data);
-  }
-
   useEffect(() => { loadMetrics().catch((e) => setError(e.message)); }, []);
-  useEffect(() => { loadTable().catch((e) => setError(e.message)); }, [page, tab, tipoFiltro, qDebounced]);
 
   const monthMine = mineRows.filter((r) => sameMonth(r.fechaHora));
   const dias = new Set(monthMine.filter((r) => r.tipo === 'INGRESO').map((r) => new Date(r.fechaHora).toDateString())).size;
@@ -166,7 +160,7 @@ export function Asistencia() {
       });
       setOk('Marcación corregida.');
       setEdit(null);
-      await Promise.all([loadMetrics(), loadTable()]);
+      await Promise.all([loadMetrics(), reload()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -222,7 +216,32 @@ export function Asistencia() {
           <option value="INGRESO">Entrada</option>
           <option value="SALIDA">Salida</option>
         </select>
+        <DatePicker value={desde} onChange={(v) => { setDesde(v); setPage(1); }} max={hasta || undefined} />
+        <DatePicker value={hasta} onChange={(v) => { setHasta(v); setPage(1); }} min={desde || undefined} />
         <SearchField placeholder="Buscar colaborador" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <button
+          type="button"
+          className="text-xs font-medium text-navy hover:underline"
+          onClick={() => {
+            const r = monthRange();
+            setDesde(r.desde);
+            setHasta(r.hasta);
+            setTipoFiltro('');
+            setQ('');
+            setPage(1);
+          }}
+        >
+          Mes actual
+        </button>
+        {(qDebounced || tipoFiltro) && (
+          <button
+            type="button"
+            className="text-xs font-medium text-navy hover:underline"
+            onClick={() => { setQ(''); setTipoFiltro(''); setPage(1); }}
+          >
+            Limpiar
+          </button>
+        )}
         {canSupervise && <Button variant="secondary" onClick={exportar}><Download size={14} /> Exportar</Button>}
       </FilterBar>
 

@@ -1,12 +1,15 @@
 package pe.andina.rrhh.adapter.in.web;
 
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import pe.andina.rrhh.domain.exception.DomainException;
 import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +18,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(DomainException.class)
     public ResponseEntity<ApiError> handleApi(DomainException ex) {
@@ -52,11 +57,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiError> handleConstraint(ConstraintViolationException ex) {
-        return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", ex.getMessage()));
+        String message = ex.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getMessage() != null ? v.getMessage() : "Datos inválidos")
+                .orElse("Datos inválidos");
+        return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", message));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiError.of(400, "Bad Request", "El cuerpo de la solicitud no es válido"));
     }
 
     @ExceptionHandler(CannotCreateTransactionException.class)
     public ResponseEntity<ApiError> handleNoDb(CannotCreateTransactionException ex) {
+        log.error("Sin conexión a base de datos", ex);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiError.of(503, "Service Unavailable",
                         "No se pudo conectar a PostgreSQL. Revisa DB_URL, DB_USERNAME y DB_PASSWORD en backend/.env."));
@@ -64,11 +80,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiError> handleDatabase(DataAccessException ex) {
-        String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-        if (detail != null && detail.toLowerCase().contains("json")) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiError.of(500, "Error interno", "No se pudo registrar la operación."));
-        }
+        log.error("Error de acceso a datos", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiError.of(500, "Error interno", "No se pudo completar la operación."));
     }
@@ -77,10 +89,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex) {
         String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         String lower = detail == null ? "" : detail.toLowerCase();
-        if (lower.contains("json")) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiError.of(500, "Error interno", "No se pudo registrar la operación."));
-        }
         if (lower.contains("ck_permiso_horas")) {
             return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
                     "La hora de fin debe ser posterior a la de inicio. Para un día completo, deje las horas vacías."));
@@ -89,7 +97,15 @@ public class GlobalExceptionHandler {
             return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
                     "La fecha de fin no puede ser anterior a la de inicio."));
         }
+        log.warn("Conflicto de integridad: {}", detail);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(409, "Conflict", "La operación entra en conflicto con un registro existente."));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleGeneric(Exception ex) {
+        log.error("Error no controlado", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiError.of(500, "Error interno", "Ocurrió un error inesperado. Intente de nuevo."));
     }
 }

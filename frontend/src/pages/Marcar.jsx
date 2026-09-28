@@ -23,7 +23,13 @@ function esFinDeSemana(date = new Date()) {
 
 function formatTime(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', ...LIMA });
+  return new Date(iso).toLocaleTimeString('es-PE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    ...LIMA
+  });
 }
 
 function formatDuration(ms) {
@@ -35,10 +41,43 @@ function formatDuration(ms) {
   return `${h} h ${String(m).padStart(2, '0')} min`;
 }
 
+function shiftIso(iso, days) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+function formatDayLabel(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12));
+  return dt.toLocaleDateString('es-PE', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'UTC'
+  });
+}
+
+/** Agrupa marcaciones por fecha Lima → { fecha, entrada, salida } */
+function groupByDay(rows) {
+  const map = new Map();
+  rows.forEach((r) => {
+    const fecha = r.fecha
+      || new Intl.DateTimeFormat('en-CA', { ...LIMA, year: 'numeric', month: '2-digit', day: '2-digit' })
+        .format(new Date(r.fechaHora));
+    if (!map.has(fecha)) map.set(fecha, { fecha, entrada: null, salida: null });
+    const day = map.get(fecha);
+    if (r.tipo === 'INGRESO') day.entrada = r;
+    if (r.tipo === 'SALIDA') day.salida = r;
+  });
+  return [...map.values()].sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+}
+
 export function Marcar() {
   const { usuario, canAccess } = useAuth();
   const [now, setNow] = useState(new Date());
   const [hoy, setHoy] = useState([]);
+  const [historial, setHistorial] = useState([]);
   const [horario, setHorario] = useState('');
   const [cargo, setCargo] = useState('');
   const [error, setError] = useState('');
@@ -47,14 +86,25 @@ export function Marcar() {
 
   async function load() {
     const fecha = todayIso();
-    const data = await http.page(pagePath('/api/asistencias', {
-      desde: fecha,
-      hasta: fecha,
-      page: 1,
-      size: 10,
-      idEmpleado: usuario?.idEmpleado
-    }));
-    setHoy(data.content);
+    const desde = shiftIso(fecha, -13);
+    const [dataHoy, dataHist] = await Promise.all([
+      http.page(pagePath('/api/asistencias', {
+        desde: fecha,
+        hasta: fecha,
+        page: 1,
+        size: 10,
+        idEmpleado: usuario?.idEmpleado
+      })),
+      http.page(pagePath('/api/asistencias', {
+        desde,
+        hasta: fecha,
+        page: 1,
+        size: 50,
+        idEmpleado: usuario?.idEmpleado
+      }))
+    ]);
+    setHoy(dataHoy.content);
+    setHistorial(groupByDay(dataHist.content || []));
     if (usuario?.idEmpleado) {
       try {
         const emp = await http.get(`/api/empleados/${usuario.idEmpleado}`);
@@ -71,6 +121,20 @@ export function Marcar() {
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
+  }, []);
+  // Sincroniza si la marcación se hizo desde móvil u otra pestaña.
+  useEffect(() => {
+    const id = setInterval(() => {
+      load().catch(() => {});
+    }, 5000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const entrada = hoy.find((r) => r.tipo === 'INGRESO');
@@ -227,11 +291,21 @@ export function Marcar() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-navy">{t.label}</p>
-                    <p className="text-xs text-muted">
-                      {done ? `Registrada a las ${formatTime(done.fechaHora)}` : current ? 'Siguiente paso' : t.hint}
+                    <p className={`text-xs ${done ? 'font-semibold tabular-nums text-ok' : 'text-muted'}`}>
+                      {done
+                        ? `Marcada a las ${formatTime(done.fechaHora)}`
+                        : current
+                          ? 'Siguiente paso'
+                          : t.hint}
                     </p>
                   </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{i + 1}/2</span>
+                  {done ? (
+                    <span className="font-mono text-base font-bold tabular-nums text-navy">
+                      {formatTime(done.fechaHora).slice(0, 5)}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{i + 1}/2</span>
+                  )}
                 </li>
               );
             })}
@@ -271,6 +345,63 @@ export function Marcar() {
         <Hint icon={<Clock3 size={16} />} title="Una marca por tipo" text="No se puede repetir la entrada ni la salida del mismo día." />
         <Hint icon={<LogIn size={16} />} title="Origen WEB" text="El registro usa la hora oficial America/Lima." />
       </div>
+
+      <section className="mt-6 rounded-2xl border border-line bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-navy">Marcaciones recientes</p>
+            <p className="mt-0.5 text-xs text-muted">Últimos 14 días · hora de Lima</p>
+          </div>
+          {canAccess('/asistencia') && (
+            <Link to="/asistencia" className="text-xs font-medium text-navy hover:underline">
+              Ver historial completo
+            </Link>
+          )}
+        </div>
+
+        {historial.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">Aún no hay marcaciones en este periodo.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line">
+            {historial.map((day) => {
+              const esHoy = day.fecha === todayIso();
+              const dur = day.entrada && day.salida
+                ? formatDuration(new Date(day.salida.fechaHora) - new Date(day.entrada.fechaHora))
+                : null;
+              return (
+                <li key={day.fecha} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-[7.5rem]">
+                    <p className="text-sm font-semibold capitalize text-navy">
+                      {formatDayLabel(day.fecha)}
+                      {esHoy && <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-info">Hoy</span>}
+                    </p>
+                    <p className="text-xs tabular-nums text-muted">{day.fecha}</p>
+                  </div>
+                  <div className="flex flex-1 flex-wrap gap-2 text-sm">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 ring-1 ring-line">
+                      <LogIn size={14} className="text-ok" />
+                      <span className="text-xs text-muted">Entrada</span>
+                      <span className="font-mono font-semibold tabular-nums text-navy">
+                        {day.entrada ? formatTime(day.entrada.fechaHora) : '—'}
+                      </span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 ring-1 ring-line">
+                      <LogOut size={14} className="text-info" />
+                      <span className="text-xs text-muted">Salida</span>
+                      <span className="font-mono font-semibold tabular-nums text-navy">
+                        {day.salida ? formatTime(day.salida.fechaHora) : '—'}
+                      </span>
+                    </span>
+                  </div>
+                  {dur && (
+                    <span className="text-xs font-medium tabular-nums text-muted">{dur}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

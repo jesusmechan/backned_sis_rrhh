@@ -23,6 +23,7 @@ import pe.andina.rrhh.domain.model.enums.EstadoEmpleado;
 import pe.andina.rrhh.domain.model.enums.EstadoPlanilla;
 import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
+import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
 import pe.andina.rrhh.application.dto.AppDtos.AsientoLineaResponse;
 import pe.andina.rrhh.application.dto.AppDtos.AsientoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PlanillaDetalleResponse;
@@ -134,10 +135,7 @@ public class PlanillaService implements PlanillaUseCase {
         YearMonth ym = YearMonth.of(p.getAnio(), p.getMes());
         LocalDate desde = ym.atDay(1);
         LocalDate hasta = ym.atEndOfMonth();
-        BigDecimal tasaHe = parametros.decimal("tasa_hora_extra", "1.25");
-        BigDecimal tasaOnp = parametros.decimal("tasa_onp", "0.13");
-        BigDecimal tasaEssalud = parametros.decimal("tasa_essalud", "0.09");
-        BigDecimal horasMes = parametros.decimal("horas_mensuales_base", "240");
+        PlanillaCalculoPeru calc = new PlanillaCalculoPeru(parametros);
 
         BigDecimal tBruto = CERO;
         BigDecimal tDesc = CERO;
@@ -157,10 +155,10 @@ public class PlanillaService implements PlanillaUseCase {
             if (contrato.getFechaFin() != null && contrato.getFechaFin().isBefore(desde)) {
                 continue;
             }
-            PlanillaDetalle d = calcularBoleta(p, empleado, contrato, desde, hasta, tasaHe, tasaOnp, tasaEssalud, horasMes);
+            PlanillaDetalle d = calcularBoleta(p, empleado, contrato, desde, hasta, calc);
             detalleRepository.save(d);
             tBruto = tBruto.add(d.getBruto());
-            tDesc = tDesc.add(d.getOnp()).add(d.getDescuentoAusencias());
+            tDesc = tDesc.add(d.totalDescuentosTrabajador());
             tAporte = tAporte.add(d.getEssalud());
             tNeto = tNeto.add(d.getNeto());
         }
@@ -232,38 +230,84 @@ public class PlanillaService implements PlanillaUseCase {
     }
 
     private PlanillaDetalle calcularBoleta(Planilla p, Empleado empleado, Contrato contrato,
-                                          LocalDate desde, LocalDate hasta,
-                                          BigDecimal tasaHe, BigDecimal tasaOnp, BigDecimal tasaEssalud, BigDecimal horasMes) {
-        BigDecimal base = contrato.getRemuneracionBasica() == null || contrato.getRemuneracionBasica().signum() <= 0
-                ? (contrato.getModalidad() == ModalidadContrato.PRACTICANTE ? new BigDecimal("1500") : new BigDecimal("2500"))
+                                          LocalDate desde, LocalDate hasta, PlanillaCalculoPeru calc) {
+        BigDecimal rmv = calc.rmv();
+        BigDecimal sueldoContrato = contrato.getRemuneracionBasica() == null || contrato.getRemuneracionBasica().signum() <= 0
+                ? (contrato.getModalidad() == ModalidadContrato.PRACTICANTE ? new BigDecimal("1025") : rmv)
                 : contrato.getRemuneracionBasica();
-        base = base.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal horas = horasExtras(empleado.getIdEmpleado(), desde, hasta);
-        BigDecimal valorHora = horasMes.signum() == 0 ? CERO : base.divide(horasMes, 6, RoundingMode.HALF_UP);
-        BigDecimal montoHe = horas.multiply(valorHora).multiply(tasaHe).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal dias = diasNoLaborados(empleado.getIdEmpleado(), desde, hasta);
-        BigDecimal descAus = dias.multiply(base).divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP);
+        sueldoContrato = sueldoContrato.setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal diasComputados = diasComputadosEnMes(contrato, desde, hasta);
+        BigDecimal basica = calc.prorratear(sueldoContrato, diasComputados);
         boolean colaborador = contrato.getModalidad() != ModalidadContrato.PRACTICANTE;
-        BigDecimal bruto = base.add(montoHe).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal onp = colaborador ? bruto.multiply(tasaOnp).setScale(2, RoundingMode.HALF_UP) : CERO;
-        BigDecimal essalud = colaborador ? bruto.multiply(tasaEssalud).setScale(2, RoundingMode.HALF_UP) : CERO;
-        BigDecimal neto = bruto.subtract(onp).subtract(descAus).max(CERO).setScale(2, RoundingMode.HALF_UP);
+        boolean asignacion = colaborador && contrato.isTieneAsignacionFamiliar();
+        BigDecimal asigFamiliar = calc.prorratear(calc.asignacionFamiliarMensual(asignacion), diasComputados);
+
+        // Valor hora y HE sobre remuneración ordinaria (básica + asignación familiar del mes)
+        BigDecimal ordinaria = basica.add(asigFamiliar);
+        BigDecimal horas = horasExtras(empleado.getIdEmpleado(), desde, hasta);
+        BigDecimal montoHe = calc.montoHorasExtras(ordinaria, horas);
+
+        BigDecimal diasAus = diasNoLaborados(empleado.getIdEmpleado(), desde, hasta);
+        BigDecimal descAus = diasAus.multiply(sueldoContrato).divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP);
+
+        BigDecimal bruto = ordinaria.add(montoHe).setScale(2, RoundingMode.HALF_UP);
+        // Base de aportes: bruto menos descuento por ausencias (días no pagados)
+        BigDecimal baseAporte = bruto.subtract(descAus).max(CERO);
+
+        RegimenPensionario regimen = resolverRegimen(contrato, colaborador);
+        PlanillaCalculoPeru.Pension pension = calc.calcularPension(regimen, contrato.getAfpNombre(), baseAporte);
+        BigDecimal quinta = colaborador ? calc.retencionQuintaMensual(baseAporte) : CERO;
+        BigDecimal essalud = calc.essaludEmpleador(baseAporte, colaborador);
+        BigDecimal neto = baseAporte
+                .subtract(pension.total())
+                .subtract(quinta)
+                .max(CERO)
+                .setScale(2, RoundingMode.HALF_UP);
 
         PlanillaDetalle d = new PlanillaDetalle();
         d.setPlanilla(p);
         d.setEmpleado(empleado);
         d.setContrato(contrato);
         d.setModalidad(contrato.getModalidad().name());
-        d.setRemuneracionBasica(base);
+        d.setRegimenPensionario(regimen.name());
+        d.setRemuneracionBasica(basica);
+        d.setAsignacionFamiliar(asigFamiliar);
         d.setHorasExtras(horas);
         d.setMontoHorasExtras(montoHe);
-        d.setDiasNoLaborados(dias);
+        d.setDiasComputados(diasComputados);
+        d.setDiasNoLaborados(diasAus);
         d.setDescuentoAusencias(descAus);
-        d.setOnp(onp);
+        d.setOnp(pension.onp());
+        d.setAfpAporte(pension.afpAporte());
+        d.setAfpComision(pension.afpComision());
+        d.setAfpSeguro(pension.afpSeguro());
+        d.setQuintaCategoria(quinta);
         d.setEssalud(essalud);
         d.setBruto(bruto);
         d.setNeto(neto);
         return d;
+    }
+
+    private RegimenPensionario resolverRegimen(Contrato contrato, boolean colaborador) {
+        if (!colaborador) {
+            return RegimenPensionario.NINGUNO;
+        }
+        return contrato.getRegimenPensionario() != null
+                ? contrato.getRegimenPensionario()
+                : RegimenPensionario.ONP;
+    }
+
+    /** Días del mes en que el contrato estuvo vigente (tope 30, método laboral peruano). */
+    private BigDecimal diasComputadosEnMes(Contrato contrato, LocalDate desde, LocalDate hasta) {
+        LocalDate ini = contrato.getFechaInicio().isAfter(desde) ? contrato.getFechaInicio() : desde;
+        LocalDate fin = contrato.getFechaFin() != null && contrato.getFechaFin().isBefore(hasta)
+                ? contrato.getFechaFin() : hasta;
+        if (fin.isBefore(ini)) {
+            return CERO;
+        }
+        long dias = fin.toEpochDay() - ini.toEpochDay() + 1;
+        return BigDecimal.valueOf(Math.min(30, dias)).setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal horasExtras(Integer idEmpleado, LocalDate desde, LocalDate hasta) {
@@ -305,17 +349,23 @@ public class PlanillaService implements PlanillaUseCase {
         addLineaUso(a, "SUELDOS", "6211", "Sueldos y salarios", p.getTotalBruto(), CERO);
         addLineaUso(a, "ESSALUD_GASTO", "6271", "EsSalud", p.getTotalAportes(), CERO);
         BigDecimal onp = CERO;
+        BigDecimal afp = CERO;
+        BigDecimal quinta = CERO;
         BigDecimal ausencias = CERO;
         for (PlanillaDetalle d : detalleRepository.findByPlanilla_IdPlanillaOrderByIdDetalleAsc(p.getIdPlanilla())) {
             onp = onp.add(d.getOnp());
+            afp = afp.add(d.totalAfp());
+            quinta = quinta.add(d.getQuintaCategoria());
             ausencias = ausencias.add(d.getDescuentoAusencias());
         }
         addLineaUso(a, "ONP_POR_PAGAR", "4031", "ONP por pagar", CERO, onp);
+        addLineaUso(a, "AFP_POR_PAGAR", "4033", "AFP por pagar", CERO, afp);
+        addLineaUso(a, "QUINTA_POR_PAGAR", "4017", "Renta 5ta por pagar", CERO, quinta);
         addLineaUso(a, "ESSALUD_POR_PAGAR", "4032", "EsSalud por pagar", CERO, p.getTotalAportes());
         addLineaUso(a, "REMU_POR_PAGAR", "4111", "Remuneraciones por pagar", CERO, p.getTotalNeto());
         addLineaUso(a, "DESC_AUSENCIAS", "4699", "Descuentos por ausencias", CERO, ausencias);
         a.setTotalDebe(p.getTotalBruto().add(p.getTotalAportes()));
-        a.setTotalHaber(onp.add(p.getTotalAportes()).add(p.getTotalNeto()).add(ausencias));
+        a.setTotalHaber(onp.add(afp).add(quinta).add(p.getTotalAportes()).add(p.getTotalNeto()).add(ausencias));
         return a;
     }
 
@@ -367,8 +417,12 @@ public class PlanillaService implements PlanillaUseCase {
     private PlanillaDetalleResponse toDetalle(PlanillaDetalle d) {
         return new PlanillaDetalleResponse(
                 d.getIdDetalle(), d.getEmpleado().getIdEmpleado(), d.getEmpleado().nombreCompleto(),
-                d.getModalidad(), d.getRemuneracionBasica(), d.getHorasExtras(), d.getMontoHorasExtras(),
-                d.getDiasNoLaborados(), d.getDescuentoAusencias(), d.getOnp(), d.getEssalud(), d.getBruto(), d.getNeto()
+                d.getModalidad(), d.getRegimenPensionario(),
+                d.getRemuneracionBasica(), d.getAsignacionFamiliar(),
+                d.getHorasExtras(), d.getMontoHorasExtras(),
+                d.getDiasComputados(), d.getDiasNoLaborados(), d.getDescuentoAusencias(),
+                d.getOnp(), d.getAfpAporte(), d.getAfpComision(), d.getAfpSeguro(), d.totalAfp(),
+                d.getQuintaCategoria(), d.getEssalud(), d.getBruto(), d.getNeto()
         );
     }
 

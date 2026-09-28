@@ -24,24 +24,33 @@ public class DesempenoService implements DesempenoUseCase {
 
     private final EvaluacionDesempenoPort evaluacionRepository;
     private final EmpleadoUseCase empleadoService;
+    private final EmpleadoScope empleadoScope;
     private final AuditoriaUseCase auditoriaService;
 
     private final CurrentUserPort currentUser;
 
     public DesempenoService(EvaluacionDesempenoPort evaluacionRepository,
                             EmpleadoUseCase empleadoService,
+                            EmpleadoScope empleadoScope,
                             AuditoriaUseCase auditoriaService,
                            CurrentUserPort currentUser) {
         this.evaluacionRepository = evaluacionRepository;
         this.empleadoService = empleadoService;
+        this.empleadoScope = empleadoScope;
         this.auditoriaService = auditoriaService;
         this.currentUser = currentUser;
     }
 
     @Transactional(readOnly = true)
     public List<EvaluacionResponse> listar() {
-        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("JEFE") || currentUser.hasRole("GERENCIA")) {
+        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("GERENCIA")) {
             return evaluacionRepository.findAllByOrderByFechaDescIdEvaluacionDesc().stream().map(this::toResponse).toList();
+        }
+        if (currentUser.hasRole("JEFE")) {
+            return evaluacionRepository.findAllByOrderByFechaDescIdEvaluacionDesc().stream()
+                    .filter(e -> empleadoScope.esJefeDirectoDe(e.getEmpleado()))
+                    .map(this::toResponse)
+                    .toList();
         }
         Integer propio = currentUser.idEmpleado();
         if (propio == null) {
@@ -53,11 +62,16 @@ public class DesempenoService implements DesempenoUseCase {
     @Transactional(readOnly = true)
     public EvaluacionResponse obtener(Integer id) {
         EvaluacionDesempeno e = buscar(id);
-        if (!currentUser.isAdminOrRrhh() && !currentUser.hasRole("JEFE") && !currentUser.hasRole("GERENCIA")) {
-            Integer propio = currentUser.idEmpleado();
-            if (propio == null || !propio.equals(e.getEmpleado().getIdEmpleado())) {
-                throw DomainException.forbidden("No puede consultar evaluaciones de otro trabajador");
-            }
+        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("GERENCIA")) {
+            return toResponse(e);
+        }
+        if (currentUser.hasRole("JEFE")) {
+            empleadoScope.assertPuedeGestionarEquipo(e.getEmpleado());
+            return toResponse(e);
+        }
+        Integer propio = currentUser.idEmpleado();
+        if (propio == null || !propio.equals(e.getEmpleado().getIdEmpleado())) {
+            throw DomainException.forbidden("No puede consultar evaluaciones de otro trabajador");
         }
         return toResponse(e);
     }
@@ -68,6 +82,7 @@ public class DesempenoService implements DesempenoUseCase {
             throw DomainException.forbidden("Solo jefatura, gerencia o RR. HH. puede registrar evaluaciones");
         }
         Empleado empleado = empleadoService.buscar(request.idEmpleado());
+        empleadoScope.assertPuedeGestionarEquipo(empleado);
         EvaluacionDesempeno e = new EvaluacionDesempeno();
         e.setEmpleado(empleado);
         e.setEvaluador(currentUser.usuario());

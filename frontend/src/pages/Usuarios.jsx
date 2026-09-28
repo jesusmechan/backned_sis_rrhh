@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
+import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Avatar, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { correoAndina, slugCuenta } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { email, isEmail, isUsername, username } from '../lib/input';
 
 const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: 'Andina2026', activo: true };
@@ -22,9 +23,6 @@ export function Usuarios() {
   const esAdmin = hasAnyRole('ADMIN');
   const location = useLocation();
   const navigate = useNavigate();
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [roles, setRoles] = useState([]);
   const [empleados, setEmpleados] = useState([]);
   const [ocupados, setOcupados] = useState([]);
@@ -36,7 +34,6 @@ export function Usuarios() {
   const [userTouched, setUserTouched] = useState(false);
   const [mailTouched, setMailTouched] = useState(false);
   const [desdeAlta, setDesdeAlta] = useState(false);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('');
@@ -44,7 +41,16 @@ export function Usuarios() {
   const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, activos: 0, inactivos: 0 });
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, tab, rol],
+    (pageNum) => http.page(pagePath('/api/usuarios', {
+      page: pageNum,
+      size: PAGE_SIZE,
+      q: qDebounced,
+      rol,
+      activo: tab === '' ? undefined : tab === 'activos'
+    }))
+  );
 
   useEffect(() => {
     Promise.all([
@@ -78,22 +84,6 @@ export function Usuarios() {
       inactivos: ina.totalElements || 0
     });
   }
-
-  async function load() {
-    const data = await http.page(pagePath('/api/usuarios', {
-      page,
-      size: PAGE_SIZE,
-      q: qDebounced,
-      rol,
-      activo: tab === '' ? undefined : tab === 'activos'
-    }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, qDebounced, tab, rol]);
 
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
@@ -199,7 +189,7 @@ export function Usuarios() {
       setOk(editId ? 'Usuario actualizado' : 'Usuario creado');
       setOpen(false);
       setDesdeAlta(false);
-      await Promise.all([load(), loadCounts(), refreshOcupados()]);
+      await Promise.all([reload(), loadCounts(), refreshOcupados()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -214,7 +204,7 @@ export function Usuarios() {
     try {
       await http.patch(`/api/usuarios/${row.idUsuario}/estado?activo=${next}`);
       setOk(next ? 'Usuario activado' : 'Usuario desactivado');
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
     } catch (err) {
       setError(err.message);
     }
@@ -251,6 +241,11 @@ export function Usuarios() {
           <option value="">Todos los perfiles</option>
           {roles.map((r) => <option key={r.id} value={r.codigo}>{r.nombre || r.codigo}</option>)}
         </select>
+        {(q || rol || tab) && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setRol(''); setTab(''); setPage(1); }}>
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

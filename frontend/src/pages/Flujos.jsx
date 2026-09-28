@@ -1,27 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Copy, GitBranch, Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
+import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Badge, Button, DataList, FilterBar, Kpi, KpiRow, ListActions, MobileRow, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { FlujogramaCompact, ORIGEN, codigoDesdeNombre, toForm, toPayload } from './flujoShared';
 
 export function Flujos() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [origen, setOrigen] = useState('');
   const [estado, setEstado] = useState('');
   const [q, setQ, qDebounced] = useQuerySearch();
   const [roles, setRoles] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState(location.state?.ok || '');
   const [counts, setCounts] = useState({ total: 0, permiso: 0, horaExtra: 0, activos: 0 });
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, origen, estado],
+    (pageNum) => http.page(pagePath('/api/flujos', {
+      page: pageNum,
+      size: PAGE_SIZE,
+      q: qDebounced,
+      tipoOrigen: origen || undefined,
+      activo: estado === '' ? undefined : estado === 'activos'
+    }))
+  );
 
   useEffect(() => {
     if (!location.state?.ok) return;
@@ -55,22 +61,6 @@ export function Flujos() {
     });
   }
 
-  async function load() {
-    const data = await http.page(pagePath('/api/flujos', {
-      page,
-      size: PAGE_SIZE,
-      q: qDebounced,
-      tipoOrigen: origen || undefined,
-      activo: estado === '' ? undefined : estado === 'activos'
-    }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, qDebounced, origen, estado]);
-
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
   async function cambiarEstado(row) {
@@ -80,7 +70,7 @@ export function Flujos() {
     try {
       await http.put(`/api/flujos/${row.idConfiguracion}`, toPayload({ ...toForm(row), activo: next }));
       setOk(next ? 'Flujo activado' : 'Flujo desactivado');
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
     } catch (err) {
       setError(err.message);
     }
@@ -130,6 +120,11 @@ export function Flujos() {
           <option value="activos">Activos</option>
           <option value="inactivos">Inactivos</option>
         </select>
+        {(q || estado || origen) && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setEstado(''); setOrigen(''); setPage(1); }}>
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

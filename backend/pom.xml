@@ -96,6 +96,17 @@
                     <jvmArguments>-Djava.net.preferIPv4Stack=true</jvmArguments>
                 </configuration>
             </plugin>
+            <!-- Escaneo de CVEs: mvn -DskipTests org.owasp:dependency-check-maven:check -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>12.1.3</version>
+                <configuration>
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                    <formats>HTML,JSON</formats>
+                    <nvdApiDelay>3000</nvdApiDelay>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

@@ -1,5 +1,9 @@
 server:
   port: 8080
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 spring:
   application:
@@ -37,8 +41,18 @@ springdoc:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:AndinaRRHH2026JwtSecretClaveSuperSeguraDeAlMenos64Caracteres!!}
+    # Obligatorio vía JWT_SECRET (backend/.env). Mínimo 32 caracteres. Sin default de código.
+    secret: ${JWT_SECRET}
     access-expiration-ms: 900000
     refresh-expiration-ms: 604800000
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:5173,http://localhost:3000}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    # Cupo por IP y minuto (ventana fija). Auth es más estricto (login/refresh).
+    api-per-minute: ${RATE_LIMIT_API:120}
+    auth-per-minute: ${RATE_LIMIT_AUTH:20}
+  idempotency:
+    enabled: ${IDEMPOTENCY_ENABLED:true}
+    # Ventana para reutilizar la misma respuesta ante reintentos con Idempotency-Key.
+    ttl-hours: ${IDEMPOTENCY_TTL_HOURS:24}

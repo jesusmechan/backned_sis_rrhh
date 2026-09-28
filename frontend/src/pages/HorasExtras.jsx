@@ -39,6 +39,15 @@ export function HorasExtras() {
           <option value="RECHAZADO">Rechazadas ({counts.rechazados})</option>
           <option value="CANCELADO">Canceladas</option>
         </select>
+        {(q || (tab !== 'todas' && tab !== 'PENDIENTE' && tab !== 'APROBADO')) && (
+          <button
+            type="button"
+            className="text-xs font-medium text-navy hover:underline"
+            onClick={() => { setQ(''); setTab('todas'); setPage(1); }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

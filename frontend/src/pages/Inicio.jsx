@@ -1,7 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Briefcase,
+  CalendarDays,
+  ClipboardList,
+  Clock3,
+  Inbox,
+  Timer,
+  Users
+} from 'lucide-react';
 import { emptyPage, http, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import {
+  ChartCard,
+  ComparativoBarras,
+  EstadoDonut,
+  PlanillaBarras
+} from '../components/DashboardCharts';
 import { Avatar, Badge, PageHeader, Panel } from '../components/ui';
 import { fmtMoney } from '../lib/format';
 import { TIPO, fmtDate, fmtDateTime } from './bandejaShared';
@@ -50,38 +65,6 @@ async function safePage(path, params) {
   }
 }
 
-function BarRow({ label, value, max, tone = 'bg-primary' }) {
-  const width = max > 0 ? Math.max(value > 0 ? 6 : 0, Math.round((value / max) * 100)) : 0;
-  return (
-    <div>
-      <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
-        <span className="text-slate-600">{label}</span>
-        <span className="tabular-nums font-medium text-navy">{value}</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${width}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function TramiteBars({ title, to, pend, apro, rech }) {
-  const max = Math.max(1, pend, apro, rech);
-  return (
-    <Panel>
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-navy">{title}</h3>
-        {to && <Link to={to} className="text-xs font-medium text-navy hover:underline">Ver listado</Link>}
-      </div>
-      <div className="space-y-3">
-        <BarRow label="Pendientes" value={pend} max={max} tone="bg-warn" />
-        <BarRow label="Aprobados" value={apro} max={max} tone="bg-ok" />
-        <BarRow label="Rechazados" value={rech} max={max} tone="bg-danger" />
-      </div>
-    </Panel>
-  );
-}
-
 export function Inicio() {
   const { usuario, perfil, canAccess } = useAuth();
   const [now, setNow] = useState(new Date());
@@ -102,7 +85,7 @@ export function Inicio() {
   const [permisos, setPermisos] = useState([]);
   const [hextras, setHextras] = useState([]);
   const [hoy, setHoy] = useState([]);
-  const [planilla, setPlanilla] = useState(null);
+  const [planillas, setPlanillas] = useState([]);
 
   const canInbox = canAccess('/bandeja');
   const canPermisos = canAccess('/permisos');
@@ -114,6 +97,7 @@ export function Inicio() {
   const canUsuarios = canAccess('/usuarios');
   const canPlanillas = canAccess('/planillas');
   const weekend = esFinDeSemana();
+  const showCharts = canPermisos || canHextras || canPlanillas;
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -145,7 +129,7 @@ export function Inicio() {
         canTeamAsist ? safePage('/api/asistencias', { page: 1, size: 1, desde: fecha, hasta: fecha }) : Promise.resolve(emptyPage),
         canPersonal ? safePage('/api/empleados', { page: 1, size: 1 }) : Promise.resolve(emptyPage),
         canUsuarios ? safePage('/api/usuarios', { page: 1, size: 1 }) : Promise.resolve(emptyPage),
-        canPlanillas ? safePage('/api/planillas', { page: 1, size: 1 }) : Promise.resolve(emptyPage)
+        canPlanillas ? safePage('/api/planillas', { page: 1, size: 6 }) : Promise.resolve(emptyPage)
       ];
       const [
         b, pp, pa, pr, hp, ha, hr, pl, hl, marks, teamMarks, emp, usr, pla
@@ -155,7 +139,7 @@ export function Inicio() {
       setPermisos(pl.content || []);
       setHextras(hl.content || []);
       setHoy(marks.content || []);
-      setPlanilla((pla.content || [])[0] || null);
+      setPlanillas(pla.content || []);
       setStats({
         bandeja: b.totalElements || 0,
         permisosPend: pp.totalElements || 0,
@@ -199,20 +183,72 @@ export function Inicio() {
     month: 'long',
     timeZone: 'America/Lima'
   });
+  const planilla = planillas[0] || null;
 
   const kpis = [
-    canInbox && { label: 'Bandeja', value: stats.bandeja, hint: 'Pasos por atender', to: '/bandeja' },
-    canPermisos && { label: 'Permisos', value: stats.permisosPend, hint: 'Pendientes de aprobación', to: '/permisos' },
-    canHextras && { label: 'Horas extras', value: stats.hextrasPend, hint: 'Pendientes de aprobación', to: '/horas-extras' },
-    canPersonal && { label: 'Colaboradores', value: stats.empleados, hint: 'En el directorio', to: '/empleados' },
-    canTeamAsist && { label: 'Marcaciones hoy', value: stats.marcacionesHoy, hint: 'Registros del día', to: '/asistencia' },
-    !canPersonal && canUsuarios && { label: 'Cuentas', value: stats.usuarios, hint: 'Usuarios del sistema', to: '/usuarios' }
+    canInbox && {
+      label: 'Bandeja',
+      value: stats.bandeja,
+      hint: 'Pasos por atender',
+      to: '/bandeja',
+      icon: Inbox,
+      tone: 'bg-warn-soft text-warn'
+    },
+    canPermisos && {
+      label: 'Permisos',
+      value: stats.permisosPend,
+      hint: 'Pendientes',
+      to: '/permisos',
+      icon: CalendarDays,
+      tone: 'bg-info-soft text-info'
+    },
+    canHextras && {
+      label: 'Horas extras',
+      value: stats.hextrasPend,
+      hint: 'Pendientes',
+      to: '/horas-extras',
+      icon: Timer,
+      tone: 'bg-violet-50 text-violet-700'
+    },
+    canPersonal && {
+      label: 'Colaboradores',
+      value: stats.empleados,
+      hint: 'Directorio',
+      to: '/empleados',
+      icon: Users,
+      tone: 'bg-ok-soft text-ok'
+    },
+    canTeamAsist && {
+      label: 'Marcaciones',
+      value: stats.marcacionesHoy,
+      hint: 'Hoy',
+      to: '/asistencia',
+      icon: Clock3,
+      tone: 'bg-slate-100 text-slate-700'
+    },
+    !canPersonal && canUsuarios && {
+      label: 'Cuentas',
+      value: stats.usuarios,
+      hint: 'Usuarios',
+      to: '/usuarios',
+      icon: Briefcase,
+      tone: 'bg-slate-100 text-slate-700'
+    },
+    canPlanillas && planilla && {
+      label: 'Planilla',
+      value: planilla.periodo,
+      hint: planilla.estado,
+      to: `/planillas/${planilla.idPlanilla}`,
+      icon: ClipboardList,
+      tone: 'bg-ok-soft text-ok',
+      isText: true
+    }
   ].filter(Boolean).slice(0, 4);
 
   return (
     <div>
       <PageHeader
-        kicker="Panel"
+        kicker="Dashboard"
         title={`${saludo()}, ${primerNombre(usuario)}`}
         subtitle={`${fechaLarga} · ${perfil || usuario?.rol}`}
         actions={(
@@ -224,40 +260,106 @@ export function Inicio() {
       />
 
       {loading ? (
-        <p className="text-sm text-muted">Cargando el panel…</p>
+        <p className="text-sm text-muted">Cargando el dashboard…</p>
       ) : (
         <>
           {kpis.length > 0 && (
             <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {kpis.map((k) => (
-                <Link key={k.label} to={k.to} className="rounded-xl border border-line bg-white px-4 py-3 hover:border-slate-300">
-                  <p className="text-xl font-bold tabular-nums text-navy">{k.value}</p>
-                  <p className="mt-0.5 text-sm font-medium text-navy">{k.label}</p>
-                  <p className="text-xs text-muted">{k.hint}</p>
-                </Link>
-              ))}
+              {kpis.map((k) => {
+                const Icon = k.icon;
+                return (
+                  <Link
+                    key={k.label}
+                    to={k.to}
+                    className="flex items-start gap-3 rounded-xl border border-line bg-white px-4 py-3.5 shadow-sm transition hover:border-slate-300"
+                  >
+                    <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${k.tone}`}>
+                      <Icon size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`font-bold text-navy ${k.isText ? 'truncate text-base' : 'text-xl tabular-nums'}`}>
+                        {k.value}
+                      </p>
+                      <p className="mt-0.5 text-sm font-medium text-navy">{k.label}</p>
+                      <p className="text-xs text-muted">{k.hint}</p>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
 
-          {(canPermisos || canHextras) && (
-            <div className="mb-5 grid gap-3 md:grid-cols-2">
+          {showCharts && (
+            <div className="mb-5 grid gap-4 lg:grid-cols-12">
               {canPermisos && (
-                <TramiteBars
-                  title="Permisos"
-                  to="/permisos"
-                  pend={stats.permisosPend}
-                  apro={stats.permisosApro}
-                  rech={stats.permisosRech}
-                />
+                <ChartCard
+                  className="lg:col-span-4"
+                  title="Estado de permisos"
+                  subtitle="Distribución por resultado"
+                  action={<Link to="/permisos" className="text-xs font-medium text-navy hover:underline">Ver</Link>}
+                >
+                  <EstadoDonut
+                    pendientes={stats.permisosPend}
+                    aprobados={stats.permisosApro}
+                    rechazados={stats.permisosRech}
+                  />
+                </ChartCard>
               )}
               {canHextras && (
-                <TramiteBars
-                  title="Horas extras"
-                  to="/horas-extras"
-                  pend={stats.hextrasPend}
-                  apro={stats.hextrasApro}
-                  rech={stats.hextrasRech}
-                />
+                <ChartCard
+                  className={canPermisos ? 'lg:col-span-4' : 'lg:col-span-6'}
+                  title="Estado de horas extras"
+                  subtitle="Distribución por resultado"
+                  action={<Link to="/horas-extras" className="text-xs font-medium text-navy hover:underline">Ver</Link>}
+                >
+                  <EstadoDonut
+                    pendientes={stats.hextrasPend}
+                    aprobados={stats.hextrasApro}
+                    rechazados={stats.hextrasRech}
+                  />
+                </ChartCard>
+              )}
+              {(canPermisos || canHextras) && (
+                <ChartCard
+                  className={
+                    canPermisos && canHextras
+                      ? 'lg:col-span-4'
+                      : canPlanillas
+                        ? 'lg:col-span-6'
+                        : 'lg:col-span-8'
+                  }
+                  title="Comparativo de trámites"
+                  subtitle="Pendientes, aprobados y rechazados"
+                >
+                  <ComparativoBarras
+                    permisos={canPermisos ? {
+                      pend: stats.permisosPend,
+                      apro: stats.permisosApro,
+                      rech: stats.permisosRech
+                    } : null}
+                    hextras={canHextras ? {
+                      pend: stats.hextrasPend,
+                      apro: stats.hextrasApro,
+                      rech: stats.hextrasRech
+                    } : null}
+                  />
+                </ChartCard>
+              )}
+              {canPlanillas && (
+                <ChartCard
+                  className="lg:col-span-12"
+                  title="Planillas recientes"
+                  subtitle="Bruto y neto de los últimos periodos"
+                  action={<Link to="/planillas" className="text-xs font-medium text-navy hover:underline">Ir a planillas</Link>}
+                >
+                  <PlanillaBarras rows={planillas} height={230} />
+                  {planilla && (
+                    <div className="mt-1 flex flex-wrap items-center gap-2 px-2 text-xs text-muted">
+                      <span>Última: {planilla.periodo} · Neto {fmtMoney(planilla.totalNeto)}</span>
+                      <Badge value={planilla.estado} />
+                    </div>
+                  )}
+                </ChartCard>
               )}
             </div>
           )}
@@ -311,7 +413,9 @@ export function Inicio() {
               ) : (
                 <Panel>
                   <p className="text-sm font-semibold text-navy">Resumen</p>
-                  <p className="mt-1 text-sm text-muted">Los indicadores de su perfil aparecen arriba. Use el menú para abrir cada módulo.</p>
+                  <p className="mt-1 text-sm text-muted">
+                    Los indicadores de su perfil aparecen arriba. Use el menú para abrir cada módulo.
+                  </p>
                 </Panel>
               )}
 
@@ -356,24 +460,6 @@ export function Inicio() {
                       <MarcaBox label="Salida" value={salida ? fmtHora(salida.fechaHora) : 'Pendiente'} done={Boolean(salida)} />
                     </div>
                   )}
-                </Panel>
-              )}
-
-              {canPlanillas && planilla && (
-                <Panel>
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-navy">Última planilla</h3>
-                    <Link to={`/planillas/${planilla.idPlanilla}`} className="text-xs font-medium text-navy hover:underline">
-                      Ver boletas
-                    </Link>
-                  </div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-navy">{planilla.periodo}</p>
-                      <p className="mt-1 text-sm text-muted">Neto {fmtMoney(planilla.totalNeto)}</p>
-                    </div>
-                    <Badge value={planilla.estado} />
-                  </div>
                 </Panel>
               )}
 

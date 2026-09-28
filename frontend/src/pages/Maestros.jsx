@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
+import { http, PAGE_SIZE, pagePath } from '../api/client';
 import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField, TimePicker } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { code, digits, label, text } from '../lib/input';
 import { fmtTime } from '../lib/format';
 
@@ -114,14 +115,10 @@ function payload(tab, form) {
 
 export function Maestros() {
   const [tab, setTab] = useState('areas');
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [estado, setEstado] = useState('');
   const [form, setForm] = useState(emptyByTab.areas);
   const [editId, setEditId] = useState(null);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
   const [q, setQ, qDebounced] = useQuerySearch();
@@ -130,7 +127,15 @@ export function Maestros() {
   const current = TABS.find((t) => t.id === tab) || TABS[0];
   const hasEstado = tab !== 'parametros';
 
-  useEffect(() => { setPage(1); }, [qDebounced, tab]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, tab, estado, current.path],
+    (pageNum) => http.page(pagePath(current.path, {
+      page: pageNum,
+      size: PAGE_SIZE,
+      q: qDebounced,
+      activo: !hasEstado || estado === '' ? undefined : estado === 'activos'
+    }))
+  );
 
   async function loadCounts() {
     const next = {};
@@ -140,21 +145,6 @@ export function Maestros() {
     }));
     setCounts(next);
   }
-
-  async function load() {
-    const data = await http.page(pagePath(current.path, {
-      page,
-      size: PAGE_SIZE,
-      q: qDebounced,
-      activo: !hasEstado || estado === '' ? undefined : estado === 'activos'
-    }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, qDebounced, tab, estado]);
 
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
@@ -194,7 +184,7 @@ export function Maestros() {
       }
       setOpen(false);
       setOk('Registro guardado');
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -237,6 +227,11 @@ export function Maestros() {
             <option value="activos">Activos</option>
             <option value="inactivos">Inactivos</option>
           </select>
+        )}
+        {(q || estado) && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setEstado(''); setPage(1); }}>
+            Limpiar filtros
+          </button>
         )}
       </FilterBar>
 

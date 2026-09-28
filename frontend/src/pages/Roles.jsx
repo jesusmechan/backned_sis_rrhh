@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
+import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { code, label, text } from '../lib/input';
 
 const empty = {
@@ -21,23 +22,27 @@ function toggleId(list, id) {
 
 export function Roles() {
   const { refreshSesion } = useAuth();
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [menus, setMenus] = useState([]);
   const [permisos, setPermisos] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [editCodigo, setEditCodigo] = useState('');
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
   const [estado, setEstado] = useState('');
   const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, activos: 0, inactivos: 0 });
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, estado],
+    (pageNum) => http.page(pagePath('/api/roles', {
+      page: pageNum,
+      size: PAGE_SIZE,
+      q: qDebounced,
+      activo: estado === '' ? undefined : estado === 'activos'
+    }))
+  );
 
   useEffect(() => {
     Promise.all([
@@ -63,21 +68,6 @@ export function Roles() {
       inactivos: ina.totalElements || 0
     });
   }
-
-  async function load() {
-    const data = await http.page(pagePath('/api/roles', {
-      page,
-      size: PAGE_SIZE,
-      q: qDebounced,
-      activo: estado === '' ? undefined : estado === 'activos'
-    }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, qDebounced, estado]);
 
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
@@ -141,7 +131,7 @@ export function Roles() {
       else await http.post('/api/roles', body);
       setOpen(false);
       setOk('Rol guardado');
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
       await refreshSesion();
     } catch (err) {
       setError(err.message);
@@ -175,6 +165,11 @@ export function Roles() {
 
       <FilterBar>
         <SearchField placeholder="Buscar código, nombre o menú" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        {(q || estado) && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setEstado(''); setPage(1); }}>
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

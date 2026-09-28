@@ -54,7 +54,8 @@ public class ContratoController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Detalle de contrato (el colaborador solo ve el suyo)")
     public ContratoResponse obtener(@PathVariable Integer id) {
         return contratoService.obtener(id);
     }

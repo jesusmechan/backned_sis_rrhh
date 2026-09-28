@@ -1,21 +1,32 @@
 import { useEffect, useState } from 'react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
+import { http, PAGE_SIZE, pagePath } from '../api/client';
 import { useQuerySearch } from './useQuerySearch';
 import { useFlashOk } from './useFlashOk';
+import { usePagedLoad } from './usePagedLoad';
 
 export function useSolicitudList(apiPath) {
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [counts, setCounts] = useState({ total: 0, pendientes: 0, aprobados: 0, rechazados: 0 });
   const [tab, setTab] = useState('todas');
   const [q, setQ, qDebounced] = useQuerySearch();
-  const [error, setError] = useState('');
   const [ok] = useFlashOk();
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const estado = tab === 'todas' ? '' : tab;
+
+  const {
+    page,
+    setPage,
+    rows,
+    setRows,
+    meta,
+    setMeta,
+    error,
+    setError
+  } = usePagedLoad([apiPath, estado, qDebounced], (pageNum) =>
+    http.page(pagePath(apiPath, { page: pageNum, size: PAGE_SIZE, estado, q: qDebounced }))
+  );
 
   useEffect(() => {
+    let cancelled = false;
     Promise.all([
       http.page(pagePath(apiPath, { page: 1, size: 1 })),
       http.page(pagePath(apiPath, { page: 1, size: 1, estado: 'PENDIENTE' })),
@@ -23,6 +34,7 @@ export function useSolicitudList(apiPath) {
       http.page(pagePath(apiPath, { page: 1, size: 1, estado: 'RECHAZADO' }))
     ])
       .then(([all, pend, apr, rec]) => {
+        if (cancelled) return;
         setCounts({
           total: all.totalElements || 0,
           pendientes: pend.totalElements || 0,
@@ -31,17 +43,8 @@ export function useSolicitudList(apiPath) {
         });
       })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [apiPath]);
 
-  useEffect(() => {
-    const estado = tab === 'todas' ? '' : tab;
-    http.page(pagePath(apiPath, { page, size: PAGE_SIZE, estado, q: qDebounced }))
-      .then((data) => {
-        setRows(data.content || []);
-        setMeta(data);
-      })
-      .catch((e) => setError(e.message));
-  }, [apiPath, page, tab, qDebounced]);
-
-  return { rows, meta, page, setPage, tab, setTab, counts, q, setQ, error, ok };
+  return { rows, setRows, meta, setMeta, page, setPage, tab, setTab, counts, q, setQ, error, setError, ok };
 }

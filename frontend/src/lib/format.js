@@ -1,15 +1,37 @@
-export function fmtDate(value, empty = '—') {
-  if (!value) return empty;
+const LIMA = { timeZone: 'America/Lima' };
+
+function asDate(value) {
+  if (!value) return null;
   const d = String(value).length <= 10 ? new Date(`${value}T00:00:00`) : new Date(value);
-  if (Number.isNaN(d.getTime())) return empty;
-  return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Fecha completa: 21 de septiembre de 2026 */
+export function fmtDate(value, empty = '—') {
+  const d = asDate(value);
+  if (!d) return empty;
+  return d.toLocaleDateString('es-PE', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    ...LIMA
+  });
+}
+
+/** Día, mes, año y hora con AM/PM: 21 de septiembre de 2026, 10:41 a. m. */
 export function fmtDateTime(value, empty = '—') {
   if (!value) return empty;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return empty;
-  return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('es-PE', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    ...LIMA
+  });
 }
 
 export function fmtRelative(value, empty = '—') {
@@ -24,8 +46,21 @@ export function fmtRelative(value, empty = '—') {
   return fmtDateTime(value);
 }
 
+/** Hora con AM/PM a partir de "HH:mm" o "HH:mm:ss". */
 export function fmtTime(value, empty = '—') {
-  return value ? String(value).slice(0, 5) : empty;
+  if (!value) return empty;
+  const raw = String(value).slice(0, 8);
+  const parts = raw.split(':').map(Number);
+  const hh = parts[0];
+  const mm = parts[1] || 0;
+  if (Number.isNaN(hh)) return String(value).slice(0, 5);
+  const d = new Date();
+  d.setHours(hh, mm, 0, 0);
+  return d.toLocaleTimeString('es-PE', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 }
 
 export function fmtMoney(value, empty = '—') {

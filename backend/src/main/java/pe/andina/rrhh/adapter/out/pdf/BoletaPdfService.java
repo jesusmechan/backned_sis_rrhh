@@ -105,9 +105,10 @@ public class BoletaPdfService implements BoletaPdfPort {
         String direccion = parametros.texto("empresa_direccion", "Av. Javier Prado 1200, San Isidro, Lima");
         String periodo = periodo(planilla.getAnio(), planilla.getMes());
         String nro = String.format("AND-%d-%02d-%04d", planilla.getAnio(), planilla.getMes(), d.getIdDetalle());
-        BigDecimal totalDesc = nz(d.getOnp()).add(nz(d.getDescuentoAusencias()));
+        BigDecimal totalDesc = d.totalDescuentosTrabajador();
         String onpPct = porcentaje(parametros.decimal("tasa_onp", "0.13"));
         String essaludPct = porcentaje(parametros.decimal("tasa_essalud", "0.09"));
+        String regimen = nz(d.getRegimenPensionario());
 
         doc.add(membrete(empresa, ruc, direccion, periodo, nro, f));
         doc.add(espacio(10));
@@ -121,12 +122,21 @@ public class BoletaPdfService implements BoletaPdfPort {
         cols.setSpacingAfter(10);
         cols.addCell(wrap(tablaConceptos("Ingresos", List.of(
                 fila("Remuneración básica", d.getRemuneracionBasica()),
+                fila("Asignación familiar", d.getAsignacionFamiliar()),
                 fila("Horas extras (" + n(d.getHorasExtras()) + " h)", d.getMontoHorasExtras())
         ), "Total ingresos", d.getBruto(), f), 0, 6));
-        cols.addCell(wrap(tablaConceptos("Descuentos", List.of(
-                fila("Ausencias (" + n(d.getDiasNoLaborados()) + " d)", d.getDescuentoAusencias()),
-                fila("ONP " + onpPct, d.getOnp())
-        ), "Total descuentos", totalDesc, f), 6, 0));
+
+        java.util.ArrayList<String[]> descuentos = new java.util.ArrayList<>();
+        descuentos.add(fila("Ausencias (" + n(d.getDiasNoLaborados()) + " d)", d.getDescuentoAusencias()));
+        if ("AFP".equalsIgnoreCase(regimen)) {
+            descuentos.add(fila("AFP aporte (10%)", d.getAfpAporte()));
+            descuentos.add(fila("AFP comisión", d.getAfpComision()));
+            descuentos.add(fila("AFP seguro", d.getAfpSeguro()));
+        } else if ("ONP".equalsIgnoreCase(regimen)) {
+            descuentos.add(fila("ONP " + onpPct, d.getOnp()));
+        }
+        descuentos.add(fila("Renta 5ta categoría", d.getQuintaCategoria()));
+        cols.addCell(wrap(tablaConceptos("Descuentos", descuentos, "Total descuentos", totalDesc, f), 6, 0));
         doc.add(cols);
 
         doc.add(aportesEmpleador(d, essaludPct, f));
@@ -138,8 +148,9 @@ public class BoletaPdfService implements BoletaPdfPort {
 
         Paragraph nota = new Paragraph(
                 "Documento interno del Sistema de Gestión de RR. HH. Andina. "
-                        + "Montos del periodo: remuneración básica, horas extras aprobadas, descuento por ausencias y ONP. "
-                        + "EsSalud es aporte del empleador y no se descuenta al trabajador. "
+                        + "Cálculo alineado a planilla peruana: básica, asignación familiar (10% RMV), "
+                        + "horas extras (+25%/+35%), ONP o AFP, renta de 5ta categoría (proyección simplificada) "
+                        + "y descuento por ausencias. EsSalud (9%) es aporte del empleador. "
                         + "No sustituye la boleta electrónica SUNAT si el empleador debe emitirla.",
                 f.tiny);
         nota.setAlignment(Element.ALIGN_JUSTIFIED);
@@ -207,6 +218,7 @@ public class BoletaPdfService implements BoletaPdfPort {
         dato(t, "Cargo", e.getCargo() != null ? e.getCargo().getNombre() : "-", f, 1);
         dato(t, "Fecha de ingreso", fecha(e.getFechaIngreso()), f, 1);
         dato(t, "Régimen / modalidad", etiqueta(e.getTipoContrato()) + " / " + etiqueta(d.getModalidad()), f, 1);
+        dato(t, "Pensión", nz(d.getRegimenPensionario()), f, 1);
         return t;
     }
 

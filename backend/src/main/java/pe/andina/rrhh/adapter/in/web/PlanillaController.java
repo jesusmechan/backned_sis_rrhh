@@ -57,13 +57,15 @@ public class PlanillaController {
     }
 
     @PostMapping("/{id}/calcular")
-    @Operation(summary = "Calcular boletas con sueldo, horas extras y descuentos")
+    @Operation(summary = "Calcular boletas con sueldo, horas extras y descuentos",
+            description = "Opcional: cabecera Idempotency-Key para reintentos seguros")
     public PlanillaResponse calcular(@PathVariable Integer id) {
         return planillaService.calcular(id);
     }
 
     @PostMapping("/{id}/cerrar")
-    @Operation(summary = "Cerrar planilla y generar asiento contable")
+    @Operation(summary = "Cerrar planilla y generar asiento contable",
+            description = "Opcional: cabecera Idempotency-Key para evitar doble cierre")
     public PlanillaResponse cerrar(@PathVariable Integer id) {
         return planillaService.cerrar(id);
     }

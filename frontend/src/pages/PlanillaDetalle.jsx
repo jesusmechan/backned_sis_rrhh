@@ -20,6 +20,12 @@ function slugNombre(nombre) {
   return slug || 'boleta';
 }
 
+function pensionLabel(b) {
+  if (b.regimenPensionario === 'AFP') return fmtMoney(b.afpTotal);
+  if (b.regimenPensionario === 'ONP') return fmtMoney(b.onp);
+  return '—';
+}
+
 export function PlanillaDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,7 +50,7 @@ export function PlanillaDetalle() {
     try {
       const data = await http.post(`/api/planillas/${id}/calcular`);
       setDetalle(data);
-      setOk('Boletas calculadas con la remuneración, horas extras y permisos del mes.');
+      setOk('Boletas calculadas con reglas de planilla peruana (AF, ONP/AFP, HE 25/35, 5ta).');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -131,9 +137,11 @@ export function PlanillaDetalle() {
               <tr>
                 <th className="px-4 py-3">Trabajador</th>
                 <th className="px-4 py-3">Básico</th>
+                <th className="px-4 py-3">Asig. fam.</th>
                 <th className="px-4 py-3">H. extras</th>
                 <th className="px-4 py-3">Ausencias</th>
-                <th className="px-4 py-3">ONP</th>
+                <th className="px-4 py-3">Pensión</th>
+                <th className="px-4 py-3">5ta</th>
                 <th className="px-4 py-3">EsSalud</th>
                 <th className="px-4 py-3">Neto</th>
                 <th className="px-4 py-3 text-right"> </th>
@@ -144,12 +152,14 @@ export function PlanillaDetalle() {
                 <tr key={b.idDetalle} className="border-t border-line">
                   <td className="px-4 py-3">
                     <p className="font-medium text-navy">{b.empleado}</p>
-                    <p className="text-xs text-muted">{b.modalidad}</p>
+                    <p className="text-xs text-muted">{b.modalidad} · {b.regimenPensionario || '—'}</p>
                   </td>
                   <td className="px-4 py-3">{fmtMoney(b.remuneracionBasica)}</td>
+                  <td className="px-4 py-3">{fmtMoney(b.asignacionFamiliar)}</td>
                   <td className="px-4 py-3">{b.horasExtras} h · {fmtMoney(b.montoHorasExtras)}</td>
                   <td className="px-4 py-3">{b.diasNoLaborados} d · {fmtMoney(b.descuentoAusencias)}</td>
-                  <td className="px-4 py-3">{fmtMoney(b.onp)}</td>
+                  <td className="px-4 py-3">{pensionLabel(b)}</td>
+                  <td className="px-4 py-3">{fmtMoney(b.quintaCategoria)}</td>
                   <td className="px-4 py-3">{fmtMoney(b.essalud)}</td>
                   <td className="px-4 py-3 font-semibold text-navy">{fmtMoney(b.neto)}</td>
                   <td className="px-4 py-3 text-right">

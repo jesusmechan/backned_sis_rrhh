@@ -54,6 +54,7 @@ export function Reportes() {
   const [desde, setDesde] = useState(monthStart());
   const [hasta, setHasta] = useState(todayIso());
   const [tipo, setTipo] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState('');
   const [vista, setVista] = useState('ASISTENCIA');
   const [q, setQ] = useQuerySearch();
   const [loading, setLoading] = useState(false);
@@ -90,6 +91,10 @@ export function Reportes() {
 
   const visibles = rows.filter((r) => {
     if (vista === 'ASISTENCIA' && tipo && r.tipo !== tipo) return false;
+    if ((vista === 'PERMISOS' || vista === 'HORAS_EXTRAS') && estadoFiltro && r.estado !== estadoFiltro) return false;
+    if (vista === 'USUARIOS' && estadoFiltro === 'activos' && r.activo === false) return false;
+    if (vista === 'USUARIOS' && estadoFiltro === 'inactivos' && r.activo !== false) return false;
+    if (vista === 'TRABAJADORES' && estadoFiltro && r.estado !== estadoFiltro) return false;
     if (!q.trim()) return true;
     return haystack(vista, r).toLowerCase().includes(q.trim().toLowerCase());
   });
@@ -116,7 +121,7 @@ export function Reportes() {
       <Alert>{error}</Alert>
 
       <FilterBar>
-        <select className="w-auto" value={vista} onChange={(e) => setVista(e.target.value)}>
+        <select className="w-auto" value={vista} onChange={(e) => { setVista(e.target.value); setEstadoFiltro(''); setTipo(''); }}>
           {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
         {vista === 'ASISTENCIA' && (
@@ -136,7 +141,47 @@ export function Reportes() {
             </select>
           </>
         )}
+        {(vista === 'PERMISOS' || vista === 'HORAS_EXTRAS') && (
+          <select className="w-auto" value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}>
+            <option value="">Todos los estados</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="APROBADO">Aprobado</option>
+            <option value="RECHAZADO">Rechazado</option>
+            <option value="CANCELADO">Cancelado</option>
+          </select>
+        )}
+        {vista === 'TRABAJADORES' && (
+          <select className="w-auto" value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}>
+            <option value="">Todos los estados</option>
+            <option value="ACTIVO">Activo</option>
+            <option value="INACTIVO">Inactivo</option>
+            <option value="CESADO">Cesado</option>
+          </select>
+        )}
+        {vista === 'USUARIOS' && (
+          <select className="w-auto" value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}>
+            <option value="">Todas las cuentas</option>
+            <option value="activos">Activos</option>
+            <option value="inactivos">Inactivos</option>
+          </select>
+        )}
         <SearchField placeholder="Buscar en la vista" value={q} onChange={(e) => setQ(e.target.value)} />
+        {(q || estadoFiltro || tipo || idEmpleado) && (
+          <button
+            type="button"
+            className="text-xs font-medium text-navy hover:underline"
+            onClick={() => {
+              setQ('');
+              setEstadoFiltro('');
+              setTipo('');
+              setIdEmpleado('');
+              setDesde(monthStart());
+              setHasta(todayIso());
+            }}
+          >
+            Limpiar filtros
+          </button>
+        )}
         <Button variant="secondary" onClick={() => bajar(vista, 'excel')}><Download size={14} /> Excel</Button>
         <Button variant="secondary" onClick={() => bajar(vista, 'pdf')}>PDF</Button>
       </FilterBar>

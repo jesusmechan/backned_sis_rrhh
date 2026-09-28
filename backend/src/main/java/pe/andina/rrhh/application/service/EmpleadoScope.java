@@ -56,4 +56,22 @@ public class EmpleadoScope {
             throw DomainException.forbidden("No puede consultar la asistencia de otro trabajador");
         }
     }
+
+    /** Admin/RRHH/Gerencia: cualquiera. Jefe: solo su equipo directo. */
+    public void assertPuedeGestionarEquipo(Empleado subordinado) {
+        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("GERENCIA")) {
+            return;
+        }
+        if (currentUser.hasRole("JEFE") && esJefeDirectoDe(subordinado)) {
+            return;
+        }
+        throw DomainException.forbidden("Solo puede gestionar a su equipo directo");
+    }
+
+    public boolean esJefeDirectoDe(Empleado subordinado) {
+        Integer jefeId = currentUser.idEmpleado();
+        return jefeId != null
+                && subordinado.getJefeInmediato() != null
+                && jefeId.equals(subordinado.getJefeInmediato().getIdEmpleado());
+    }
 }

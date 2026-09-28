@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
+import { http, PAGE_SIZE, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { MENU_ICON_OPTIONS, menuIcon } from '../layout/icons';
 import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { code, digits, label, routePath, text } from '../lib/input';
 
 const GRUPOS = ['Operación', 'Administración', 'Control'];
@@ -15,14 +16,10 @@ const empty = {
 
 export function Menus() {
   const { refreshSesion } = useAuth();
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [perfiles, setPerfiles] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('');
@@ -30,7 +27,16 @@ export function Menus() {
   const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, operacion: 0, administracion: 0, control: 0, activos: 0, inactivos: 0 });
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, tab, estado],
+    (pageNum) => http.page(pagePath('/api/menus', {
+      page: pageNum,
+      size: PAGE_SIZE,
+      q: qDebounced,
+      grupo: tab,
+      activo: estado === '' ? undefined : estado === 'activos'
+    }))
+  );
 
   useEffect(() => {
     http.get('/api/catalogos/roles')
@@ -56,22 +62,6 @@ export function Menus() {
       inactivos: ina.totalElements || 0
     });
   }
-
-  async function load() {
-    const data = await http.page(pagePath('/api/menus', {
-      page,
-      size: PAGE_SIZE,
-      q: qDebounced,
-      grupo: tab,
-      activo: estado === '' ? undefined : estado === 'activos'
-    }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, qDebounced, tab, estado]);
 
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
@@ -127,7 +117,7 @@ export function Menus() {
       else await http.post('/api/menus', body);
       setOpen(false);
       setOk('Opción de menú guardada');
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
       await refreshSesion();
     } catch (err) {
       setError(err.message);
@@ -142,7 +132,7 @@ export function Menus() {
     try {
       await http.delete(`/api/menus/${row.idMenu}`);
       setOk('Opción eliminada');
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
       await refreshSesion();
     } catch (err) {
       setError(err.message);
@@ -179,6 +169,11 @@ export function Menus() {
           <option value="Administración">Administración ({counts.administracion})</option>
           <option value="Control">Control ({counts.control})</option>
         </select>
+        {(q || tab || estado) && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setTab(''); setEstado(''); setPage(1); }}>
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

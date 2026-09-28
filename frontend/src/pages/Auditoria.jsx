@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Empty, Kpi, KpiRow, PageHeader, Pager, Panel, StackTable } from '../components/ui';
+import { http, PAGE_SIZE, pagePath } from '../api/client';
+import { Alert, Empty, FilterBar, Kpi, KpiRow, PageHeader, Pager, Panel, SearchField, StackTable } from '../components/ui';
+import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 
 export function Auditoria() {
   const [tab, setTab] = useState('auditoria');
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
   const [counts, setCounts] = useState({ auditoria: 0, trazabilidad: 0 });
+  const [q, setQ, qDebounced] = useQuerySearch();
+
+  const { page, setPage, rows, meta, error } = usePagedLoad(
+    [tab, qDebounced],
+    (pageNum) => {
+      const path = tab === 'auditoria' ? '/api/auditoria' : '/api/trazabilidad';
+      return http.page(pagePath(path, { page: pageNum, size: PAGE_SIZE, q: qDebounced }));
+    }
+  );
 
   useEffect(() => {
     Promise.all([
@@ -19,13 +26,6 @@ export function Auditoria() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    const path = tab === 'auditoria' ? '/api/auditoria' : '/api/trazabilidad';
-    http.page(pagePath(path, { page, size: PAGE_SIZE }))
-      .then((data) => { setRows(data.content); setMeta(data); })
-      .catch((e) => setError(e.message));
-  }, [tab, page]);
-
   return (
     <div>
       <PageHeader
@@ -33,7 +33,7 @@ export function Auditoria() {
         title="Auditoría"
         subtitle="Bitácora de acciones y trazabilidad de solicitudes."
       />
-      <KpiRow cols={2}>
+      <KpiRow>
         <Kpi
           value={counts.auditoria}
           label="Bitácora"
@@ -50,6 +50,18 @@ export function Auditoria() {
         />
       </KpiRow>
       <Alert>{error}</Alert>
+      <FilterBar>
+        <SearchField
+          placeholder={tab === 'auditoria' ? 'Buscar usuario, acción, entidad o detalle' : 'Buscar acción, usuario o comentario'}
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setPage(1); }}
+        />
+        {qDebounced && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setPage(1); }}>
+            Limpiar filtros
+          </button>
+        )}
+      </FilterBar>
       <Panel padded={false}>
         {rows.length === 0 ? <Empty text="Sin registros." /> : tab === 'auditoria' ? (
           <StackTable

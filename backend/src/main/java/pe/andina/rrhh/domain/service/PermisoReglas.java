@@ -12,6 +12,9 @@ import pe.andina.rrhh.application.port.in.ContratoUseCase;
 
 import java.util.EnumSet;
 
+/**
+ * Reglas de negocio que se validan antes de registrar un permiso.
+ */
 @Component
 public class PermisoReglas {
 
@@ -23,6 +26,21 @@ public class PermisoReglas {
         this.contratoService = contratoService;
     }
 
+    /**
+     * Valida un permiso nuevo.
+     *
+     * <ul>
+     *   <li>Horas: ambas vacías (día completo) o ambas llenas con fin posterior al inicio.</li>
+     *   <li>Vacaciones: el contrato debe tener saldo suficiente.</li>
+     *   <li>No se cruza con otro permiso {@code PENDIENTE} o {@code APROBADO} del mismo
+     *       empleado. Dos permisos por horas del mismo día solo chocan si sus horarios se solapan.</li>
+     * </ul>
+     *
+     * @param empleado solicitante
+     * @param tipo     tipo de permiso
+     * @param request  datos ingresados
+     * @throws DomainException 400 si los datos son inválidos, 409 si hay traslapo
+     */
     public void validarAlCrear(Empleado empleado, TipoPermiso tipo, PermisoRequest request) {
         if ((request.horaInicio() == null) != (request.horaFin() == null)) {
             throw DomainException.badRequest("Indique hora de inicio y de fin, o deje ambas vacías.");

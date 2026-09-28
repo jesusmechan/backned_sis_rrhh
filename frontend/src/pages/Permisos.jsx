@@ -1,12 +1,47 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
-import { Alert, Avatar, Badge, Button, DataList, FilterBar, Kpi, KpiRow, ListActions, MobileRow, Pager, PersonCell, SearchField } from '../components/ui';
+import { Plus, Search } from 'lucide-react';
+import { Alert, Avatar, Badge, Button, DataList, FilterBar, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
+import { SolicitudVista } from '../components/solicitud/SolicitudVista';
 import { useSolicitudList } from '../lib/useSolicitudList';
-import { fmtDate, fmtTime } from '../lib/format';
+import { http } from '../api/client';
+import { fmtDate, fmtDateTime, fmtTime } from '../lib/format';
 
 export function Permisos() {
   const navigate = useNavigate();
   const { rows, meta, setPage, tab, setTab, counts, q, setQ, error, ok } = useSolicitudList('/api/permisos');
+  const [previewId, setPreviewId] = useState(null);
+  const [preview, setPreview] = useState({ detalle: null, historial: [], loading: false, error: '' });
+
+  async function abrirVista(id) {
+    setPreviewId(id);
+    setPreview({ detalle: null, historial: [], loading: true, error: '' });
+    try {
+      const [detalle, historial] = await Promise.all([
+        http.get(`/api/permisos/${id}`),
+        http.get(`/api/permisos/${id}/historial`).catch(() => [])
+      ]);
+      setPreview({ detalle, historial: historial || [], loading: false, error: '' });
+    } catch (e) {
+      setPreview({ detalle: null, historial: [], loading: false, error: e.message });
+    }
+  }
+
+  function cerrarVista() {
+    setPreviewId(null);
+    setPreview({ detalle: null, historial: [], loading: false, error: '' });
+  }
+
+  const lupa = (id) => (
+    <button
+      type="button"
+      title="Vista rápida"
+      onClick={() => abrirVista(id)}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-navy hover:bg-surface"
+    >
+      <Search size={15} />
+    </button>
+  );
 
   return (
     <div>
@@ -39,6 +74,15 @@ export function Permisos() {
           <option value="RECHAZADO">Rechazadas ({counts.rechazados})</option>
           <option value="CANCELADO">Canceladas</option>
         </select>
+        {(q || (tab !== 'todas' && tab !== 'PENDIENTE' && tab !== 'APROBADO')) && (
+          <button
+            type="button"
+            className="text-xs font-medium text-navy hover:underline"
+            onClick={() => { setQ(''); setTab('todas'); setPage(1); }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList
@@ -49,12 +93,15 @@ export function Permisos() {
             key={r.idSolicitudPermiso}
             leading={<Avatar name={r.empleado} />}
             title={r.empleado}
-            meta={`${r.tipoPermiso} · ${fmtDate(r.fechaInicio)} → ${fmtDate(r.fechaFin)}`}
+            meta={`${r.tipoPermiso} · ${fmtDate(r.fechaInicio)}${r.fechaInicio !== r.fechaFin ? ` → ${fmtDate(r.fechaFin)}` : ''}${r.horaInicio ? ` · ${fmtTime(r.horaInicio)} – ${fmtTime(r.horaFin)}` : ''}${r.fechaCreacion ? ` · Reg. ${fmtDateTime(r.fechaCreacion)}` : ''}`}
             badge={<Badge value={r.estado} />}
             actions={(
-              <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/permisos/${r.idSolicitudPermiso}`)}>
-                Ver
-              </Button>
+              <div className="flex items-center gap-2">
+                {lupa(r.idSolicitudPermiso)}
+                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/permisos/${r.idSolicitudPermiso}`)}>
+                  Abrir
+                </Button>
+              </div>
             )}
           />
         ))}
@@ -65,6 +112,7 @@ export function Permisos() {
                 <th>Solicitante</th>
                 <th>Tipo</th>
                 <th>Periodo</th>
+                <th>Registrada</th>
                 <th>Motivo</th>
                 <th>Estado</th>
                 <th></th>
@@ -78,17 +126,26 @@ export function Permisos() {
                   </td>
                   <td className="text-sm">{r.tipoPermiso}</td>
                   <td className="text-sm">
-                    {fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin)}
+                    <p>
+                      {fmtDate(r.fechaInicio)}
+                      {r.fechaInicio !== r.fechaFin ? <> → {fmtDate(r.fechaFin)}</> : null}
+                    </p>
                     {r.horaInicio ? (
                       <p className="text-xs text-muted">{fmtTime(r.horaInicio)} – {fmtTime(r.horaFin)}</p>
-                    ) : null}
+                    ) : (
+                      <p className="text-xs text-muted">Jornada completa</p>
+                    )}
+                  </td>
+                  <td className="text-sm whitespace-nowrap">
+                    {fmtDateTime(r.fechaCreacion)}
                   </td>
                   <td className="max-w-xs truncate text-sm text-muted">{r.motivo || '—'}</td>
                   <td><Badge value={r.estado} /></td>
                   <td>
                     <ListActions>
+                      {lupa(r.idSolicitudPermiso)}
                       <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/permisos/${r.idSolicitudPermiso}`)}>
-                        Ver
+                        Abrir
                       </Button>
                     </ListActions>
                   </td>
@@ -101,6 +158,33 @@ export function Permisos() {
           <Pager page={meta.page} totalPages={meta.totalPages} totalElements={meta.totalElements} size={meta.size} onPage={setPage} />
         )}
       />
+
+      {previewId != null && (
+        <Modal
+          wide
+          title={preview.detalle
+            ? `Permiso · ${preview.detalle.tipoPermiso} · #${preview.detalle.idSolicitudPermiso}`
+            : 'Vista del permiso'}
+          onClose={cerrarVista}
+        >
+          <SolicitudVista
+            detalle={preview.detalle}
+            historial={preview.historial}
+            tipoSolicitud="PERMISO"
+            subtitle={preview.detalle?.tipoPermiso}
+            loading={preview.loading}
+            error={preview.error}
+            compact
+          />
+          {preview.detalle && (
+            <div className="mt-4 flex justify-end border-t border-line pt-4">
+              <Button onClick={() => navigate(`/permisos/${previewId}`)}>
+                Abrir pantalla completa
+              </Button>
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

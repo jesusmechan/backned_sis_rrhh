@@ -15,6 +15,7 @@ import pe.andina.rrhh.domain.model.SolicitudPermiso;
 import pe.andina.rrhh.domain.model.enums.EstadoContrato;
 import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
+import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
 import pe.andina.rrhh.domain.model.enums.TipoContrato;
 import pe.andina.rrhh.application.dto.AppDtos.ContratoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.ContratoResponse;
@@ -71,7 +72,14 @@ public class ContratoService implements ContratoUseCase {
 
     @Transactional(readOnly = true)
     public ContratoResponse obtener(Integer id) {
-        return toResponse(buscar(id));
+        Contrato c = buscar(id);
+        if (!currentUser.isAdminOrRrhh()) {
+            Integer propio = currentUser.idEmpleado();
+            if (propio == null || !propio.equals(c.getEmpleado().getIdEmpleado())) {
+                throw DomainException.forbidden("Solo puede consultar su propio contrato");
+            }
+        }
+        return toResponse(c);
     }
 
     @Transactional
@@ -149,6 +157,17 @@ public class ContratoService implements ContratoUseCase {
         if (r.fechaFin() != null && r.fechaInicio() != null && r.fechaFin().isBefore(r.fechaInicio())) {
             throw DomainException.badRequest("La fecha de fin no puede ser anterior al inicio");
         }
+        RegimenPensionario regimen = resolverRegimen(r);
+        if (regimen == RegimenPensionario.AFP && r.afpNombre() == null) {
+            throw DomainException.badRequest("Seleccione la AFP del trabajador");
+        }
+    }
+
+    private RegimenPensionario resolverRegimen(ContratoRequest r) {
+        if (r.modalidad() == ModalidadContrato.PRACTICANTE) {
+            return RegimenPensionario.NINGUNO;
+        }
+        return r.regimenPensionario() != null ? r.regimenPensionario() : RegimenPensionario.ONP;
     }
 
     private void aplicar(Contrato c, ContratoRequest r) {
@@ -162,6 +181,12 @@ public class ContratoService implements ContratoUseCase {
         c.setFechaInicio(r.fechaInicio());
         c.setFechaFin(r.fechaFin());
         c.setRemuneracionBasica(r.remuneracionBasica() != null ? r.remuneracionBasica() : BigDecimal.ZERO);
+        RegimenPensionario regimen = resolverRegimen(r);
+        c.setRegimenPensionario(regimen);
+        c.setAfpNombre(regimen == RegimenPensionario.AFP ? r.afpNombre() : null);
+        c.setTieneAsignacionFamiliar(
+                r.modalidad() != ModalidadContrato.PRACTICANTE
+                        && Boolean.TRUE.equals(r.tieneAsignacionFamiliar()));
         c.setEstado(r.estado() != null ? r.estado() : EstadoContrato.VIGENTE);
         c.setObservaciones(r.observaciones());
     }
@@ -279,6 +304,9 @@ public class ContratoService implements ContratoUseCase {
                 c.getFechaInicio(),
                 c.getFechaFin(),
                 c.getRemuneracionBasica(),
+                c.getRegimenPensionario(),
+                c.getAfpNombre(),
+                c.isTieneAsignacionFamiliar(),
                 c.getEstado(),
                 c.getObservaciones(),
                 calcularSaldo(e)

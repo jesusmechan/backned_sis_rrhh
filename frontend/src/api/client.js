@@ -122,15 +122,24 @@ export function asPage(data) {
       page: 1,
       size: data.length || 10,
       totalElements: data.length,
-      totalPages: 1
+      totalPages: data.length > 0 ? 1 : 0
     };
   }
+  const totalElements = Number(data?.totalElements ?? 0) || 0;
+  const size = Math.max(1, Number(data?.size) || 10);
+  const totalPagesRaw = Number(data?.totalPages);
+  const totalPages = Number.isFinite(totalPagesRaw)
+    ? Math.max(0, totalPagesRaw)
+    : (totalElements === 0 ? 0 : Math.max(1, Math.ceil(totalElements / size)));
+  let page = Number(data?.page) || 1;
+  if (totalPages > 0) page = Math.min(Math.max(1, page), totalPages);
+  else page = 1;
   return {
     content: Array.isArray(data?.content) ? data.content : [],
-    page: data?.page || 1,
-    size: data?.size || 10,
-    totalElements: data?.totalElements ?? 0,
-    totalPages: Math.max(1, data?.totalPages || 1)
+    page,
+    size,
+    totalElements,
+    totalPages
   };
 }
 
@@ -165,7 +174,7 @@ export const emptyPage = {
   page: 1,
   size: 10,
   totalElements: 0,
-  totalPages: 1
+  totalPages: 0
 };
 
 export const PAGE_SIZE = 10;

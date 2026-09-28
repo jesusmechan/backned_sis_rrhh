@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
+import { http, PAGE_SIZE, pagePath } from '../api/client';
+import { Alert, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { hoyISO } from './altaShared';
 import { email, letters, phone, text } from '../lib/input';
 import { fmtDate } from '../lib/format';
@@ -11,11 +12,7 @@ const emptyConv = { puesto: '', idArea: '', vacantes: '1', fechaInicio: hoyISO()
 const emptyPost = { nombres: '', apellidos: '', documento: '', correo: '', telefono: '', puntaje: '', estado: 'POSTULADO', observacion: '' };
 
 export function Reclutamiento() {
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [areas, setAreas] = useState([]);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyConv);
@@ -25,22 +22,36 @@ export function Reclutamiento() {
   const [openPost, setOpenPost] = useState(false);
   const [post, setPost] = useState(emptyPost);
   const [q, setQ, qDebounced] = useQuerySearch();
+  const [estado, setEstado] = useState('');
+  const [idArea, setIdArea] = useState('');
+  const [counts, setCounts] = useState({ total: 0, abiertas: 0, cerradas: 0 });
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, estado, idArea, areas],
+    (pageNum) => {
+      const areaName = areas.find((a) => String(a.id) === String(idArea))?.nombre;
+      return http.page(pagePath('/api/convocatorias', {
+        page: pageNum,
+        size: PAGE_SIZE,
+        q: [qDebounced, areaName].filter(Boolean).join(' '),
+        estado
+      }));
+    }
+  );
 
   useEffect(() => {
     http.get('/api/catalogos/areas').then(setAreas).catch((e) => setError(e.message));
   }, []);
 
-  async function load() {
-    const data = await http.page(pagePath('/api/convocatorias', { page, size: PAGE_SIZE, q: qDebounced }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
   useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, qDebounced]);
+    Promise.all([
+      http.page(pagePath('/api/convocatorias', { page: 1, size: 1 })),
+      http.page(pagePath('/api/convocatorias', { page: 1, size: 1, estado: 'ABIERTA' })),
+      http.page(pagePath('/api/convocatorias', { page: 1, size: 1, estado: 'CERRADA' }))
+    ]).then(([all, ab, ce]) => {
+      setCounts({ total: all.totalElements || 0, abiertas: ab.totalElements || 0, cerradas: ce.totalElements || 0 });
+    }).catch(() => {});
+  }, []);
 
   async function abrir(row) {
     setSel(row);
@@ -69,7 +80,7 @@ export function Reclutamiento() {
       setOk('Convocatoria publicada');
       setOpen(false);
       setForm(emptyConv);
-      await load();
+      await reload();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -97,7 +108,7 @@ export function Reclutamiento() {
       setOpenPost(false);
       setPost(emptyPost);
       setPostulantes(await http.get(`/api/convocatorias/${sel.idConvocatoria}/postulaciones`));
-      await load();
+      await reload();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -133,8 +144,33 @@ export function Reclutamiento() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
 
+      <KpiRow>
+        <Kpi value={counts.total} label="Convocatorias" hint="Publicadas" active={estado === ''} onClick={() => { setEstado(''); setPage(1); }} />
+        <Kpi value={counts.abiertas} label="Abiertas" hint="Reciben postulantes" active={estado === 'ABIERTA'} onClick={() => { setEstado('ABIERTA'); setPage(1); }} />
+        <Kpi value={counts.cerradas} label="Cerradas" hint="Proceso finalizado" active={estado === 'CERRADA'} onClick={() => { setEstado('CERRADA'); setPage(1); }} />
+      </KpiRow>
+
       <FilterBar>
         <SearchField placeholder="Buscar puesto, código o área" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="w-auto" value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }}>
+          <option value="">Todos los estados</option>
+          <option value="ABIERTA">Abierta</option>
+          <option value="CERRADA">Cerrada</option>
+          <option value="CANCELADA">Cancelada</option>
+        </select>
+        <select className="w-auto" value={idArea} onChange={(e) => { setIdArea(e.target.value); setPage(1); }}>
+          <option value="">Todas las áreas</option>
+          {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </select>
+        {(qDebounced || estado || idArea) && (
+          <button
+            type="button"
+            className="text-xs font-medium text-navy hover:underline"
+            onClick={() => { setQ(''); setEstado(''); setIdArea(''); setPage(1); }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

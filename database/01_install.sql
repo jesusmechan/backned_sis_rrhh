@@ -25,6 +25,7 @@ CREATE TYPE tipo_documento AS ENUM ('DNI', 'CE', 'PASAPORTE');
 CREATE TYPE sexo_empleado AS ENUM ('M', 'F');
 CREATE TYPE tipo_contrato AS ENUM ('PLANILLA', 'RECIBO_HONORARIOS', 'PRACTICAS');
 CREATE TYPE modalidad_contrato AS ENUM ('COLABORADOR', 'PRACTICANTE');
+CREATE TYPE regimen_pensionario AS ENUM ('ONP', 'AFP', 'NINGUNO');
 CREATE TYPE estado_contrato AS ENUM ('VIGENTE', 'FINALIZADO', 'ANULADO');
 CREATE TYPE estado_empleado AS ENUM ('ACTIVO', 'INACTIVO', 'CESADO');
 CREATE TYPE tipo_marcacion AS ENUM ('INGRESO', 'SALIDA');
@@ -224,6 +225,9 @@ CREATE TABLE contrato (
     fecha_inicio        DATE NOT NULL,
     fecha_fin           DATE,
     remuneracion_basica NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    regimen_pensionario regimen_pensionario NOT NULL DEFAULT 'ONP',
+    afp_nombre          VARCHAR(20),
+    tiene_asignacion_familiar BOOLEAN NOT NULL DEFAULT FALSE,
     estado              estado_contrato NOT NULL DEFAULT 'VIGENTE',
     observaciones       VARCHAR(300),
     fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -232,6 +236,9 @@ CREATE TABLE contrato (
     CONSTRAINT ck_contrato_fechas CHECK (fecha_fin IS NULL OR fecha_fin >= fecha_inicio),
     CONSTRAINT ck_contrato_practicas_fin CHECK (
         modalidad <> 'PRACTICANTE' OR fecha_fin IS NOT NULL
+    ),
+    CONSTRAINT ck_contrato_afp CHECK (
+        regimen_pensionario <> 'AFP' OR afp_nombre IS NOT NULL
     )
 );
 
@@ -271,7 +278,7 @@ CREATE TABLE marcacion (
     observacion         VARCHAR(250),
     id_usuario_registro INTEGER REFERENCES usuario (id_usuario),
     fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT ck_marcacion_origen CHECK (origen IN ('WEB', 'MANUAL', 'CORRECCION'))
+    CONSTRAINT ck_marcacion_origen CHECK (origen IN ('WEB', 'MOVIL', 'MANUAL', 'CORRECCION'))
 );
 
 -- -----------------------------------------------------------------------------
@@ -561,12 +568,19 @@ CREATE TABLE planilla_detalle (
     id_empleado         INTEGER NOT NULL REFERENCES empleado (id_empleado),
     id_contrato         INTEGER REFERENCES contrato (id_contrato),
     modalidad           VARCHAR(20),
+    regimen_pensionario VARCHAR(20),
     remuneracion_basica NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    asignacion_familiar NUMERIC(12, 2) NOT NULL DEFAULT 0,
     horas_extras        NUMERIC(8, 2) NOT NULL DEFAULT 0,
     monto_horas_extras  NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    dias_computados     NUMERIC(6, 2) NOT NULL DEFAULT 30,
     dias_no_laborados   NUMERIC(6, 2) NOT NULL DEFAULT 0,
     descuento_ausencias NUMERIC(12, 2) NOT NULL DEFAULT 0,
     onp                 NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    afp_aporte          NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    afp_comision        NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    afp_seguro          NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    quinta_categoria    NUMERIC(12, 2) NOT NULL DEFAULT 0,
     essalud             NUMERIC(12, 2) NOT NULL DEFAULT 0,
     bruto               NUMERIC(12, 2) NOT NULL DEFAULT 0,
     neto                NUMERIC(12, 2) NOT NULL DEFAULT 0
@@ -1504,10 +1518,22 @@ INSERT INTO parametro_sistema (clave, valor, descripcion) VALUES
     ('empresa_razon_social', 'Consultora Contable Andina S.A.C.', 'Razón social de la empresa'),
     ('empresa_ruc', '20601234567', 'RUC de demostración'),
     ('dias_vacaciones_mensuales', '1.5', 'Días de vacaciones que acumula un trabajador por cada mes completo, sea colaborador o practicante'),
-    ('tasa_hora_extra', '1.25', 'Multiplicador de la hora extra sobre el valor hora (sueldo / 240)'),
+    ('rmv', '1130', 'Remuneración Mínima Vital vigente (S/)'),
+    ('uit', '5500', 'Unidad Impositiva Tributaria vigente (S/)'),
+    ('tasa_asignacion_familiar', '0.10', 'Asignación familiar = tasa × RMV (Ley 25129)'),
+    ('tasa_hora_extra', '1.25', 'Compatibilidad: multiplicador HE si no hay tramos'),
+    ('tasa_hora_extra_tramo1', '1.25', 'Multiplicador primeras 2 h extras (+25%, D. Leg. 854)'),
+    ('tasa_hora_extra_tramo2', '1.35', 'Multiplicador horas extras siguientes (+35%)'),
+    ('horas_extra_tramo1', '2', 'Horas del primer tramo de sobretasa'),
     ('tasa_essalud', '0.09', 'Aporte de EsSalud a cargo del empleador'),
-    ('tasa_onp', '0.13', 'Descuento ONP del colaborador (modelo simplificado)'),
-    ('horas_mensuales_base', '240', 'Horas mensuales para valorizar la hora ordinaria');
+    ('tasa_onp', '0.13', 'Descuento ONP del colaborador (13%)'),
+    ('tasa_afp_aporte', '0.10', 'Aporte obligatorio al fondo AFP'),
+    ('tasa_afp_seguro', '0.0137', 'Prima de seguro previsional AFP'),
+    ('tasa_afp_comision_habitat', '0.0147', 'Comisión por flujo AFP Habitat'),
+    ('tasa_afp_comision_integra', '0.0155', 'Comisión por flujo AFP Integra'),
+    ('tasa_afp_comision_prima', '0.0160', 'Comisión por flujo AFP Prima'),
+    ('tasa_afp_comision_profuturo', '0.0169', 'Comisión por flujo AFP Profuturo'),
+    ('horas_mensuales_base', '240', 'Horas mensuales para valorizar la hora ordinaria (30×8)');
 
 INSERT INTO rol (codigo, nombre, descripcion) VALUES
     ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría. No participa en los circuitos.'),
@@ -1719,15 +1745,19 @@ FROM (VALUES
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
 JOIN rol r ON r.codigo = v.codigo_rol;
 
-INSERT INTO contrato (codigo, id_empleado, modalidad, id_horario, fecha_inicio, estado, observaciones, remuneracion_basica)
+INSERT INTO contrato (
+    codigo, id_empleado, modalidad, id_horario, fecha_inicio, estado, observaciones,
+    remuneracion_basica, regimen_pensionario, afp_nombre, tiene_asignacion_familiar
+)
 SELECT v.codigo, e.id_empleado, v.modalidad::modalidad_contrato, e.id_horario, e.fecha_ingreso, 'VIGENTE',
-       'Contrato inicial de demostración', v.remuneracion
+       'Contrato inicial de demostración', v.remuneracion,
+       v.regimen::regimen_pensionario, v.afp, v.asignacion
 FROM (VALUES
-    ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC),
-    ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC),
-    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC),
-    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC)
-) AS v(codigo, codigo_empleado, modalidad, remuneracion)
+    ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC, 'ONP', NULL, TRUE),
+    ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC, 'AFP', 'INTEGRA', TRUE),
+    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC, 'AFP', 'HABITAT', FALSE),
+    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC, 'ONP', NULL, FALSE)
+) AS v(codigo, codigo_empleado, modalidad, remuneracion, regimen, afp, asignacion)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado;
 
 INSERT INTO cuenta_contable (codigo, nombre, uso, naturaleza) VALUES
@@ -1735,6 +1765,8 @@ INSERT INTO cuenta_contable (codigo, nombre, uso, naturaleza) VALUES
     ('6271', 'EsSalud', 'ESSALUD_GASTO', 'GASTO'),
     ('4031', 'ONP por pagar', 'ONP_POR_PAGAR', 'PASIVO'),
     ('4032', 'EsSalud por pagar', 'ESSALUD_POR_PAGAR', 'PASIVO'),
+    ('4033', 'AFP por pagar', 'AFP_POR_PAGAR', 'PASIVO'),
+    ('4017', 'Renta 5ta categoría por pagar', 'QUINTA_POR_PAGAR', 'PASIVO'),
     ('4111', 'Remuneraciones por pagar', 'REMU_POR_PAGAR', 'PASIVO'),
     ('4699', 'Descuentos por ausencias', 'DESC_AUSENCIAS', 'PASIVO');
 

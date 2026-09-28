@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Download } from 'lucide-react';
-import { emptyPage, http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, downloadBlob } from '../components/ui';
+import { http, PAGE_SIZE, pagePath } from '../api/client';
+import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
+import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { fmtMoney } from '../lib/format';
 
 const MESES = [
@@ -14,27 +16,25 @@ const MESES = [
 export function Planillas() {
   const navigate = useNavigate();
   const now = new Date();
-  const [rows, setRows] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [tab, setTab] = useState('');
-  const [error, setError] = useState('');
+  const [anio, setAnio] = useState('');
   const [ok, setOk] = useState('');
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pdfId, setPdfId] = useState(null);
   const [form, setForm] = useState({ anio: String(now.getFullYear()), mes: String(now.getMonth() + 1), observaciones: '' });
   const [counts, setCounts] = useState({ total: 0, calculadas: 0, cerradas: 0 });
+  const [q, setQ, qDebounced] = useQuerySearch();
 
-  async function load() {
-    const data = await http.page(pagePath('/api/planillas', { page, size: PAGE_SIZE, estado: tab }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, tab]);
+  const { page, setPage, rows, meta, error, setError } = usePagedLoad(
+    [tab, qDebounced, anio],
+    (pageNum) => http.page(pagePath('/api/planillas', {
+      page: pageNum,
+      size: PAGE_SIZE,
+      estado: tab,
+      q: [qDebounced, anio].filter(Boolean).join(' ')
+    }))
+  );
 
   useEffect(() => {
     Promise.all([
@@ -82,6 +82,16 @@ export function Planillas() {
     }
   }
 
+  function limpiar() {
+    setQ('');
+    setTab('');
+    setAnio('');
+    setPage(1);
+  }
+
+  const filtrosActivos = Boolean(qDebounced || tab || anio);
+  const aniosOpts = Array.from({ length: 6 }, (_, i) => String(now.getFullYear() - i));
+
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -105,12 +115,23 @@ export function Planillas() {
       </KpiRow>
 
       <FilterBar>
+        <SearchField placeholder="Buscar periodo u observaciones" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         <select className="w-auto" value={tab} onChange={(e) => { setTab(e.target.value); setPage(1); }}>
           <option value="">Todos los estados</option>
           <option value="BORRADOR">Borrador</option>
           <option value="CALCULADA">Calculada</option>
           <option value="CERRADA">Cerrada</option>
+          <option value="ANULADA">Anulada</option>
         </select>
+        <select className="w-auto" value={anio} onChange={(e) => { setAnio(e.target.value); setPage(1); }}>
+          <option value="">Todos los años</option>
+          {aniosOpts.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        {filtrosActivos && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={limpiar}>
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList

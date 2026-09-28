@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import pe.andina.rrhh.domain.model.enums.AfpNombre;
 import pe.andina.rrhh.domain.model.enums.EstadoAsiento;
 import pe.andina.rrhh.domain.model.enums.EstadoContrato;
 import pe.andina.rrhh.domain.model.enums.EstadoConvocatoria;
@@ -20,6 +21,7 @@ import pe.andina.rrhh.domain.model.enums.EstadoPlanilla;
 import pe.andina.rrhh.domain.model.enums.EstadoPostulacion;
 import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
+import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
 import pe.andina.rrhh.domain.model.enums.SexoEmpleado;
 import pe.andina.rrhh.domain.model.enums.TipoAprobador;
 import pe.andina.rrhh.domain.model.enums.TipoContrato;
@@ -421,6 +423,9 @@ public final class AppDtos {
             LocalDate fechaFin,
             @DecimalMin(value = "0", message = "La remuneración no puede ser negativa")
             BigDecimal remuneracionBasica,
+            RegimenPensionario regimenPensionario,
+            AfpNombre afpNombre,
+            Boolean tieneAsignacionFamiliar,
             EstadoContrato estado,
             @Size(max = 400, message = "Las observaciones no pueden superar 400 caracteres")
             String observaciones
@@ -440,6 +445,9 @@ public final class AppDtos {
             LocalDate fechaInicio,
             LocalDate fechaFin,
             BigDecimal remuneracionBasica,
+            RegimenPensionario regimenPensionario,
+            AfpNombre afpNombre,
+            boolean tieneAsignacionFamiliar,
             EstadoContrato estado,
             String observaciones,
             VacacionSaldoResponse vacaciones
@@ -468,12 +476,20 @@ public final class AppDtos {
             Integer idEmpleado,
             String empleado,
             String modalidad,
+            String regimenPensionario,
             BigDecimal remuneracionBasica,
+            BigDecimal asignacionFamiliar,
             BigDecimal horasExtras,
             BigDecimal montoHorasExtras,
+            BigDecimal diasComputados,
             BigDecimal diasNoLaborados,
             BigDecimal descuentoAusencias,
             BigDecimal onp,
+            BigDecimal afpAporte,
+            BigDecimal afpComision,
+            BigDecimal afpSeguro,
+            BigDecimal afpTotal,
+            BigDecimal quintaCategoria,
             BigDecimal essalud,
             BigDecimal bruto,
             BigDecimal neto

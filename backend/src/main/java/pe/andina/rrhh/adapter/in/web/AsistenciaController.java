@@ -3,6 +3,7 @@ package pe.andina.rrhh.adapter.in.web;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,7 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/asistencias")
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "Asistencia", description = "Marcaciones de ingreso y salida")
 public class AsistenciaController {
 
@@ -31,7 +33,8 @@ public class AsistenciaController {
     }
 
     @PostMapping("/marcar")
-    @Operation(summary = "Registrar marcación de ingreso o salida")
+    @Operation(summary = "Registrar marcación de ingreso o salida",
+            description = "Opcional: cabecera Idempotency-Key para reintentos seguros")
     public MarcacionResponse marcar(@Valid @RequestBody MarcacionRequest request) {
         return asistenciaService.marcar(request);
     }
@@ -58,7 +61,9 @@ public class AsistenciaController {
     }
 
     @PutMapping("/{id}")
-    public MarcacionResponse actualizar(@PathVariable Integer id, @RequestBody MarcacionRequest request) {
+    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @Operation(summary = "Corregir una marcación (solo RR. HH. / Admin)")
+    public MarcacionResponse actualizar(@PathVariable Integer id, @Valid @RequestBody MarcacionRequest request) {
         return asistenciaService.actualizar(id, request);
     }
 }

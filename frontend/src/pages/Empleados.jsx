@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, Plus, Upload } from 'lucide-react';
-import { apiPage, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Avatar, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField, downloadBlob } from '../components/ui';
 import { correoAndina, hoyISO, siguienteCodigo } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
+import { usePagedLoad } from '../lib/usePagedLoad';
 import { calcAge } from '../lib/format';
 import { address, documentNumber, email, isEmail, isEmployeeCode, isLetters, letters, phone } from '../lib/input';
 
@@ -26,10 +27,7 @@ export function Empleados() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const fileRef = useRef(null);
-  const [rows, setRows] = useState([]);
   const [jefes, setJefes] = useState([]);
-  const [meta, setMeta] = useState(emptyPage);
-  const [page, setPage] = useState(1);
   const [cats, setCats] = useState({ areas: [], cargos: [], horarios: [] });
   const [ocupados, setOcupados] = useState([]);
   const [form, setForm] = useState(empty);
@@ -38,7 +36,6 @@ export function Empleados() {
   const [step, setStep] = useState(1);
   const [crearCuenta, setCrearCuenta] = useState(true);
   const [emailTouched, setEmailTouched] = useState(false);
-  const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('');
@@ -46,7 +43,16 @@ export function Empleados() {
   const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, activos: 0, inactivos: 0, cesados: 0 });
 
-  useEffect(() => { setPage(1); }, [qDebounced]);
+  const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
+    [qDebounced, tab, idArea],
+    (pageNum) => http.page(pagePath('/api/empleados', {
+      page: pageNum,
+      size: PAGE_SIZE,
+      q: qDebounced,
+      estado: tab === 'baja' ? 'INACTIVO,CESADO' : tab,
+      idArea: idArea || undefined
+    }))
+  );
 
   useEffect(() => {
     Promise.all([
@@ -78,22 +84,6 @@ export function Empleados() {
       cesados: ces.totalElements || 0
     });
   }
-
-  async function load() {
-    const data = await http.page(pagePath('/api/empleados', {
-      page,
-      size: PAGE_SIZE,
-      q: qDebounced,
-      estado: tab === 'baja' ? 'INACTIVO,CESADO' : tab,
-      idArea: idArea || undefined
-    }));
-    setRows(data.content || []);
-    setMeta(data);
-  }
-
-  useEffect(() => {
-    load().catch((e) => setError(e.message));
-  }, [page, qDebounced, tab, idArea]);
 
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
@@ -256,7 +246,7 @@ export function Empleados() {
         : await http.post('/api/empleados', body);
       setOk(editId ? 'Colaborador actualizado' : 'Colaborador registrado');
       setOpen(false);
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
       const catalog = await http.page(pagePath('/api/empleados', { page: 1, size: SELECT_SIZE }));
       setJefes(catalog.content || []);
       if (!editId && crearCuenta) {
@@ -296,7 +286,7 @@ export function Empleados() {
     try {
       const json = await api('/api/empleados/carga-excel', { method: 'POST', body: data });
       setOk(`Carga ${json.estado}: ${json.filasExitosas} ok, ${json.filasFallidas} errores`);
-      await Promise.all([load(), loadCounts()]);
+      await Promise.all([reload(), loadCounts()]);
     } catch (err) {
       setError(err.message);
     }
@@ -341,6 +331,11 @@ export function Empleados() {
           <option value="">Todas las áreas</option>
           {cats.areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
         </select>
+        {(q || idArea || tab) && (
+          <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setIdArea(''); setTab(''); setPage(1); }}>
+            Limpiar filtros
+          </button>
+        )}
       </FilterBar>
 
       <DataList
