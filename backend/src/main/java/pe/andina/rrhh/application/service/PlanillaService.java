@@ -23,6 +23,7 @@ import pe.andina.rrhh.domain.model.enums.EstadoEmpleado;
 import pe.andina.rrhh.domain.model.enums.EstadoPlanilla;
 import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
+import pe.andina.rrhh.domain.model.enums.RegimenLaboral;
 import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
 import pe.andina.rrhh.application.dto.AppDtos.AsientoLineaResponse;
 import pe.andina.rrhh.application.dto.AppDtos.AsientoResponse;
@@ -135,7 +136,7 @@ public class PlanillaService implements PlanillaUseCase {
         YearMonth ym = YearMonth.of(p.getAnio(), p.getMes());
         LocalDate desde = ym.atDay(1);
         LocalDate hasta = ym.atEndOfMonth();
-        PlanillaCalculoPeru calc = new PlanillaCalculoPeru(parametros);
+        PlanillaCalculoPeruDinamico calc = new PlanillaCalculoPeruDinamico(parametros);
 
         BigDecimal tBruto = CERO;
         BigDecimal tDesc = CERO;
@@ -155,7 +156,7 @@ public class PlanillaService implements PlanillaUseCase {
             if (contrato.getFechaFin() != null && contrato.getFechaFin().isBefore(desde)) {
                 continue;
             }
-            PlanillaDetalle d = calcularBoleta(p, empleado, contrato, desde, hasta, calc);
+            PlanillaDetalle d = calcularBoleta(p, empleado, contrato, desde, hasta, calc, ym);
             detalleRepository.save(d);
             tBruto = tBruto.add(d.getBruto());
             tDesc = tDesc.add(d.totalDescuentosTrabajador());
@@ -230,8 +231,12 @@ public class PlanillaService implements PlanillaUseCase {
     }
 
     private PlanillaDetalle calcularBoleta(Planilla p, Empleado empleado, Contrato contrato,
-                                          LocalDate desde, LocalDate hasta, PlanillaCalculoPeru calc) {
-        BigDecimal rmv = calc.rmv();
+                                          LocalDate desde, LocalDate hasta, PlanillaCalculoPeruDinamico calc, YearMonth periodo) {
+        RegimenLaboral regimenLaboral = contrato.getRegimenLaboral() != null 
+                ? contrato.getRegimenLaboral() 
+                : RegimenLaboral.GENERAL;
+        
+        BigDecimal rmv = calc.rmv(hasta);
         BigDecimal sueldoContrato = contrato.getRemuneracionBasica() == null || contrato.getRemuneracionBasica().signum() <= 0
                 ? (contrato.getModalidad() == ModalidadContrato.PRACTICANTE ? new BigDecimal("1025") : rmv)
                 : contrato.getRemuneracionBasica();
@@ -241,7 +246,7 @@ public class PlanillaService implements PlanillaUseCase {
         BigDecimal basica = calc.prorratear(sueldoContrato, diasComputados);
         boolean colaborador = contrato.getModalidad() != ModalidadContrato.PRACTICANTE;
         boolean asignacion = colaborador && contrato.isTieneAsignacionFamiliar();
-        BigDecimal asigFamiliar = calc.prorratear(calc.asignacionFamiliarMensual(asignacion), diasComputados);
+        BigDecimal asigFamiliar = calc.prorratear(calc.asignacionFamiliarMensual(asignacion, hasta), diasComputados);
 
         // Valor hora y HE sobre remuneración ordinaria (básica + asignación familiar del mes)
         BigDecimal ordinaria = basica.add(asigFamiliar);
@@ -255,22 +260,29 @@ public class PlanillaService implements PlanillaUseCase {
         // Base de aportes: bruto menos descuento por ausencias (días no pagados)
         BigDecimal baseAporte = bruto.subtract(descAus).max(CERO);
 
-        RegimenPensionario regimen = resolverRegimen(contrato, colaborador);
-        PlanillaCalculoPeru.Pension pension = calc.calcularPension(regimen, contrato.getAfpNombre(), baseAporte);
-        BigDecimal quinta = colaborador ? calc.retencionQuintaMensual(baseAporte) : CERO;
-        BigDecimal essalud = calc.essaludEmpleador(baseAporte, colaborador);
+        RegimenPensionario regimenPension = resolverRegimen(contrato, colaborador);
+        PlanillaCalculoPeruDinamico.Pension pension = calc.calcularPension(regimenPension, contrato.getAfpNombre(), baseAporte, periodo);
+        BigDecimal quinta = colaborador ? calc.retencionQuintaMensual(baseAporte, p.getAnio()) : CERO;
+        BigDecimal essalud = calc.essaludEmpleador(baseAporte, regimenLaboral, hasta, colaborador);
         BigDecimal neto = baseAporte
                 .subtract(pension.total())
                 .subtract(quinta)
                 .max(CERO)
                 .setScale(2, RoundingMode.HALF_UP);
 
+        // Proyectar beneficios semestrales según régimen laboral
+        BigDecimal mesesSemestre = BigDecimal.valueOf(diasComputados.doubleValue() / 5.0).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal remuneracionComputable = ordinaria;
+        BigDecimal gratificacionProyectada = calc.gratificacion(remuneracionComputable, regimenLaboral, mesesSemestre);
+        BigDecimal ctsProyectado = calc.ctsSemestral(remuneracionComputable, gratificacionProyectada, regimenLaboral, mesesSemestre);
+
         PlanillaDetalle d = new PlanillaDetalle();
         d.setPlanilla(p);
         d.setEmpleado(empleado);
         d.setContrato(contrato);
         d.setModalidad(contrato.getModalidad().name());
-        d.setRegimenPensionario(regimen.name());
+        d.setRegimenPensionario(regimenPension.name());
+        d.setRegimenLaboral(regimenLaboral.name());
         d.setRemuneracionBasica(basica);
         d.setAsignacionFamiliar(asigFamiliar);
         d.setHorasExtras(horas);
@@ -286,6 +298,8 @@ public class PlanillaService implements PlanillaUseCase {
         d.setEssalud(essalud);
         d.setBruto(bruto);
         d.setNeto(neto);
+        d.setGratificacionProyectada(gratificacionProyectada);
+        d.setCtsProyectado(ctsProyectado);
         return d;
     }
 
@@ -417,12 +431,13 @@ public class PlanillaService implements PlanillaUseCase {
     private PlanillaDetalleResponse toDetalle(PlanillaDetalle d) {
         return new PlanillaDetalleResponse(
                 d.getIdDetalle(), d.getEmpleado().getIdEmpleado(), d.getEmpleado().nombreCompleto(),
-                d.getModalidad(), d.getRegimenPensionario(),
+                d.getModalidad(), d.getRegimenPensionario(), d.getRegimenLaboral(),
                 d.getRemuneracionBasica(), d.getAsignacionFamiliar(),
                 d.getHorasExtras(), d.getMontoHorasExtras(),
                 d.getDiasComputados(), d.getDiasNoLaborados(), d.getDescuentoAusencias(),
                 d.getOnp(), d.getAfpAporte(), d.getAfpComision(), d.getAfpSeguro(), d.totalAfp(),
-                d.getQuintaCategoria(), d.getEssalud(), d.getBruto(), d.getNeto()
+                d.getQuintaCategoria(), d.getEssalud(), d.getBruto(), d.getNeto(),
+                d.getGratificacionProyectada(), d.getCtsProyectado()
         );
     }
 

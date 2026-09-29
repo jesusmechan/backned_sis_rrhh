@@ -477,6 +477,7 @@ public final class AppDtos {
             String empleado,
             String modalidad,
             String regimenPensionario,
+            String regimenLaboral,
             BigDecimal remuneracionBasica,
             BigDecimal asignacionFamiliar,
             BigDecimal horasExtras,
@@ -492,7 +493,9 @@ public final class AppDtos {
             BigDecimal quintaCategoria,
             BigDecimal essalud,
             BigDecimal bruto,
-            BigDecimal neto
+            BigDecimal neto,
+            BigDecimal gratificacionProyectada,
+            BigDecimal ctsProyectado
     ) {}
 
     public record PlanillaResponse(

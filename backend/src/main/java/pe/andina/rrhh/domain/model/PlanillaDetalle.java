@@ -84,6 +84,15 @@ public class PlanillaDetalle {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal neto = BigDecimal.ZERO;
 
+    @Column(name = "gratificacion_proyectada", nullable = false, precision = 12, scale = 2)
+    private BigDecimal gratificacionProyectada = BigDecimal.ZERO;
+
+    @Column(name = "cts_proyectado", nullable = false, precision = 12, scale = 2)
+    private BigDecimal ctsProyectado = BigDecimal.ZERO;
+
+    @Column(name = "regimen_laboral", length = 20)
+    private String regimenLaboral;
+
     public BigDecimal totalAfp() {
         return nz(afpAporte).add(nz(afpComision)).add(nz(afpSeguro));
     }
@@ -142,4 +151,10 @@ public class PlanillaDetalle {
     public void setBruto(BigDecimal bruto) { this.bruto = bruto; }
     public BigDecimal getNeto() { return neto; }
     public void setNeto(BigDecimal neto) { this.neto = neto; }
+    public BigDecimal getGratificacionProyectada() { return gratificacionProyectada; }
+    public void setGratificacionProyectada(BigDecimal gratificacionProyectada) { this.gratificacionProyectada = gratificacionProyectada; }
+    public BigDecimal getCtsProyectado() { return ctsProyectado; }
+    public void setCtsProyectado(BigDecimal ctsProyectado) { this.ctsProyectado = ctsProyectado; }
+    public String getRegimenLaboral() { return regimenLaboral; }
+    public void setRegimenLaboral(String regimenLaboral) { this.regimenLaboral = regimenLaboral; }
 }

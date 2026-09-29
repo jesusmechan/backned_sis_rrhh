@@ -16,6 +16,7 @@ import org.hibernate.type.SqlTypes;
 import pe.andina.rrhh.domain.model.enums.AfpNombre;
 import pe.andina.rrhh.domain.model.enums.EstadoContrato;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
+import pe.andina.rrhh.domain.model.enums.RegimenLaboral;
 import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
 
 import java.math.BigDecimal;
@@ -73,6 +74,11 @@ public class Contrato {
     @Column(name = "tiene_asignacion_familiar", nullable = false)
     private boolean tieneAsignacionFamiliar;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "regimen_laboral", nullable = false)
+    private RegimenLaboral regimenLaboral = RegimenLaboral.GENERAL;
+
     @Column(length = 300)
     private String observaciones;
 
@@ -104,6 +110,8 @@ public class Contrato {
     public void setAfpNombre(AfpNombre afpNombre) { this.afpNombre = afpNombre; }
     public boolean isTieneAsignacionFamiliar() { return tieneAsignacionFamiliar; }
     public void setTieneAsignacionFamiliar(boolean tieneAsignacionFamiliar) { this.tieneAsignacionFamiliar = tieneAsignacionFamiliar; }
+    public RegimenLaboral getRegimenLaboral() { return regimenLaboral; }
+    public void setRegimenLaboral(RegimenLaboral regimenLaboral) { this.regimenLaboral = regimenLaboral; }
     public EstadoContrato getEstado() { return estado; }
     public void setEstado(EstadoContrato estado) { this.estado = estado; }
     public String getObservaciones() { return observaciones; }
