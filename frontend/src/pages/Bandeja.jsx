@@ -5,25 +5,12 @@ import { http, PAGE_SIZE, pagePath } from '../api/client';
 import { Alert, Avatar, Badge, Button, DatePicker, Field, Kpi, KpiRow, Modal, PageHeader, Pager, SearchField, cn, downloadBlob } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
-import { fmtDateTime, fmtRelative } from '../lib/format';
-import { TIPO } from './bandejaShared';
+import { fmtDateTime, fmtRelative, isoDateEnZona } from '../lib/format';
+import { useConfig } from '../auth/ConfigContext';
 import { text } from '../lib/input';
 
-const ESTADOS_SEGUIMIENTO = [
-  { value: '', label: 'Todos' },
-  { value: 'PENDIENTE', label: 'Pendiente' },
-  { value: 'APROBADO', label: 'Aprobado' },
-  { value: 'RECHAZADO', label: 'Rechazado' },
-  { value: 'CANCELADO', label: 'Cancelado' }
-];
-
 function limaToday() {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(new Date());
+  return isoDateEnZona();
 }
 
 function shiftDays(iso, days) {
@@ -38,6 +25,9 @@ function startOfMonth(iso) {
 }
 
 export function Bandeja() {
+  const { etiqueta, num, opciones } = useConfig();
+  const comentarioMin = num('comentario_rechazo_min_caracteres', 1);
+  const ESTADOS_SEGUIMIENTO = [{ value: '', label: 'Todos' }, ...opciones('ESTADO_SOLICITUD').map((o) => ({ value: o.codigo, label: o.nombre }))];
   const navigate = useNavigate();
   const location = useLocation();
   const [tab, setTab] = useState(location.state?.tab === 'seguimiento' ? 'seguimiento' : 'pendientes');
@@ -193,8 +183,8 @@ export function Bandeja() {
     const ids = Object.entries(checked).filter(([, v]) => v).map(([id]) => Number(id));
     if (!ids.length || !bulk) return;
     const comentario = bulkComment.trim() || (bulk === 'aprobar' ? 'Aprobación masiva' : '');
-    if (bulk === 'rechazar' && comentario.length < 3) {
-      setError('Indique el motivo del rechazo (mínimo 3 caracteres).');
+    if (bulk === 'rechazar' && comentario.length < comentarioMin) {
+      setError(`Indique el motivo del rechazo (mínimo ${comentarioMin} caracteres).`);
       return;
     }
     setError('');
@@ -224,10 +214,10 @@ export function Bandeja() {
   function exportar() {
     const rowsCsv = tab === 'pendientes'
       ? [['Solicitante', 'Tipo', 'Trámite', 'Paso', 'Motivo', 'Desde']].concat(
-        rows.map((it) => [it.solicitante, TIPO[it.tipoSolicitud] || it.tipoSolicitud, it.tipoTramite, `${it.numeroPaso} ${it.nombrePaso}`, it.motivo, it.fechaInicio || ''])
+        rows.map((it) => [it.solicitante, etiqueta('TIPO_ORIGEN_FLUJO', it.tipoSolicitud), it.tipoTramite, `${it.numeroPaso} ${it.nombrePaso}`, it.motivo, it.fechaInicio || ''])
       )
       : [['Solicitante', 'Tipo', 'Trámite', 'Estado', 'Paso', 'Motivo', 'Fecha']].concat(
-        rows.map((it) => [it.solicitante, TIPO[it.tipoSolicitud] || it.tipoSolicitud, it.tipoTramite, it.estadoSolicitud, it.nombrePaso, it.motivo, it.fechaInicio || ''])
+        rows.map((it) => [it.solicitante, etiqueta('TIPO_ORIGEN_FLUJO', it.tipoSolicitud), it.tipoTramite, etiqueta('ESTADO_SOLICITUD', it.estadoSolicitud), it.nombrePaso, it.motivo, it.fechaInicio || ''])
       );
     const csv = rowsCsv.map((r) => r.map((c) => `"${String(c ?? '').replaceAll('"', '""')}"`).join(';')).join('\n');
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `bandeja-${tab}.csv`);
@@ -469,7 +459,7 @@ export function Bandeja() {
               <textarea
                 value={bulkComment}
                 onChange={(e) => setBulkComment(text(e.target.value, 400))}
-                placeholder={bulk === 'rechazar' ? 'Obligatorio, mínimo 3 caracteres' : 'Opcional'}
+                placeholder={bulk === 'rechazar' ? `Obligatorio, mínimo ${comentarioMin} caracteres` : 'Opcional'}
               />
             </Field>
           </div>
@@ -566,7 +556,7 @@ function FilaBandeja({ item, tab, checked, onCheck, onOpen }) {
                   {pendientes || item.estadoSolicitud === 'PENDIENTE' ? 'Paso' : 'Último'} {item.numeroPaso}: {item.nombrePaso}
                 </span>
               )}
-              {!pendientes && <Badge value={item.estadoSolicitud} />}
+              {!pendientes && <Badge tipo="ESTADO_SOLICITUD" value={item.estadoSolicitud} />}
             </div>
           </div>
         </button>

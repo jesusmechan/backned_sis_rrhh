@@ -94,7 +94,7 @@ export function Permisos() {
             leading={<Avatar name={r.empleado} />}
             title={r.empleado}
             meta={`${r.tipoPermiso} · ${fmtDate(r.fechaInicio)}${r.fechaInicio !== r.fechaFin ? ` → ${fmtDate(r.fechaFin)}` : ''}${r.horaInicio ? ` · ${fmtTime(r.horaInicio)} – ${fmtTime(r.horaFin)}` : ''}${r.fechaCreacion ? ` · Reg. ${fmtDateTime(r.fechaCreacion)}` : ''}`}
-            badge={<Badge value={r.estado} />}
+            badge={<Badge tipo="ESTADO_SOLICITUD" value={r.estado} />}
             actions={(
               <div className="flex items-center gap-2">
                 {lupa(r.idSolicitudPermiso)}
@@ -140,7 +140,7 @@ export function Permisos() {
                     {fmtDateTime(r.fechaCreacion)}
                   </td>
                   <td className="max-w-xs truncate text-sm text-muted">{r.motivo || '—'}</td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_SOLICITUD" value={r.estado} /></td>
                   <td>
                     <ListActions>
                       {lupa(r.idSolicitudPermiso)}

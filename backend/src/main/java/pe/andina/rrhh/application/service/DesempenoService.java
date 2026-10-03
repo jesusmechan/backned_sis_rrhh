@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.Empleado;
 import pe.andina.rrhh.domain.model.EvaluacionDesempeno;
+import pe.andina.rrhh.domain.model.Permisos;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.domain.model.enums.EstadoEvaluacion;
 import pe.andina.rrhh.application.dto.AppDtos.EvaluacionRequest;
 import pe.andina.rrhh.application.dto.AppDtos.EvaluacionResponse;
@@ -28,12 +30,15 @@ public class DesempenoService implements DesempenoUseCase {
     private final AuditoriaUseCase auditoriaService;
 
     private final CurrentUserPort currentUser;
+    private final ParametroPort parametros;
 
     public DesempenoService(EvaluacionDesempenoPort evaluacionRepository,
                             EmpleadoUseCase empleadoService,
                             EmpleadoScope empleadoScope,
                             AuditoriaUseCase auditoriaService,
-                           CurrentUserPort currentUser) {
+                            CurrentUserPort currentUser,
+                            ParametroPort parametros) {
+        this.parametros = parametros;
         this.evaluacionRepository = evaluacionRepository;
         this.empleadoService = empleadoService;
         this.empleadoScope = empleadoScope;
@@ -43,10 +48,10 @@ public class DesempenoService implements DesempenoUseCase {
 
     @Transactional(readOnly = true)
     public List<EvaluacionResponse> listar() {
-        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("GERENCIA")) {
+        if (currentUser.alcanceOrganizacion()) {
             return evaluacionRepository.findAllByOrderByFechaDescIdEvaluacionDesc().stream().map(this::toResponse).toList();
         }
-        if (currentUser.hasRole("JEFE")) {
+        if (currentUser.alcanceEquipo()) {
             return evaluacionRepository.findAllByOrderByFechaDescIdEvaluacionDesc().stream()
                     .filter(e -> empleadoScope.esJefeDirectoDe(e.getEmpleado()))
                     .map(this::toResponse)
@@ -62,10 +67,10 @@ public class DesempenoService implements DesempenoUseCase {
     @Transactional(readOnly = true)
     public EvaluacionResponse obtener(Integer id) {
         EvaluacionDesempeno e = buscar(id);
-        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("GERENCIA")) {
+        if (currentUser.alcanceOrganizacion()) {
             return toResponse(e);
         }
-        if (currentUser.hasRole("JEFE")) {
+        if (currentUser.alcanceEquipo()) {
             empleadoScope.assertPuedeGestionarEquipo(e.getEmpleado());
             return toResponse(e);
         }
@@ -78,16 +83,17 @@ public class DesempenoService implements DesempenoUseCase {
 
     @Transactional
     public EvaluacionResponse crear(EvaluacionRequest request) {
-        if (!currentUser.isAdminOrRrhh() && !currentUser.hasRole("JEFE") && !currentUser.hasRole("GERENCIA")) {
-            throw DomainException.forbidden("Solo jefatura, gerencia o RR. HH. puede registrar evaluaciones");
+        if (!currentUser.tienePermiso(Permisos.DESEMPENO_REGISTRAR)) {
+            throw DomainException.forbidden("Su perfil no tiene permiso para registrar evaluaciones");
         }
+        validarEscala(request);
         Empleado empleado = empleadoService.buscar(request.idEmpleado());
         empleadoScope.assertPuedeGestionarEquipo(empleado);
         EvaluacionDesempeno e = new EvaluacionDesempeno();
         e.setEmpleado(empleado);
         e.setEvaluador(currentUser.usuario());
         e.setPeriodo(request.periodo().trim());
-        e.setFecha(request.fecha() != null ? request.fecha() : LocalDate.now());
+        e.setFecha(request.fecha() != null ? request.fecha() : LocalDate.now(parametros.zona()));
         e.setPuntualidad(request.puntualidad());
         e.setCalidad(request.calidad());
         e.setCooperacion(request.cooperacion());
@@ -98,6 +104,16 @@ public class DesempenoService implements DesempenoUseCase {
         evaluacionRepository.save(e);
         auditoriaService.registrar(currentUser.usuario(), "REGISTRAR", "DESEMPENO", e.getIdEvaluacion(), e.getPeriodo());
         return toResponse(e);
+    }
+
+    private void validarEscala(EvaluacionRequest r) {
+        int min = parametros.entero("evaluacion_escala_min");
+        int max = parametros.entero("evaluacion_escala_max");
+        for (Integer puntaje : List.of(r.puntualidad(), r.calidad(), r.cooperacion(), r.iniciativa())) {
+            if (puntaje < min || puntaje > max) {
+                throw DomainException.badRequest("Cada criterio se califica de " + min + " a " + max);
+            }
+        }
     }
 
     private BigDecimal promedio(EvaluacionRequest r) {

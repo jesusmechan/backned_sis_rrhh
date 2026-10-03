@@ -20,7 +20,7 @@ import pe.andina.rrhh.application.port.in.RolUseCase;
 
 @RestController
 @RequestMapping("/api/roles")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('ROL_GESTIONAR')")
 @Tag(name = "Roles", description = "Mantenedor de perfiles, menús y permisos funcionales")
 public class RolController {
 

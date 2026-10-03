@@ -2,19 +2,21 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { http, pagePath, SELECT_SIZE, toTime } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
 import { Alert, BackLink, Button, DatePicker, Field, TimePicker } from '../components/ui';
 import { useDuplicarPrefill } from '../lib/useDuplicarPrefill';
 import { decimal, text } from '../lib/input';
 
 const empty = { idEmpleado: '', fecha: '', horaInicio: '', horaFin: '', cantidadHoras: '', motivo: '' };
 
-function horasEntre(inicio, fin) {
+function horasEntre(inicio, fin, fraccion) {
   if (!inicio || !fin) return '';
   const [sh, sm] = inicio.split(':').map(Number);
   const [eh, em] = fin.split(':').map(Number);
   const diff = (eh * 60 + em) - (sh * 60 + sm);
   if (diff <= 0) return '';
-  return String(Math.round((diff / 60) * 2) / 2);
+  const horas = diff / 60;
+  return String(fraccion > 0 ? Math.round(horas / fraccion) * fraccion : Math.round(horas * 100) / 100);
 }
 
 function mondayOf(iso) {
@@ -34,27 +36,20 @@ function addDays(iso, n) {
 
 export function HoraExtraNueva() {
   const navigate = useNavigate();
-  const { usuario, hasAnyRole } = useAuth();
-  const puedeElegirEmpleado = hasAnyRole('ADMIN', 'RRHH');
+  const { usuario, hasPermission } = useAuth();
+  const { num } = useConfig();
+  const puedeElegirEmpleado = hasPermission('ALCANCE_TOTAL');
+  const maxDia = num('max_horas_extras_diarias', 0);
+  const maxSemana = num('max_horas_extras_semanales', 0);
+  const minSolicitud = num('hora_extra_min_solicitud', 0);
+  const maxSolicitud = num('hora_extra_max_solicitud', 0);
+  const fraccion = num('hora_extra_fraccion', 0);
+  const motivoMin = num('motivo_min_caracteres', 1);
   const [form, setForm] = useDuplicarPrefill(empty);
   const [empleados, setEmpleados] = useState([]);
   const [existentes, setExistentes] = useState([]);
-  const [maxDia, setMaxDia] = useState(4);
-  const [maxSemana, setMaxSemana] = useState(12);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    http.get('/api/catalogos/parametros')
-      .then((params) => {
-        const list = Array.isArray(params) ? params : [];
-        const dia = list.find((p) => p.clave === 'max_horas_extras_diarias');
-        const sem = list.find((p) => p.clave === 'max_horas_extras_semanales');
-        if (dia?.valor) setMaxDia(Number(dia.valor) || 4);
-        if (sem?.valor) setMaxSemana(Number(sem.valor) || 12);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!puedeElegirEmpleado) return;
@@ -79,7 +74,7 @@ export function HoraExtraNueva() {
     setForm((f) => {
       const next = { ...f, [k]: v };
       if (k === 'horaInicio' || k === 'horaFin') {
-        const sugerida = horasEntre(next.horaInicio, next.horaFin);
+        const sugerida = horasEntre(next.horaInicio, next.horaFin, fraccion);
         if (sugerida) next.cantidadHoras = sugerida;
       }
       return next;
@@ -107,8 +102,8 @@ export function HoraExtraNueva() {
       return;
     }
     const horas = Number(form.cantidadHoras);
-    if (!horas || horas <= 0 || horas > 8) {
-      setError('La cantidad de horas debe ser mayor a 0 y como máximo 8.');
+    if (!horas || horas < minSolicitud || horas > maxSolicitud) {
+      setError(`La cantidad de horas debe estar entre ${minSolicitud} y ${maxSolicitud}.`);
       return;
     }
     if (horas > restoDia) {
@@ -119,8 +114,8 @@ export function HoraExtraNueva() {
       setError(`El tope semanal es ${maxSemana} h. Ya tiene ${acumSem} h pendientes o aprobadas esta semana.`);
       return;
     }
-    if (form.motivo.trim().length < 5) {
-      setError('El motivo debe tener al menos 5 caracteres.');
+    if (form.motivo.trim().length < motivoMin) {
+      setError(`El motivo debe tener al menos ${motivoMin} caracteres.`);
       return;
     }
     setSaving(true);
@@ -177,7 +172,7 @@ export function HoraExtraNueva() {
             <DatePicker value={form.fecha} onChange={(v) => set('fecha', v)} required />
           </Field>
           <Field label="Cantidad de horas">
-            <input inputMode="decimal" value={form.cantidadHoras} onChange={(e) => set('cantidadHoras', decimal(e.target.value, 8))} required />
+            <input inputMode="decimal" value={form.cantidadHoras} onChange={(e) => set('cantidadHoras', decimal(e.target.value, maxSolicitud))} required />
           </Field>
           <Field label="Desde">
             <TimePicker value={form.horaInicio} onChange={(v) => set('horaInicio', v)} required />
@@ -186,7 +181,7 @@ export function HoraExtraNueva() {
             <TimePicker value={form.horaFin} onChange={(v) => set('horaFin', v)} required />
           </Field>
           <Field label="Motivo" full>
-            <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={5} placeholder="Mínimo 5 caracteres" />
+            <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={motivoMin} placeholder={`Mínimo ${motivoMin} caracteres`} />
           </Field>
         </div>
         <p className="mt-4 text-xs text-muted">

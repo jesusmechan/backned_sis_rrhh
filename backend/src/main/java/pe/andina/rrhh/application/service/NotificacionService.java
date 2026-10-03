@@ -11,6 +11,7 @@ import pe.andina.rrhh.application.port.in.NotificacionUseCase;
 import pe.andina.rrhh.application.port.out.CurrentUserPort;
 import pe.andina.rrhh.application.port.out.NotificacionPort;
 import pe.andina.rrhh.application.port.out.NotificacionPushPort;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.port.out.UsuarioPort;
 import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.Empleado;
@@ -33,11 +34,14 @@ public class NotificacionService implements NotificacionUseCase {
     private final NotificacionPushPort pushPort;
     private final UsuarioPort usuarioRepository;
     private final CurrentUserPort currentUser;
+    private final ParametroPort parametros;
 
     public NotificacionService(NotificacionPort notificacionRepository,
                                NotificacionPushPort pushPort,
                                UsuarioPort usuarioRepository,
-                               CurrentUserPort currentUser) {
+                               CurrentUserPort currentUser,
+                               ParametroPort parametros) {
+        this.parametros = parametros;
         this.notificacionRepository = notificacionRepository;
         this.pushPort = pushPort;
         this.usuarioRepository = usuarioRepository;
@@ -48,7 +52,7 @@ public class NotificacionService implements NotificacionUseCase {
     public List<NotificacionResponse> listar() {
         return notificacionRepository.findByUsuario_IdUsuarioOrderByIdNotificacionDesc(currentUser.idUsuario())
                 .stream()
-                .limit(40)
+                .limit(parametros.entero("notificaciones_limite"))
                 .map(this::toResponse)
                 .toList();
     }
@@ -155,8 +159,8 @@ public class NotificacionService implements NotificacionUseCase {
             for (Usuario u : usuarioRepository.findByRol_CodigoAndActivoTrue(paso.getRol().getCodigo())) {
                 unicos.put(u.getIdUsuario(), u);
             }
-            if ("GERENCIA".equals(paso.getRol().getCodigo())) {
-                for (Usuario u : usuarioRepository.findByRol_CodigoAndActivoTrue("ADMIN")) {
+            if (paso.getRol().getRolSuplente() != null) {
+                for (Usuario u : usuarioRepository.findByRol_CodigoAndActivoTrue(paso.getRol().getRolSuplente().getCodigo())) {
                     unicos.put(u.getIdUsuario(), u);
                 }
             }

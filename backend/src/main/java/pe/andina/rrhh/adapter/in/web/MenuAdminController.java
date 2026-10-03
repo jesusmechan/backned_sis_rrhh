@@ -21,7 +21,7 @@ import pe.andina.rrhh.application.port.in.MenuAdminUseCase;
 
 @RestController
 @RequestMapping("/api/menus")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('MENU_GESTIONAR')")
 @Tag(name = "Menú", description = "Mantenedor de opciones de menú por perfil")
 public class MenuAdminController {
 

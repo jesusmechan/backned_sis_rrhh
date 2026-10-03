@@ -11,9 +11,9 @@ public final class AuthDtos {
     public record LoginRequest(
             @NotBlank(message = "Indique el usuario")
             @Pattern(regexp = "^[a-z][a-z0-9._]{2,59}$", message = "El usuario solo admite minúsculas, números, punto o guion bajo")
-            @Schema(example = "jesus.mechan") String nombreUsuario,
+            @Schema(example = "usuario") String nombreUsuario,
             @NotBlank(message = "Indique la contraseña")
-            @Schema(example = "Andina2026") String password
+            String password
     ) {}
 
     public record RefreshRequest(@NotBlank String refreshToken) {}

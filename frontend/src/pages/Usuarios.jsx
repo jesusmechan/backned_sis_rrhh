@@ -3,24 +3,28 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Plus } from 'lucide-react';
 import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
+import { fmtShortDateTime } from '../lib/format';
 import { Alert, Avatar, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
-import { correoAndina, slugCuenta } from './altaShared';
+import { correoInstitucional, slugCuenta } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
 import { email, isEmail, isUsername, username } from '../lib/input';
 
-const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: 'Andina2026', activo: true };
+const empty = { idEmpleado: '', idRol: '', nombreUsuario: '', correo: '', password: '', activo: true };
 
 function fmtAccess(value) {
   if (!value) return 'Sin acceso registrado';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return 'Sin acceso registrado';
-  return `Último acceso ${d.toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
+  return `Último acceso ${fmtShortDateTime(d)}`;
 }
 
 export function Usuarios() {
-  const { hasAnyRole } = useAuth();
-  const esAdmin = hasAnyRole('ADMIN');
+  const { hasPermission } = useAuth();
+  const { param, num } = useConfig();
+  const puedeGestionar = hasPermission('USUARIO_GESTIONAR');
+  const minPassword = num('password_min_longitud', 1);
   const location = useLocation();
   const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
@@ -90,7 +94,7 @@ export function Usuarios() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   function rolEmpleadoId(list = roles) {
-    return list.find((r) => r.codigo === 'EMPLEADO')?.id || list[0]?.id || '';
+    return list.find((r) => r.codigo === param('rol_por_defecto'))?.id || list[0]?.id || '';
   }
 
   function datosCuenta(emp, prefill = {}) {
@@ -98,7 +102,7 @@ export function Usuarios() {
     const apellido = prefill.apellidoPaterno || emp?.apellidoPaterno || '';
     return {
       nombreUsuario: slugCuenta(nombres, apellido),
-      correo: prefill.correo || emp?.correoInstitucional || correoAndina(nombres, apellido)
+      correo: prefill.correo || emp?.correoInstitucional || correoInstitucional(nombres, apellido, param('empresa_dominio_correo'))
     };
   }
 
@@ -142,7 +146,7 @@ export function Usuarios() {
         idRol: rolEmpleadoId(),
         nombreUsuario: auto.nombreUsuario,
         correo: auto.correo,
-        password: 'Andina2026',
+        password: '',
         activo: true
       });
     }
@@ -150,10 +154,10 @@ export function Usuarios() {
   }
 
   useEffect(() => {
-    if (!catalogosReady || !location.state?.nuevo || !esAdmin) return;
+    if (!catalogosReady || !location.state?.nuevo || !puedeGestionar) return;
     abrir(null, location.state);
     navigate(location.pathname, { replace: true, state: {} });
-  }, [catalogosReady, location.state, esAdmin]);
+  }, [catalogosReady, location.state, puedeGestionar]);
 
   async function guardar(e) {
     e.preventDefault();
@@ -166,12 +170,8 @@ export function Usuarios() {
       setError('Indique un correo válido.');
       return;
     }
-    if (!editId && (!form.password || form.password.length < 6)) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
-    if (editId && form.password && form.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (form.password && form.password.length < minPassword) {
+      setError(`La contraseña debe tener al menos ${minPassword} caracteres.`);
       return;
     }
     setSaving(true);
@@ -223,7 +223,7 @@ export function Usuarios() {
           <h1 className="page-title mt-1">Usuarios</h1>
           <p className="mt-2 text-sm text-muted">Cuentas de acceso. El menú y los permisos salen del rol asignado en el mantenedor.</p>
         </div>
-        {esAdmin && <Button onClick={() => abrir(null)}><Plus size={16} /> Nueva cuenta</Button>}
+        {puedeGestionar && <Button onClick={() => abrir(null)}><Plus size={16} /> Nueva cuenta</Button>}
       </div>
 
       <Alert>{error}</Alert>
@@ -257,8 +257,8 @@ export function Usuarios() {
             leading={<Avatar name={r.nombreCompleto || r.nombreUsuario} />}
             title={r.nombreCompleto || r.nombreUsuario}
             meta={`${r.nombreUsuario} · ${r.perfil || r.rol || ''}`}
-            badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
-            actions={esAdmin ? (
+            badge={<Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            actions={puedeGestionar ? (
               <>
                 <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
                 <Button variant={r.activo ? 'danger' : 'secondary'} className="px-3 py-1.5 text-xs" onClick={() => cambiarEstado(r)}>
@@ -277,7 +277,7 @@ export function Usuarios() {
                 <th>Perfil</th>
                 <th>Último acceso</th>
                 <th>Estado</th>
-                {esAdmin && <th></th>}
+                {puedeGestionar && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -289,8 +289,8 @@ export function Usuarios() {
                   <td className="text-sm">{r.nombreUsuario}</td>
                   <td className="text-sm">{r.perfil || r.rol || '—'}</td>
                   <td className="text-sm text-muted">{fmtAccess(r.ultimoAcceso)}</td>
-                  <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
-                  {esAdmin && (
+                  <td><Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                  {puedeGestionar && (
                     <td>
                       <ListActions>
                         <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
@@ -362,7 +362,7 @@ export function Usuarios() {
             </Field>
             <Field
               label="Contraseña"
-              hint={editId ? 'Vacío = no cambia' : 'Contraseña inicial sugerida: Andina2026'}
+              hint={editId ? 'Vacío = no cambia' : 'Vacío = contraseña inicial configurada en Parámetros'}
               full
             >
               <div className="relative">
@@ -371,8 +371,7 @@ export function Usuarios() {
                   className="pr-11"
                   value={form.password}
                   onChange={(e) => set('password', e.target.value)}
-                  placeholder={editId ? 'Dejar vacío para no cambiar' : ''}
-                  required={!editId}
+                  placeholder={editId ? 'Dejar vacío para no cambiar' : 'Contraseña inicial'}
                   autoComplete={editId ? 'new-password' : 'off'}
                 />
                 <button

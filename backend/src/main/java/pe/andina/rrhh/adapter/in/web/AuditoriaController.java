@@ -14,7 +14,7 @@ import pe.andina.rrhh.application.port.in.ConsultaUseCase;
 
 @RestController
 @RequestMapping("/api")
-@PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+@PreAuthorize("hasAuthority('AUDITORIA_CONSULTAR')")
 @Tag(name = "Auditoría", description = "Bitácora y trazabilidad de solicitudes")
 public class AuditoriaController {
 

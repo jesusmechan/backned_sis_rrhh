@@ -17,6 +17,7 @@ import pe.andina.rrhh.domain.model.CargaMasivaDetalle;
 import pe.andina.rrhh.domain.model.enums.EstadoCarga;
 import pe.andina.rrhh.domain.model.enums.EstadoEmpleado;
 import pe.andina.rrhh.domain.model.enums.ResultadoFilaCarga;
+import pe.andina.rrhh.domain.model.enums.SexoEmpleado;
 import pe.andina.rrhh.domain.model.enums.TipoContrato;
 import pe.andina.rrhh.domain.model.enums.TipoDocumento;
 import pe.andina.rrhh.application.dto.AppDtos.CargaFilaResponse;
@@ -174,13 +175,13 @@ public class CargaExcelService implements CargaExcelUseCase {
                 .orElseThrow(() -> DomainException.badRequest("Horario no existe: " + horarioNombre)).getIdHorario();
         return new EmpleadoRequest(
                 cell(row, 0, fmt).toUpperCase(),
-                TipoDocumento.valueOf(orDefault(cell(row, 1, fmt), "DNI")),
+                enumOVacio(cell(row, 1, fmt), TipoDocumento.class, "tipo_documento"),
                 cell(row, 2, fmt).toUpperCase().replaceAll("[^A-Z0-9]", ""),
                 cell(row, 3, fmt),
                 cell(row, 4, fmt),
                 cell(row, 5, fmt),
                 parseDate(cell(row, 6, fmt)),
-                null,
+                enumOVacio(cell(row, 7, fmt), SexoEmpleado.class, "sexo"),
                 cell(row, 8, fmt).toLowerCase(),
                 null,
                 cell(row, 9, fmt).replaceAll("\\D", ""),
@@ -188,10 +189,22 @@ public class CargaExcelService implements CargaExcelUseCase {
                 parseDate(cell(row, 10, fmt)),
                 null,
                 idArea, idCargo, idHorario,
-                TipoContrato.valueOf(orDefault(cell(row, 14, fmt), "PLANILLA")),
-                EstadoEmpleado.valueOf(orDefault(cell(row, 15, fmt), "ACTIVO")),
+                enumOVacio(cell(row, 14, fmt), TipoContrato.class, "tipo_contrato"),
+                enumOVacio(cell(row, 15, fmt), EstadoEmpleado.class, "estado"),
                 null
         );
+    }
+
+    /** Celda vacía: el servicio aplica el valor por defecto del catálogo. */
+    private <E extends Enum<E>> E enumOVacio(String value, Class<E> clase, String columna) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Enum.valueOf(clase, value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw DomainException.badRequest("Valor no válido en la columna " + columna + ": " + value);
+        }
     }
 
     private void validar(EmpleadoRequest request) {
@@ -204,10 +217,6 @@ public class CargaExcelService implements CargaExcelUseCase {
 
     private String cell(Row row, int idx, DataFormatter fmt) {
         return row.getCell(idx) == null ? "" : fmt.formatCellValue(row.getCell(idx)).trim();
-    }
-
-    private String orDefault(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value;
     }
 
     private LocalDate parseDate(String value) {

@@ -28,17 +28,7 @@ public class SpringCurrentUserAdapter implements CurrentUserPort {
     }
 
     @Override
-    public boolean hasRole(String codigoRol) {
-        return SecurityUtils.hasRole(codigoRol);
-    }
-
-    @Override
-    public boolean isAdminOrRrhh() {
-        return SecurityUtils.isAdminOrRrhh();
-    }
-
-    @Override
-    public boolean puedeVerConjuntoOperativo() {
-        return SecurityUtils.puedeVerConjuntoOperativo();
+    public boolean tienePermiso(String codigoPermiso) {
+        return SecurityUtils.tienePermiso(codigoPermiso);
     }
 }

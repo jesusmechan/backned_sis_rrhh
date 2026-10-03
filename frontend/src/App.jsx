@@ -41,10 +41,8 @@ function ScrollToTop() {
 }
 
 function Private({ children, path }) {
-  const { isAuth, canAccess, hasAnyRole } = useAuth();
+  const { isAuth, canAccess } = useAuth();
   if (!isAuth) return <Navigate to="/login" replace />;
-  if (path === '/menu' && hasAnyRole('ADMIN')) return children;
-  if (path === '/roles' && hasAnyRole('ADMIN')) return children;
   if (path && !canAccess(path)) return <AccesoRestringido />;
   return children;
 }

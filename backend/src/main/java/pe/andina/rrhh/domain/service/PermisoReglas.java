@@ -9,6 +9,7 @@ import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoRequest;
 import pe.andina.rrhh.application.port.out.SolicitudPermisoPort;
 import pe.andina.rrhh.application.port.in.ContratoUseCase;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 
 import java.util.EnumSet;
 
@@ -20,10 +21,12 @@ public class PermisoReglas {
 
     private final SolicitudPermisoPort permisoRepository;
     private final ContratoUseCase contratoService;
+    private final ParametroPort parametros;
 
-    public PermisoReglas(SolicitudPermisoPort permisoRepository, ContratoUseCase contratoService) {
+    public PermisoReglas(SolicitudPermisoPort permisoRepository, ContratoUseCase contratoService, ParametroPort parametros) {
         this.permisoRepository = permisoRepository;
         this.contratoService = contratoService;
+        this.parametros = parametros;
     }
 
     /**
@@ -49,7 +52,11 @@ public class PermisoReglas {
             throw DomainException.badRequest(
                     "La hora de fin debe ser posterior a la de inicio. Para un día completo, deje las horas vacías.");
         }
-        if ("VACACIONES".equalsIgnoreCase(tipo.getCodigo())) {
+        int minMotivo = parametros.entero("motivo_min_caracteres");
+        if (request.motivo() == null || request.motivo().trim().length() < minMotivo) {
+            throw DomainException.badRequest("El motivo debe tener al menos " + minMotivo + " caracteres");
+        }
+        if (Boolean.TRUE.equals(tipo.getEsVacaciones())) {
             contratoService.validarVacaciones(empleado, request.fechaInicio(), request.fechaFin());
         }
         validarTraslapo(empleado.getIdEmpleado(), request);

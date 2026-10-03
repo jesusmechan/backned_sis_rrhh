@@ -2,8 +2,6 @@ import { fmtDate, fmtTime } from '../lib/format';
 
 export { fmtDate, fmtDateTime, fmtTime, hhmm } from '../lib/format';
 
-export const TIPO = { PERMISO: 'Permiso', HORA_EXTRA: 'Horas extras' };
-
 export function solicitudPath(tipoSolicitud, id) {
   return tipoSolicitud === 'HORA_EXTRA' ? `/api/horas-extras/${id}` : `/api/permisos/${id}`;
 }

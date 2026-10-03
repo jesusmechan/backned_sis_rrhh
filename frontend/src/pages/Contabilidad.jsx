@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, DataList, FilterBar, Kpi, KpiRow, MobileRow, Pager, SearchField } from '../components/ui';
+import { Alert, Badge, CatalogoOptions, DataList, FilterBar, Kpi, KpiRow, MobileRow, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
 import { fmtDate, fmtMoney } from '../lib/format';
@@ -64,9 +64,8 @@ export function Contabilidad() {
         <SearchField placeholder="Buscar código, glosa o periodo" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         <select className="w-auto" value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }}>
           <option value="">Todos los estados</option>
-          <option value="CONTABILIZADO">Contabilizado</option>
-          <option value="BORRADOR">Borrador</option>
-          <option value="ANULADO">Anulado</option>
+          <CatalogoOptions tipo="ESTADO_ASIENTO" />
+
         </select>
         {filtrosActivos && (
           <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={limpiar}>
@@ -84,7 +83,7 @@ export function Contabilidad() {
               <MobileRow
                 title={r.codigo}
                 meta={`${fmtDate(r.fecha)} · Debe ${fmtMoney(r.totalDebe)} · Haber ${fmtMoney(r.totalHaber)}`}
-                badge={<Badge value={r.estado} />}
+                badge={<Badge tipo="ESTADO_ASIENTO" value={r.estado} />}
               />
             </button>
             {abierto === r.idAsiento && (
@@ -118,7 +117,7 @@ export function Contabilidad() {
                     <td className="text-sm">{fmtDate(r.fecha)}</td>
                     <td className="text-sm">{fmtMoney(r.totalDebe)}</td>
                     <td className="text-sm">{fmtMoney(r.totalHaber)}</td>
-                    <td><Badge value={r.estado} /></td>
+                    <td><Badge tipo="ESTADO_ASIENTO" value={r.estado} /></td>
                     <td>
                       <button
                         type="button"

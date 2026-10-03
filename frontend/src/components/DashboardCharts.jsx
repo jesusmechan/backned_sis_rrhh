@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
+import { fmtMoney } from '../lib/format';
 
 const COLORS = {
   pend: '#b45309',
@@ -183,7 +184,7 @@ export function PlanillaBarras({ rows = [], height = 220 }) {
           <Tooltip
             contentStyle={tooltipStyle}
             formatter={(value) =>
-              Number(value).toLocaleString('es-PE', { style: 'currency', currency: 'PEN', maximumFractionDigits: 0 })
+              fmtMoney(value, '', { maximumFractionDigits: 0, minimumFractionDigits: 0 })
             }
           />
           <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Alert, Avatar, Badge, Button } from '../ui';
-import { APROBADOR } from '../../pages/flujoShared';
+import { useConfig } from '../../auth/ConfigContext';
 import { fmtDate, fmtDateTime, fmtRelative, fmtTime } from '../../lib/format';
 import { SolicitudHistorial } from './SolicitudHistorial';
 
@@ -43,12 +43,11 @@ function horarioTexto(detalle, tipoSolicitud) {
   return 'Jornada completa';
 }
 
-function asignadoDe(paso) {
+function asignadoDe(paso, etiqueta) {
   return (
     paso.usuarioAsignado
     || paso.rol
-    || APROBADOR[paso.tipoAprobador]?.label
-    || paso.tipoAprobador
+    || etiqueta('TIPO_APROBADOR', paso.tipoAprobador, '')
     || 'Sin asignar'
   );
 }
@@ -79,6 +78,7 @@ function Collapsible({ title, hint, meta, defaultOpen = true, children }) {
 }
 
 function AprobacionesTimeline({ pasos = [] }) {
+  const { etiqueta } = useConfig();
   if (!pasos.length) {
     return <p className="text-sm text-muted">Sin pasos de aprobación.</p>;
   }
@@ -106,7 +106,7 @@ function AprobacionesTimeline({ pasos = [] }) {
               <p className="text-sm font-semibold text-navy">
                 Paso {p.numeroPaso} · {p.nombrePaso}
               </p>
-              <Badge value={p.estado} />
+              <Badge tipo="ESTADO_PASO" value={p.estado} />
             </div>
 
             {p.usuarioDecision || p.fechaDecision ? (
@@ -131,7 +131,7 @@ function AprobacionesTimeline({ pasos = [] }) {
             ) : (
               <div className="mt-2.5 rounded-lg bg-surface px-3 py-2.5 ring-1 ring-line">
                 <p className="text-xs text-slate-700">
-                  <span className="font-medium text-navy">Responsable:</span> {asignadoDe(p)}
+                  <span className="font-medium text-navy">Responsable:</span> {asignadoDe(p, etiqueta)}
                 </p>
                 <p className="mt-1 text-[11px] text-muted">
                   {activo
@@ -174,7 +174,7 @@ export function SolicitudVista({
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Información del permiso
               </p>
-              <Badge value={detalle.estado} />
+              <Badge tipo="ESTADO_SOLICITUD" value={detalle.estado} />
             </div>
 
             <div className="mt-4 flex items-center gap-3">

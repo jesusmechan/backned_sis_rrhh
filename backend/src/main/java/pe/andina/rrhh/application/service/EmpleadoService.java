@@ -17,7 +17,11 @@ import pe.andina.rrhh.application.port.out.CargoPort;
 import pe.andina.rrhh.application.port.out.EmpleadoPort;
 import pe.andina.rrhh.application.port.out.HorarioLaboralPort;
 
+import pe.andina.rrhh.application.port.out.ParametroPort;
+import pe.andina.rrhh.domain.model.Permisos;
+
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class EmpleadoService implements EmpleadoUseCase {
@@ -29,13 +33,19 @@ public class EmpleadoService implements EmpleadoUseCase {
     private final AuditoriaUseCase auditoriaService;
 
     private final CurrentUserPort currentUser;
+    private final ParametroPort parametros;
+    private final CatalogoReglas catalogo;
 
     public EmpleadoService(EmpleadoPort empleadoRepository,
                            AreaPort areaRepository,
                            CargoPort cargoRepository,
                            HorarioLaboralPort horarioRepository,
                            AuditoriaUseCase auditoriaService,
-                           CurrentUserPort currentUser) {
+                           CurrentUserPort currentUser,
+                           ParametroPort parametros,
+                           CatalogoReglas catalogo) {
+        this.parametros = parametros;
+        this.catalogo = catalogo;
         this.empleadoRepository = empleadoRepository;
         this.areaRepository = areaRepository;
         this.cargoRepository = cargoRepository;
@@ -51,7 +61,7 @@ public class EmpleadoService implements EmpleadoUseCase {
 
     @Transactional(readOnly = true)
     public EmpleadoResponse obtener(Integer id) {
-        if (!currentUser.isAdminOrRrhh()) {
+        if (!currentUser.tienePermiso(Permisos.PERSONAL_CONSULTAR) && !currentUser.alcanceTotal()) {
             Integer propio = currentUser.idEmpleado();
             if (propio == null || !propio.equals(id)) {
                 throw DomainException.forbidden("Solo puede consultar su ficha de personal");
@@ -81,9 +91,22 @@ public class EmpleadoService implements EmpleadoUseCase {
         return empleadoRepository.findById(id).orElseThrow(() -> DomainException.notFound("Trabajador no encontrado"));
     }
 
+    /** Formato {@code <prefijo>-<correlativo>} según los parámetros del código de trabajador. */
+    public void validarCodigo(String codigo) {
+        String prefijo = parametros.texto("codigo_empleado_prefijo");
+        int digitos = parametros.entero("codigo_empleado_digitos");
+        String regex = Pattern.quote(prefijo) + "-[0-9]{" + digitos + ",}";
+        if (codigo == null || !codigo.matches(regex)) {
+            throw DomainException.badRequest("El código debe tener el formato " + prefijo + "-" + "0".repeat(Math.max(0, digitos - 1)) + "1");
+        }
+    }
+
     private void aplicar(Empleado e, EmpleadoRequest r) {
+        validarCodigo(r.codigoEmpleado());
+        TipoDocumento tipoDocumento = catalogo.oPorDefecto(r.tipoDocumento(), CatalogoReglas.TIPO_DOCUMENTO, TipoDocumento.class);
+        catalogo.validarRegla(CatalogoReglas.TIPO_DOCUMENTO, tipoDocumento.name(), r.numeroDocumento(), "El número de documento");
         e.setCodigoEmpleado(r.codigoEmpleado());
-        e.setTipoDocumento(r.tipoDocumento() != null ? r.tipoDocumento() : TipoDocumento.DNI);
+        e.setTipoDocumento(tipoDocumento);
         e.setNumeroDocumento(r.numeroDocumento());
         e.setNombres(r.nombres());
         e.setApellidoPaterno(r.apellidoPaterno());
@@ -99,8 +122,8 @@ public class EmpleadoService implements EmpleadoUseCase {
         e.setArea(areaRepository.findById(r.idArea()).orElseThrow(() -> DomainException.badRequest("Área no existe")));
         e.setCargo(cargoRepository.findById(r.idCargo()).orElseThrow(() -> DomainException.badRequest("Cargo no existe")));
         e.setHorario(horarioRepository.findById(r.idHorario()).orElseThrow(() -> DomainException.badRequest("Horario no existe")));
-        e.setTipoContrato(r.tipoContrato() != null ? r.tipoContrato() : TipoContrato.PLANILLA);
-        e.setEstado(r.estado() != null ? r.estado() : EstadoEmpleado.ACTIVO);
+        e.setTipoContrato(catalogo.oPorDefecto(r.tipoContrato(), CatalogoReglas.TIPO_CONTRATO, TipoContrato.class));
+        e.setEstado(catalogo.oPorDefecto(r.estado(), CatalogoReglas.ESTADO_EMPLEADO, EstadoEmpleado.class));
         if (r.idJefeInmediato() != null) {
             if (e.getIdEmpleado() != null && r.idJefeInmediato().equals(e.getIdEmpleado())) {
                 throw DomainException.badRequest("El trabajador no puede ser su propio jefe");

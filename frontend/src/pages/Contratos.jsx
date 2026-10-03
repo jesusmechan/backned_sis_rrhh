@@ -1,30 +1,34 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
+import { useConfig } from '../auth/ConfigContext';
+import { Alert, Avatar, Badge, Button, CatalogoOptions, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { hoyISO } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
 import { decimal, text } from '../lib/input';
 import { fmtDate as formatDate, fmtMoney } from '../lib/format';
 
-const MODALIDAD = { COLABORADOR: 'Colaborador', PRACTICANTE: 'Practicante' };
-const REGIMEN = { ONP: 'ONP', AFP: 'AFP', NINGUNO: 'Ninguno' };
-const AFP = { HABITAT: 'Habitat', INTEGRA: 'Integra', PRIMA: 'Prima', PROFUTURO: 'Profuturo' };
-
-const empty = {
-  idEmpleado: '', modalidad: 'COLABORADOR', idHorario: '', fechaInicio: '', fechaFin: '',
-  remuneracionBasica: '', regimenPensionario: 'ONP', afpNombre: '', tieneAsignacionFamiliar: false,
-  estado: 'VIGENTE', observaciones: ''
-};
-
 function fmtDate(value) {
   return formatDate(value, 'Sin término');
 }
 
+function pct(tasa) {
+  const n = Number(tasa);
+  return Number.isFinite(n) ? `${Math.round(n * 10000) / 100}%` : '';
+}
+
 export function Contratos() {
+  const { num, porDefecto, etiqueta } = useConfig();
+  const empty = {
+    idEmpleado: '', modalidad: porDefecto('MODALIDAD_CONTRATO'), idHorario: '', fechaInicio: '', fechaFin: '',
+    remuneracionBasica: '', regimenPensionario: porDefecto('REGIMEN_PENSIONARIO'), afpNombre: '', regimenLaboral: '',
+    tieneAsignacionFamiliar: false, estado: porDefecto('ESTADO_CONTRATO'), observaciones: ''
+  };
   const [empleados, setEmpleados] = useState([]);
   const [horarios, setHorarios] = useState([]);
+  const [afps, setAfps] = useState([]);
+  const [regimenes, setRegimenes] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [open, setOpen] = useState(false);
@@ -34,6 +38,8 @@ export function Contratos() {
   const [modalidad, setModalidad] = useState('');
   const [q, setQ, qDebounced] = useQuerySearch();
   const [counts, setCounts] = useState({ total: 0, vigentes: 0, colaboradores: 0, practicantes: 0 });
+  const remuneracionMax = num('remuneracion_maxima', 0);
+  const diasVacaciones = num('dias_vacaciones_mensuales', 0);
 
   const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
     [qDebounced, tab, modalidad],
@@ -49,11 +55,15 @@ export function Contratos() {
   useEffect(() => {
     Promise.all([
       http.page(pagePath('/api/empleados', { page: 1, size: SELECT_SIZE })),
-      http.get('/api/catalogos/horarios')
+      http.get('/api/catalogos/horarios'),
+      http.get('/api/catalogos/afps'),
+      http.get('/api/catalogos/regimenes-laborales')
     ])
-      .then(([emp, hrs]) => {
+      .then(([emp, hrs, afp, reg]) => {
         setEmpleados(emp.content || []);
         setHorarios(hrs);
+        setAfps(afp || []);
+        setRegimenes(reg || []);
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -76,24 +86,22 @@ export function Contratos() {
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const regimenPorDefecto = () => regimenes.find((r) => r.porDefecto)?.codigo || '';
+  const pensionColaborador = () => {
+    const def = porDefecto('REGIMEN_PENSIONARIO');
+    return def && def !== 'NINGUNO' ? def : 'ONP';
+  };
 
-  function horarioPracticasId() {
-    const h = horarios.find((x) => /pr[aá]ctica/i.test(x.nombre));
-    return h?.id || '';
-  }
-
-  function horarioColaboradorId() {
-    const h = horarios.find((x) => /administrativa/i.test(x.nombre)) || horarios[0];
-    return h?.id || '';
+  function elegirEmpleado(id) {
+    const emp = empleados.find((e) => String(e.idEmpleado) === String(id));
+    setForm((f) => ({ ...f, idEmpleado: id, idHorario: f.idHorario || emp?.idHorario || '' }));
   }
 
   function setModalidadForm(value) {
     setForm((f) => ({
       ...f,
       modalidad: value,
-      idHorario: value === 'PRACTICANTE' ? (horarioPracticasId() || f.idHorario) : (f.idHorario || horarioColaboradorId()),
-      fechaFin: value === 'PRACTICANTE' ? f.fechaFin : f.fechaFin,
-      regimenPensionario: value === 'PRACTICANTE' ? 'NINGUNO' : (f.regimenPensionario === 'NINGUNO' ? 'ONP' : f.regimenPensionario),
+      regimenPensionario: value === 'PRACTICANTE' ? 'NINGUNO' : (f.regimenPensionario === 'NINGUNO' ? pensionColaborador() : f.regimenPensionario),
       afpNombre: value === 'PRACTICANTE' ? '' : f.afpNombre,
       tieneAsignacionFamiliar: value === 'PRACTICANTE' ? false : f.tieneAsignacionFamiliar
     }));
@@ -105,15 +113,16 @@ export function Contratos() {
       setEditId(row.idContrato);
       setForm({
         idEmpleado: row.idEmpleado || '',
-        modalidad: row.modalidad || 'COLABORADOR',
+        modalidad: row.modalidad || empty.modalidad,
         idHorario: row.idHorario || '',
         fechaInicio: row.fechaInicio || '',
         fechaFin: row.fechaFin || '',
         remuneracionBasica: row.remuneracionBasica != null ? String(row.remuneracionBasica) : '',
-        regimenPensionario: row.regimenPensionario || (row.modalidad === 'PRACTICANTE' ? 'NINGUNO' : 'ONP'),
+        regimenPensionario: row.regimenPensionario || empty.regimenPensionario,
         afpNombre: row.afpNombre || '',
+        regimenLaboral: row.regimenLaboral || regimenPorDefecto(),
         tieneAsignacionFamiliar: Boolean(row.tieneAsignacionFamiliar),
-        estado: row.estado || 'VIGENTE',
+        estado: row.estado || empty.estado,
         observaciones: row.observaciones || ''
       });
     } else {
@@ -121,7 +130,7 @@ export function Contratos() {
       setForm({
         ...empty,
         fechaInicio: hoyISO(),
-        idHorario: horarioColaboradorId()
+        regimenLaboral: regimenPorDefecto()
       });
     }
     setOpen(true);
@@ -148,6 +157,7 @@ export function Contratos() {
       remuneracionBasica: form.remuneracionBasica ? Number(form.remuneracionBasica) : 0,
       regimenPensionario: form.modalidad === 'PRACTICANTE' ? 'NINGUNO' : form.regimenPensionario,
       afpNombre: form.regimenPensionario === 'AFP' ? form.afpNombre : null,
+      regimenLaboral: form.regimenLaboral || null,
       tieneAsignacionFamiliar: form.modalidad !== 'PRACTICANTE' && Boolean(form.tieneAsignacionFamiliar),
       estado: form.estado,
       observaciones: form.observaciones || null
@@ -165,6 +175,8 @@ export function Contratos() {
     }
   }
 
+  const regimenSel = regimenes.find((r) => r.codigo === form.regimenLaboral);
+
   return (
     <div>
       <div className="mb-6 flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -172,7 +184,7 @@ export function Contratos() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Administración</p>
           <h1 className="page-title mt-1">Contratos</h1>
           <p className="mt-2 text-sm text-muted">
-            Define si el trabajador es colaborador o practicante, asigna su horario y controla las vacaciones (1.5 días por mes).
+            Define la modalidad, el régimen laboral y el horario del trabajador, y controla las vacaciones ({diasVacaciones} días por mes).
           </p>
         </div>
         <Button onClick={() => abrir(null)}><Plus size={16} /> Nuevo contrato</Button>
@@ -183,18 +195,16 @@ export function Contratos() {
 
       <KpiRow>
         <Kpi value={counts.total} label="Contratos" hint="Histórico registrado" active={tab === '' && modalidad === ''} onClick={() => { setTab(''); setModalidad(''); setPage(1); }} />
-        <Kpi value={counts.vigentes} label="Vigentes" hint="Vínculo activo" active={tab === 'VIGENTE'} onClick={() => { setTab('VIGENTE'); setPage(1); }} />
-        <Kpi value={counts.colaboradores} label="Colaboradores" hint="Modalidad laboral" active={modalidad === 'COLABORADOR'} onClick={() => { setModalidad('COLABORADOR'); setPage(1); }} />
-        <Kpi value={counts.practicantes} label="Practicantes" hint="Jornada de prácticas" active={modalidad === 'PRACTICANTE'} onClick={() => { setModalidad('PRACTICANTE'); setPage(1); }} />
+        <Kpi value={counts.vigentes} label={etiqueta('ESTADO_CONTRATO', 'VIGENTE')} hint="Vínculo activo" active={tab === 'VIGENTE'} onClick={() => { setTab('VIGENTE'); setPage(1); }} />
+        <Kpi value={counts.colaboradores} label={etiqueta('MODALIDAD_CONTRATO', 'COLABORADOR')} hint="Modalidad laboral" active={modalidad === 'COLABORADOR'} onClick={() => { setModalidad('COLABORADOR'); setPage(1); }} />
+        <Kpi value={counts.practicantes} label={etiqueta('MODALIDAD_CONTRATO', 'PRACTICANTE')} hint="Jornada de prácticas" active={modalidad === 'PRACTICANTE'} onClick={() => { setModalidad('PRACTICANTE'); setPage(1); }} />
       </KpiRow>
 
       <FilterBar>
         <SearchField placeholder="Buscar código, trabajador u horario" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         <select className="w-auto" value={tab} onChange={(e) => { setTab(e.target.value); setPage(1); }}>
           <option value="">Todos los estados</option>
-          <option value="VIGENTE">Vigente</option>
-          <option value="FINALIZADO">Finalizado</option>
-          <option value="ANULADO">Anulado</option>
+          <CatalogoOptions tipo="ESTADO_CONTRATO" />
         </select>
         {(q || tab || modalidad) && (
           <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setTab(''); setModalidad(''); setPage(1); }}>
@@ -211,8 +221,8 @@ export function Contratos() {
             key={r.idContrato}
             leading={<Avatar name={r.empleado} />}
             title={r.empleado}
-            meta={`${r.codigoEmpleado} · ${MODALIDAD[r.modalidad] || r.modalidad} · ${REGIMEN[r.regimenPensionario] || r.regimenPensionario || '—'} · ${fmtDate(r.fechaInicio)} → ${fmtDate(r.fechaFin)}`}
-            badge={<Badge value={r.estado} />}
+            meta={`${r.codigoEmpleado} · ${etiqueta('MODALIDAD_CONTRATO', r.modalidad)} · ${etiqueta('REGIMEN_PENSIONARIO', r.regimenPensionario)} · ${fmtDate(r.fechaInicio)} → ${fmtDate(r.fechaFin)}`}
+            badge={<Badge tipo="ESTADO_CONTRATO" value={r.estado} />}
             actions={<Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>}
           />
         ))}
@@ -236,7 +246,10 @@ export function Contratos() {
                   <td>
                     <PersonCell name={r.empleado} meta={`${r.codigo} · ${r.codigoEmpleado}`} />
                   </td>
-                  <td>{MODALIDAD[r.modalidad] || r.modalidad}</td>
+                  <td>
+                    <p className="text-sm">{etiqueta('MODALIDAD_CONTRATO', r.modalidad)}</p>
+                    {r.regimenLaboralNombre && <p className="text-xs text-muted">{r.regimenLaboralNombre}</p>}
+                  </td>
                   <td>
                     <p className="text-sm text-navy">{r.horario || '—'}</p>
                     {r.horaIngreso && r.horaSalida ? (
@@ -252,7 +265,7 @@ export function Contratos() {
                       ? `${r.vacaciones.diasDisponibles} disp. (${r.vacaciones.diasGanados} ganados)`
                       : '—'}
                   </td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_CONTRATO" value={r.estado} /></td>
                   <td>
                     <ListActions>
                       <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
@@ -271,12 +284,12 @@ export function Contratos() {
       {open && (
         <Modal title={editId ? 'Editar contrato' : 'Nuevo contrato'} onClose={() => setOpen(false)}>
           <p className="mb-3 text-sm text-muted">
-            El contrato vigente determina el horario y si la persona es colaborador o practicante. Las vacaciones se ganan a 1.5 días por mes completo.
+            El contrato vigente determina el horario, la modalidad y el régimen laboral. Las vacaciones se ganan a {diasVacaciones} días por mes completo.
           </p>
           <Alert>{error}</Alert>
           <FormGrid onSubmit={guardar}>
             <Field label="Trabajador" full>
-              <select value={form.idEmpleado} onChange={(e) => set('idEmpleado', e.target.value)} required disabled={Boolean(editId)}>
+              <select value={form.idEmpleado} onChange={(e) => elegirEmpleado(e.target.value)} required disabled={Boolean(editId)}>
                 <option value="">Seleccione</option>
                 {empleados.map((e) => (
                   <option key={e.idEmpleado} value={e.idEmpleado}>{e.nombreCompleto} · {e.codigoEmpleado}</option>
@@ -285,14 +298,19 @@ export function Contratos() {
             </Field>
             <Field label="Modalidad">
               <select value={form.modalidad} onChange={(e) => setModalidadForm(e.target.value)} required>
-                <option value="COLABORADOR">Colaborador</option>
-                <option value="PRACTICANTE">Practicante</option>
+                <CatalogoOptions tipo="MODALIDAD_CONTRATO" />
               </select>
             </Field>
-            <Field label="Horario" hint={form.modalidad === 'PRACTICANTE' ? 'Jornada de prácticas' : 'Jornada del colaborador'}>
+            <Field label="Horario" hint="Por defecto, el de la ficha del trabajador">
               <select value={form.idHorario} onChange={(e) => set('idHorario', e.target.value)} required>
                 <option value="">Seleccione</option>
                 {horarios.map((h) => <option key={h.id} value={h.id}>{h.nombre}</option>)}
+              </select>
+            </Field>
+            <Field label="Régimen laboral" hint={regimenSel?.descripcion || 'Define gratificación, CTS y EsSalud'}>
+              <select value={form.regimenLaboral} onChange={(e) => set('regimenLaboral', e.target.value)} required>
+                <option value="">Seleccione</option>
+                {regimenes.map((r) => <option key={r.codigo} value={r.codigo}>{r.nombre}</option>)}
               </select>
             </Field>
             <Field label="Inicio">
@@ -301,34 +319,33 @@ export function Contratos() {
             <Field label="Fin" hint={form.modalidad === 'PRACTICANTE' ? 'Obligatorio para prácticas' : 'Vacío = indefinido'}>
               <DatePicker value={form.fechaFin} onChange={(v) => set('fechaFin', v)} required={form.modalidad === 'PRACTICANTE'} min={form.fechaInicio || undefined} />
             </Field>
-            <Field label="Remuneración básica" hint="Soles mensuales. Se usa en la planilla.">
-              <input inputMode="decimal" value={form.remuneracionBasica} onChange={(e) => set('remuneracionBasica', decimal(e.target.value, 99999))} required />
+            <Field label="Remuneración básica" hint="Monto mensual. Se usa en la planilla.">
+              <input inputMode="decimal" value={form.remuneracionBasica} onChange={(e) => set('remuneracionBasica', decimal(e.target.value, remuneracionMax || Infinity))} required />
             </Field>
             {form.modalidad !== 'PRACTICANTE' && (
               <>
-                <Field label="Régimen pensionario" hint="ONP 13% o AFP (10% + comisión + seguro)">
+                <Field label="Régimen pensionario" hint={`ONP ${pct(num('tasa_onp'))} o AFP (${pct(num('tasa_afp_aporte'))} + comisión + seguro)`}>
                   <select
                     value={form.regimenPensionario}
                     onChange={(e) => setForm((f) => ({
                       ...f,
                       regimenPensionario: e.target.value,
-                      afpNombre: e.target.value === 'AFP' ? (f.afpNombre || 'HABITAT') : ''
+                      afpNombre: e.target.value === 'AFP' ? (f.afpNombre || afps[0]?.codigo || '') : ''
                     }))}
                     required
                   >
-                    <option value="ONP">ONP</option>
-                    <option value="AFP">AFP</option>
+                    <CatalogoOptions tipo="REGIMEN_PENSIONARIO" excluir={['NINGUNO']} />
                   </select>
                 </Field>
                 {form.regimenPensionario === 'AFP' && (
                   <Field label="AFP">
                     <select value={form.afpNombre} onChange={(e) => set('afpNombre', e.target.value)} required>
                       <option value="">Seleccione</option>
-                      {Object.entries(AFP).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      {afps.map((a) => <option key={a.codigo} value={a.codigo}>{a.nombre}</option>)}
                     </select>
                   </Field>
                 )}
-                <Field label="Asignación familiar" hint="10% de la RMV si tiene hijos menores (Ley 25129)">
+                <Field label="Asignación familiar" hint={`${pct(num('tasa_asignacion_familiar'))} de la RMV si tiene hijos menores`}>
                   <select
                     value={form.tieneAsignacionFamiliar ? '1' : '0'}
                     onChange={(e) => set('tieneAsignacionFamiliar', e.target.value === '1')}
@@ -341,9 +358,7 @@ export function Contratos() {
             )}
             <Field label="Estado">
               <select value={form.estado} onChange={(e) => set('estado', e.target.value)}>
-                <option value="VIGENTE">Vigente</option>
-                <option value="FINALIZADO">Finalizado</option>
-                <option value="ANULADO">Anulado</option>
+                <CatalogoOptions tipo="ESTADO_CONTRATO" />
               </select>
             </Field>
             <Field label="Observaciones" full>

@@ -3,8 +3,10 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, CircleHelp, LogOut, Menu, PanelLeftClose, Search, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { useNotificaciones } from '../auth/NotificationContext';
+import { useConfig } from '../auth/ConfigContext';
 import { Avatar, Button, Modal } from '../components/ui';
 import { menuIcon } from './icons';
+import { regional } from '../lib/format';
 
 const SIDEBAR_KEY = 'andina.sidebar';
 const GROUPS_KEY = 'andina.menu.groups';
@@ -33,11 +35,11 @@ function hace(iso) {
   if (s < 60) return 'Ahora';
   if (s < 3600) return `Hace ${Math.floor(s / 60)} min`;
   if (s < 86400) return `Hace ${Math.floor(s / 3600)} h`;
-  return new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString(regional.locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDate() {
-  return new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
+  return new Date().toLocaleDateString(regional.locale, { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function NavItems({ groups, collapsed, onToggle, onNavigate }) {
@@ -98,6 +100,7 @@ function NavItems({ groups, collapsed, onToggle, onNavigate }) {
 
 export function AppShell() {
   const { usuario, perfil, menu, logout, canAccess } = useAuth();
+  const { param } = useConfig();
   const { items, noLeidas, marcarLeida, marcarTodas } = useNotificaciones();
   const navigate = useNavigate();
   const location = useLocation();
@@ -183,8 +186,8 @@ export function AppShell() {
       <aside className={`fixed inset-y-0 left-0 z-30 w-60 flex-col border-r border-line bg-white ${sidebar ? 'hidden lg:flex' : 'hidden'}`}>
         <div className="flex items-start justify-between gap-2 border-b border-line px-4 py-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">RR. HH.</p>
-            <p className="mt-0.5 text-sm font-semibold text-navy">Consultora Andina</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{param('app_nombre')}</p>
+            <p className="mt-0.5 text-sm font-semibold text-navy">{param('empresa_nombre_comercial')}</p>
           </div>
           <button
             type="button"
@@ -359,7 +362,7 @@ export function AppShell() {
       {helpOpen && (
         <Modal title="Guía rápida" onClose={() => setHelpOpen(false)}>
           <div className="space-y-4 text-sm text-slate-600">
-            <p>Sistema de RR. HH. de Consultora Contable Andina. Lo esencial para empezar:</p>
+            <p>{param('app_nombre')} de {param('empresa_razon_social')}. Lo esencial para empezar:</p>
             <ul className="list-disc space-y-2 pl-5">
               <li><span className="font-medium text-navy">Buscar</span> en la barra superior filtra bandeja, permisos, horas extras o personal, según su perfil.</li>
               <li><span className="font-medium text-navy">Marcar</span> registra un ingreso y una salida por día hábil (hora de Lima). Fines de semana no aplica.</li>
@@ -379,7 +382,7 @@ export function AppShell() {
 
       {logoutOpen && (
         <Modal title="Cerrar sesión" onClose={() => setLogoutOpen(false)}>
-          <p className="text-sm text-slate-600">¿Desea salir de su cuenta en Consultora Andina?</p>
+          <p className="text-sm text-slate-600">¿Desea salir de su cuenta en {param('empresa_nombre_comercial')}?</p>
           <div className="mt-5 flex flex-wrap justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setLogoutOpen(false)}>Cancelar</Button>
             <Button type="button" variant="danger" onClick={confirmLogout}>Cerrar sesión</Button>

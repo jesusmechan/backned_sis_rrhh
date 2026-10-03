@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.MenuItem;
 import pe.andina.rrhh.domain.model.PermisoFuncional;
+import pe.andina.rrhh.domain.model.Permisos;
 import pe.andina.rrhh.domain.model.Rol;
 import pe.andina.rrhh.domain.model.RolPermiso;
 import pe.andina.rrhh.application.dto.AppDtos.RolRequest;
@@ -79,14 +80,14 @@ public class RolService implements RolUseCase {
     public RolResponse actualizar(Integer id, RolRequest request) {
         Rol rol = buscar(id);
         String codigo = normalizarCodigo(request.codigo());
-        if (esAdministrador(rol) && !codigo.equals(rol.getCodigo())) {
-            throw DomainException.badRequest("El código del rol Administrador no se puede cambiar");
+        if (rol.esSistema() && !codigo.equals(rol.getCodigo())) {
+            throw DomainException.badRequest("El código de un rol de sistema no se puede cambiar");
         }
         if (rolRepository.existsByCodigoIgnoreCaseAndIdRolNot(codigo, id)) {
             throw DomainException.conflict("Ya existe un rol con ese código");
         }
-        if (esAdministrador(rol) && Boolean.FALSE.equals(request.activo())) {
-            throw DomainException.badRequest("El rol Administrador no se puede desactivar");
+        if (rol.esSistema() && Boolean.FALSE.equals(request.activo())) {
+            throw DomainException.badRequest("Un rol de sistema no se puede desactivar");
         }
         if (Boolean.FALSE.equals(request.activo()) && usuarioRepository.countByRol_IdRol(id) > 0) {
             throw DomainException.badRequest("No se puede desactivar un rol con cuentas asignadas");
@@ -106,15 +107,29 @@ public class RolService implements RolUseCase {
         if (nuevo && rol.getActivo() == null) {
             rol.setActivo(true);
         }
+        Rol suplente = null;
+        if (request.idRolSuplente() != null) {
+            if (request.idRolSuplente().equals(rol.getIdRol())) {
+                throw DomainException.badRequest("Un rol no puede ser su propio suplente");
+            }
+            suplente = buscar(request.idRolSuplente());
+        }
+        rol.setRolSuplente(suplente);
     }
 
+    /** Un rol de sistema conserva los menús de sistema y los permisos para administrar roles y menús. */
     private void sincronizar(Rol rol, RolRequest request) {
         Set<Integer> idMenus = new HashSet<>(request.idMenus() == null ? List.of() : request.idMenus());
-        if (esAdministrador(rol)) {
+        Set<Integer> idPermisos = new HashSet<>(request.idPermisos() == null ? List.of() : request.idPermisos());
+        if (rol.esSistema()) {
             for (MenuItem m : menuItemRepository.findAll()) {
-                if ("MENU".equalsIgnoreCase(m.getCodigo()) || "ROLES".equalsIgnoreCase(m.getCodigo())
-                        || "/menu".equals(m.getRuta()) || "/roles".equals(m.getRuta())) {
+                if (Boolean.TRUE.equals(m.getEsSistema())) {
                     idMenus.add(m.getIdMenu());
+                }
+            }
+            for (PermisoFuncional p : permisoRepository.findAll()) {
+                if (Permisos.ROL_GESTIONAR.equals(p.getCodigo()) || Permisos.MENU_GESTIONAR.equals(p.getCodigo())) {
+                    idPermisos.add(p.getIdPermiso());
                 }
             }
         }
@@ -130,7 +145,6 @@ public class RolService implements RolUseCase {
 
         rolPermisoRepository.deleteByRol_IdRol(rol.getIdRol());
         rolPermisoRepository.flush();
-        Set<Integer> idPermisos = new HashSet<>(request.idPermisos() == null ? List.of() : request.idPermisos());
         for (Integer idPermiso : idPermisos) {
             PermisoFuncional permiso = permisoRepository.findById(idPermiso)
                     .orElseThrow(() -> DomainException.badRequest("Permiso funcional no existe"));
@@ -156,16 +170,15 @@ public class RolService implements RolUseCase {
                 rol.getNombre(),
                 rol.getDescripcion(),
                 rol.getActivo(),
+                rol.esSistema(),
+                rol.getRolSuplente() != null ? rol.getRolSuplente().getIdRol() : null,
+                rol.getRolSuplente() != null ? rol.getRolSuplente().getNombre() : null,
                 (int) usuarioRepository.countByRol_IdRol(rol.getIdRol()),
                 menus.stream().map(MenuItem::getIdMenu).toList(),
                 menus.stream().map(MenuItem::getEtiqueta).toList(),
                 permisos.stream().map(rp -> rp.getPermiso().getIdPermiso()).toList(),
                 permisos.stream().map(rp -> rp.getPermiso().getNombre()).toList()
         );
-    }
-
-    private boolean esAdministrador(Rol rol) {
-        return "ADMIN".equalsIgnoreCase(rol.getCodigo());
     }
 
     private String normalizarCodigo(String codigo) {

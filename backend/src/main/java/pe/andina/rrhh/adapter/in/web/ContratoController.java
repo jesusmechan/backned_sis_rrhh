@@ -31,7 +31,7 @@ public class ContratoController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('CONTRATO_GESTIONAR')")
     @Operation(summary = "Listar contratos paginado")
     public PageResponse<ContratoResponse> listar(
             @RequestParam(required = false) Integer page,
@@ -61,13 +61,13 @@ public class ContratoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('CONTRATO_GESTIONAR')")
     public ContratoResponse crear(@Valid @RequestBody ContratoRequest request) {
         return contratoService.crear(request);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('CONTRATO_GESTIONAR')")
     public ContratoResponse actualizar(@PathVariable Integer id, @Valid @RequestBody ContratoRequest request) {
         return contratoService.actualizar(id, request);
     }

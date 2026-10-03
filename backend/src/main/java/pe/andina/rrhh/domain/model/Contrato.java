@@ -13,7 +13,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import pe.andina.rrhh.domain.model.enums.AfpNombre;
 import pe.andina.rrhh.domain.model.enums.EstadoContrato;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
 import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
@@ -66,12 +65,14 @@ public class Contrato {
     @Column(name = "regimen_pensionario", nullable = false)
     private RegimenPensionario regimenPensionario = RegimenPensionario.ONP;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "afp_nombre", length = 20)
-    private AfpNombre afpNombre;
+    private String afpNombre;
 
     @Column(name = "tiene_asignacion_familiar", nullable = false)
     private boolean tieneAsignacionFamiliar;
+
+    @Column(name = "regimen_laboral", nullable = false, length = 20)
+    private String regimenLaboral;
 
     @Column(length = 300)
     private String observaciones;
@@ -100,10 +101,12 @@ public class Contrato {
     public void setRemuneracionBasica(BigDecimal remuneracionBasica) { this.remuneracionBasica = remuneracionBasica; }
     public RegimenPensionario getRegimenPensionario() { return regimenPensionario; }
     public void setRegimenPensionario(RegimenPensionario regimenPensionario) { this.regimenPensionario = regimenPensionario; }
-    public AfpNombre getAfpNombre() { return afpNombre; }
-    public void setAfpNombre(AfpNombre afpNombre) { this.afpNombre = afpNombre; }
+    public String getAfpNombre() { return afpNombre; }
+    public void setAfpNombre(String afpNombre) { this.afpNombre = afpNombre; }
     public boolean isTieneAsignacionFamiliar() { return tieneAsignacionFamiliar; }
     public void setTieneAsignacionFamiliar(boolean tieneAsignacionFamiliar) { this.tieneAsignacionFamiliar = tieneAsignacionFamiliar; }
+    public String getRegimenLaboral() { return regimenLaboral; }
+    public void setRegimenLaboral(String regimenLaboral) { this.regimenLaboral = regimenLaboral; }
     public EstadoContrato getEstado() { return estado; }
     public void setEstado(EstadoContrato estado) { this.estado = estado; }
     public String getObservaciones() { return observaciones; }

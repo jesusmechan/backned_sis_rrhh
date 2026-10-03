@@ -17,6 +17,7 @@ import pe.andina.rrhh.application.dto.AppDtos.PostulacionRequest;
 import pe.andina.rrhh.application.dto.AppDtos.PostulacionResponse;
 import pe.andina.rrhh.application.port.out.AreaPort;
 import pe.andina.rrhh.application.port.out.ConvocatoriaPort;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.port.out.PostulacionPort;
 
 import java.util.List;
@@ -30,17 +31,23 @@ public class ReclutamientoService implements ReclutamientoUseCase {
     private final AuditoriaUseCase auditoriaService;
 
     private final CurrentUserPort currentUser;
+    private final ParametroPort parametros;
+    private final CatalogoReglas catalogos;
 
     public ReclutamientoService(ConvocatoriaPort convocatoriaRepository,
                                 PostulacionPort postulacionRepository,
                                 AreaPort areaRepository,
                                 AuditoriaUseCase auditoriaService,
-                           CurrentUserPort currentUser) {
+                                CurrentUserPort currentUser,
+                                ParametroPort parametros,
+                                CatalogoReglas catalogos) {
         this.convocatoriaRepository = convocatoriaRepository;
         this.postulacionRepository = postulacionRepository;
         this.areaRepository = areaRepository;
         this.auditoriaService = auditoriaService;
         this.currentUser = currentUser;
+        this.parametros = parametros;
+        this.catalogos = catalogos;
     }
 
     @Transactional(readOnly = true)
@@ -88,7 +95,7 @@ public class ReclutamientoService implements ReclutamientoUseCase {
         p.setConvocatoria(c);
         aplicar(p, request);
         if (p.getEstado() == null) {
-            p.setEstado(EstadoPostulacion.POSTULADO);
+            p.setEstado(catalogos.porDefecto("ESTADO_POSTULACION", EstadoPostulacion.class));
         }
         postulacionRepository.save(p);
         auditoriaService.registrar(currentUser.usuario(), "REGISTRAR", "POSTULACION", p.getIdPostulacion(), p.nombreCompleto());
@@ -109,7 +116,7 @@ public class ReclutamientoService implements ReclutamientoUseCase {
         c.setFechaInicio(r.fechaInicio());
         c.setFechaFin(r.fechaFin());
         c.setDescripcion(r.descripcion());
-        c.setEstado(r.estado() != null ? r.estado() : EstadoConvocatoria.ABIERTA);
+        c.setEstado(catalogos.oPorDefecto(r.estado(), "ESTADO_CONVOCATORIA", EstadoConvocatoria.class));
         if (r.idArea() != null) {
             Area area = areaRepository.findById(r.idArea()).orElseThrow(() -> DomainException.badRequest("Área no existe"));
             c.setArea(area);
@@ -124,6 +131,10 @@ public class ReclutamientoService implements ReclutamientoUseCase {
         p.setDocumento(r.documento().trim());
         p.setCorreo(r.correo());
         p.setTelefono(r.telefono());
+        int puntajeMax = parametros.entero("postulante_puntaje_max");
+        if (r.puntaje() != null && r.puntaje() > puntajeMax) {
+            throw DomainException.badRequest("El puntaje no puede superar " + puntajeMax);
+        }
         p.setPuntaje(r.puntaje());
         p.setObservacion(r.observacion());
         if (r.estado() != null) {
@@ -142,7 +153,8 @@ public class ReclutamientoService implements ReclutamientoUseCase {
                 })
                 .max()
                 .orElse(0);
-        return "CONV-" + String.format("%03d", max + 1);
+        int digitos = parametros.entero("codigo_correlativo_digitos");
+        return parametros.texto("codigo_convocatoria_prefijo") + "-" + String.format("%0" + digitos + "d", max + 1);
     }
 
     private Convocatoria buscar(Integer id) {

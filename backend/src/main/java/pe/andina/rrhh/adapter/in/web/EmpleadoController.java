@@ -39,7 +39,7 @@ public class EmpleadoController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('PERSONAL_CONSULTAR')")
     @Operation(summary = "Listar empleados paginado")
     public PageResponse<EmpleadoResponse> listar(
             @RequestParam(required = false) Integer page,
@@ -61,19 +61,19 @@ public class EmpleadoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('PERSONAL_REGISTRAR')")
     public EmpleadoResponse crear(@Valid @RequestBody EmpleadoRequest request) {
         return empleadoService.crear(request);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('PERSONAL_ACTUALIZAR')")
     public EmpleadoResponse actualizar(@PathVariable Integer id, @Valid @RequestBody EmpleadoRequest request) {
         return empleadoService.actualizar(id, request);
     }
 
     @GetMapping("/plantilla-excel")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('PERSONAL_CARGAR_EXCEL')")
     @Operation(summary = "Descargar plantilla Excel de trabajadores")
     public ResponseEntity<byte[]> plantilla() {
         return ResponseEntity.ok()
@@ -83,7 +83,7 @@ public class EmpleadoController {
     }
 
     @PostMapping(value = "/carga-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('PERSONAL_CARGAR_EXCEL')")
     @Operation(summary = "Cargar trabajadores desde Excel")
     public CargaResponse cargar(@RequestPart("archivo") MultipartFile archivo) {
         return cargaExcelService.cargar(archivo);

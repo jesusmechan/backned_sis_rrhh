@@ -44,7 +44,7 @@ public class UsuarioController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAnyAuthority('USUARIO_CONSULTAR','USUARIO_GESTIONAR')")
     @Operation(summary = "Listar usuarios paginado")
     public PageResponse<UsuarioResponse> listar(
             @RequestParam(required = false) Integer page,
@@ -61,25 +61,25 @@ public class UsuarioController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAnyAuthority('USUARIO_CONSULTAR','USUARIO_GESTIONAR')")
     public UsuarioResponse obtener(@PathVariable Integer id) {
         return usuarioService.obtener(id);
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('USUARIO_GESTIONAR')")
     public UsuarioResponse crear(@Valid @RequestBody UsuarioRequest request) {
         return usuarioService.crear(request);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('USUARIO_GESTIONAR')")
     public UsuarioResponse actualizar(@PathVariable Integer id, @Valid @RequestBody UsuarioRequest request) {
         return usuarioService.actualizar(id, request);
     }
 
     @PatchMapping("/{id}/estado")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('USUARIO_GESTIONAR')")
     @Operation(summary = "Activar o desactivar usuario")
     public UsuarioResponse estado(@PathVariable Integer id, @RequestParam boolean activo) {
         return usuarioService.cambiarEstado(id, activo);

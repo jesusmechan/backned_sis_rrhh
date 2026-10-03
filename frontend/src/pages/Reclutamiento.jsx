@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
+import { useConfig } from '../auth/ConfigContext';
+import { Alert, Badge, Button, CatalogoOptions, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
 import { hoyISO } from './altaShared';
 import { email, letters, phone, text } from '../lib/input';
 import { fmtDate } from '../lib/format';
 
-const emptyConv = { puesto: '', idArea: '', vacantes: '1', fechaInicio: hoyISO(), fechaFin: '', descripcion: '', estado: 'ABIERTA' };
-const emptyPost = { nombres: '', apellidos: '', documento: '', correo: '', telefono: '', puntaje: '', estado: 'POSTULADO', observacion: '' };
+const emptyConv = { puesto: '', idArea: '', vacantes: '1', fechaInicio: hoyISO(), fechaFin: '', descripcion: '', estado: '' };
+const emptyPost = { nombres: '', apellidos: '', documento: '', correo: '', telefono: '', puntaje: '', estado: '', observacion: '' };
 
 export function Reclutamiento() {
+  const { num } = useConfig();
   const [areas, setAreas] = useState([]);
   const [ok, setOk] = useState('');
   const [open, setOpen] = useState(false);
@@ -75,7 +77,7 @@ export function Reclutamiento() {
         fechaInicio: form.fechaInicio,
         fechaFin: form.fechaFin || null,
         descripcion: form.descripcion || null,
-        estado: form.estado
+        estado: form.estado || null
       });
       setOk('Convocatoria publicada');
       setOpen(false);
@@ -101,7 +103,7 @@ export function Reclutamiento() {
         correo: post.correo || null,
         telefono: post.telefono || null,
         puntaje: post.puntaje ? Number(post.puntaje) : null,
-        estado: post.estado,
+        estado: post.estado || null,
         observacion: post.observacion || null
       });
       setOk('Postulante registrado');
@@ -154,9 +156,8 @@ export function Reclutamiento() {
         <SearchField placeholder="Buscar puesto, código o área" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         <select className="w-auto" value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }}>
           <option value="">Todos los estados</option>
-          <option value="ABIERTA">Abierta</option>
-          <option value="CERRADA">Cerrada</option>
-          <option value="CANCELADA">Cancelada</option>
+          <CatalogoOptions tipo="ESTADO_CONVOCATORIA" />
+
         </select>
         <select className="w-auto" value={idArea} onChange={(e) => { setIdArea(e.target.value); setPage(1); }}>
           <option value="">Todas las áreas</option>
@@ -181,7 +182,7 @@ export function Reclutamiento() {
             key={r.idConvocatoria}
             title={r.puesto}
             meta={`${r.codigo}${r.area ? ` · ${r.area}` : ''} · ${r.postulantes} postulantes`}
-            badge={<Badge value={r.estado} />}
+            badge={<Badge tipo="ESTADO_CONVOCATORIA" value={r.estado} />}
             actions={<Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Postulantes</Button>}
           />
         ))}
@@ -209,7 +210,7 @@ export function Reclutamiento() {
                   <td className="text-sm">{fmtDate(r.fechaInicio)} → {fmtDate(r.fechaFin, 'Abierta')}</td>
                   <td className="text-sm">{r.vacantes}</td>
                   <td className="text-sm">{r.postulantes}</td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_CONVOCATORIA" value={r.estado} /></td>
                   <td>
                     <ListActions>
                       <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Postulantes</Button>
@@ -244,14 +245,10 @@ export function Reclutamiento() {
                 key={p.idPostulacion}
                 title={p.nombreCompleto}
                 meta={`${p.documento}${p.correo ? ` · ${p.correo}` : ''}${p.puntaje != null ? ` · ${p.puntaje} pts` : ''}`}
-                badge={<Badge value={p.estado} />}
+                badge={<Badge tipo="ESTADO_POSTULACION" value={p.estado} />}
                 actions={(
                   <select className="w-auto" value={p.estado} onChange={(e) => cambiarEstado(p, e.target.value)}>
-                    <option value="POSTULADO">Postulado</option>
-                    <option value="ENTREVISTA">Entrevista</option>
-                    <option value="SELECCIONADO">Seleccionado</option>
-                    <option value="CONTRATADO">Contratado</option>
-                    <option value="DESCARTADO">Descartado</option>
+                    <CatalogoOptions tipo="ESTADO_POSTULACION" />
                   </select>
                 )}
               />
@@ -275,14 +272,10 @@ export function Reclutamiento() {
                       </td>
                       <td className="text-sm text-muted">{p.correo || '—'}</td>
                       <td className="text-sm">{p.puntaje != null ? `${p.puntaje} pts` : '—'}</td>
-                      <td><Badge value={p.estado} /></td>
+                      <td><Badge tipo="ESTADO_POSTULACION" value={p.estado} /></td>
                       <td>
                         <select className="w-auto" value={p.estado} onChange={(e) => cambiarEstado(p, e.target.value)}>
-                          <option value="POSTULADO">Postulado</option>
-                          <option value="ENTREVISTA">Entrevista</option>
-                          <option value="SELECCIONADO">Seleccionado</option>
-                          <option value="CONTRATADO">Contratado</option>
-                          <option value="DESCARTADO">Descartado</option>
+                          <CatalogoOptions tipo="ESTADO_POSTULACION" />
                         </select>
                       </td>
                     </tr>
@@ -347,7 +340,7 @@ export function Reclutamiento() {
               <input value={post.telefono} onChange={(e) => setPost((f) => ({ ...f, telefono: phone(e.target.value) }))} />
             </Field>
             <Field label="Puntaje">
-              <input type="number" min="0" max="100" value={post.puntaje} onChange={(e) => setPost((f) => ({ ...f, puntaje: e.target.value }))} />
+              <input type="number" min="0" max={num('postulante_puntaje_max', 100)} value={post.puntaje} onChange={(e) => setPost((f) => ({ ...f, puntaje: e.target.value }))} />
             </Field>
             <Field label="Observación" full>
               <textarea value={post.observacion} onChange={(e) => setPost((f) => ({ ...f, observacion: text(e.target.value, 400) }))} />

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, BackLink, Badge, Button, Field } from '../components/ui';
-import { APROBADOR, Flujograma, ORIGEN, codigoDesdeNombre, emptyForm, emptyPaso, toForm, toPayload } from './flujoShared';
+import { useConfig } from '../auth/ConfigContext';
+import { Alert, BackLink, Badge, Button, CatalogoOptions, Field } from '../components/ui';
+import { Flujograma, codigoDesdeNombre, emptyForm, emptyPaso, toForm, toPayload } from './flujoShared';
 import { code, label, text } from '../lib/input';
 
 export function FlujoConfig() {
@@ -11,6 +12,7 @@ export function FlujoConfig() {
   const navigate = useNavigate();
   const location = useLocation();
   const creating = !id;
+  const { etiqueta } = useConfig();
   const [form, setForm] = useState(emptyForm);
   const [codigoTouched, setCodigoTouched] = useState(false);
   const [roles, setRoles] = useState([]);
@@ -165,9 +167,9 @@ export function FlujoConfig() {
           </h1>
           {!creating && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-slate-500">{ORIGEN[form.tipoOrigen] || form.tipoOrigen}</span>
+              <span className="text-sm text-slate-500">{etiqueta('TIPO_ORIGEN_FLUJO', form.tipoOrigen)}</span>
               {form.codigo && <span className="text-xs text-slate-400">{form.codigo}</span>}
-              <Badge value={form.activo ? 'ACTIVO' : 'INACTIVO'} />
+              <Badge tipo="ESTADO_REGISTRO" value={form.activo ? 'ACTIVO' : 'INACTIVO'} />
             </div>
           )}
           {creating && location.state?.duplicar && (
@@ -202,8 +204,7 @@ export function FlujoConfig() {
               </Field>
               <Field label="Origen">
                 <select value={form.tipoOrigen} onChange={(e) => setOrigen(e.target.value)}>
-                  <option value="PERMISO">Permiso</option>
-                  <option value="HORA_EXTRA">Horas extras</option>
+                  <CatalogoOptions tipo="TIPO_ORIGEN_FLUJO" />
                 </select>
               </Field>
               <Field label="Tipo de permiso" hint={form.tipoOrigen !== 'PERMISO' ? 'Solo aplica a permisos' : 'Vacío = flujo por defecto'}>
@@ -256,9 +257,7 @@ export function FlujoConfig() {
                     </Field>
                     <Field label="Quién aprueba">
                       <select value={p.tipoAprobador} onChange={(e) => setPaso(i, 'tipoAprobador', e.target.value)}>
-                        {Object.entries(APROBADOR).map(([value, meta]) => (
-                          <option key={value} value={value}>{meta.label}</option>
-                        ))}
+                        <CatalogoOptions tipo="TIPO_APROBADOR" />
                       </select>
                     </Field>
                     {p.tipoAprobador === 'ROL' ? (

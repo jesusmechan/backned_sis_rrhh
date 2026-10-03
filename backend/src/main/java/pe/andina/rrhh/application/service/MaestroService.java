@@ -30,6 +30,9 @@ import pe.andina.rrhh.application.port.out.CuentaContablePort;
 import pe.andina.rrhh.application.port.out.HorarioLaboralPort;
 import pe.andina.rrhh.application.port.out.ParametroSistemaPort;
 import pe.andina.rrhh.application.port.out.TipoPermisoPort;
+import pe.andina.rrhh.application.port.out.CatalogoValorPort;
+import pe.andina.rrhh.application.port.out.ParametroPort;
+import pe.andina.rrhh.domain.model.CatalogoValor;
 
 import java.util.Comparator;
 import java.util.List;
@@ -38,8 +41,6 @@ import java.util.Locale;
 @Service
 public class MaestroService implements MaestroUseCase {
 
-    private static final String VACACIONES = "VACACIONES";
-
     private final AreaPort areaRepository;
     private final CargoPort cargoRepository;
     private final HorarioLaboralPort horarioRepository;
@@ -47,6 +48,8 @@ public class MaestroService implements MaestroUseCase {
     private final ParametroSistemaPort parametroRepository;
     private final CuentaContablePort cuentaRepository;
     private final AuditoriaUseCase auditoriaService;
+    private final ParametroPort parametros;
+    private final CatalogoValorPort catalogoValores;
 
     private final CurrentUserPort currentUser;
 
@@ -57,6 +60,8 @@ public class MaestroService implements MaestroUseCase {
                           ParametroSistemaPort parametroRepository,
                           CuentaContablePort cuentaRepository,
                           AuditoriaUseCase auditoriaService,
+                          ParametroPort parametros,
+                          CatalogoValorPort catalogoValores,
                            CurrentUserPort currentUser) {
         this.areaRepository = areaRepository;
         this.cargoRepository = cargoRepository;
@@ -65,6 +70,8 @@ public class MaestroService implements MaestroUseCase {
         this.parametroRepository = parametroRepository;
         this.cuentaRepository = cuentaRepository;
         this.auditoriaService = auditoriaService;
+        this.parametros = parametros;
+        this.catalogoValores = catalogoValores;
         this.currentUser = currentUser;
     }
 
@@ -178,11 +185,11 @@ public class MaestroService implements MaestroUseCase {
     public TipoPermisoMaestroResponse actualizarTipoPermiso(Integer id, TipoPermisoRequest r) {
         TipoPermiso t = tipoPermisoRepository.findById(id).orElseThrow(() -> DomainException.notFound("Tipo de permiso no existe"));
         String codigo = codigo(r.codigo());
-        if (VACACIONES.equalsIgnoreCase(t.getCodigo()) && !VACACIONES.equals(codigo)) {
-            throw DomainException.badRequest("El código VACACIONES lo usan planilla y el saldo de vacaciones");
-        }
-        if (VACACIONES.equalsIgnoreCase(t.getCodigo()) && Boolean.FALSE.equals(r.activo())) {
-            throw DomainException.badRequest("El tipo VACACIONES no puede desactivarse");
+        boolean dejaDeSerVacaciones = Boolean.TRUE.equals(t.getEsVacaciones())
+                && (!Boolean.TRUE.equals(r.esVacaciones()) || Boolean.FALSE.equals(r.activo()));
+        if (dejaDeSerVacaciones && tipoPermisoRepository.findAll().stream()
+                .noneMatch(o -> !o.getIdTipoPermiso().equals(id) && Boolean.TRUE.equals(o.getEsVacaciones()) && Boolean.TRUE.equals(o.getActivo()))) {
+            throw DomainException.badRequest("Debe existir al menos un tipo de permiso activo marcado como vacaciones (lo usan planilla y el saldo)");
         }
         exigirLibre(tipoPermisoRepository.findByCodigoIgnoreCase(codigo).map(TipoPermiso::getIdTipoPermiso), t.getIdTipoPermiso(), "Ya existe un tipo de permiso con ese código");
         exigirLibre(tipoPermisoRepository.findByNombreIgnoreCase(trim(r.nombre())).map(TipoPermiso::getIdTipoPermiso), t.getIdTipoPermiso(), "Ya existe un tipo de permiso con ese nombre");
@@ -210,7 +217,9 @@ public class MaestroService implements MaestroUseCase {
         p.setClave(clave);
         p.setValor(trim(r.valor()));
         p.setDescripcion(blankToNull(r.descripcion()));
+        p.setAmbito(ambito(r.ambito(), ParametroSistema.AMBITO_SESION));
         parametroRepository.save(p);
+        parametros.invalidar();
         auditar("CREAR", "PARAMETRO", null, p.getClave());
         return toParametro(p);
     }
@@ -223,7 +232,9 @@ public class MaestroService implements MaestroUseCase {
         if (r.descripcion() != null) {
             p.setDescripcion(blankToNull(r.descripcion()));
         }
+        p.setAmbito(ambito(r.ambito(), p.getAmbito()));
         parametroRepository.save(p);
+        parametros.invalidar();
         auditar("ACTUALIZAR", "PARAMETRO", null, p.getClave());
         return toParametro(p);
     }
@@ -278,7 +289,7 @@ public class MaestroService implements MaestroUseCase {
         h.setNombre(trim(r.nombre()));
         h.setHoraIngreso(r.horaIngreso());
         h.setHoraSalida(r.horaSalida());
-        h.setMinutosRefrigerio(r.minutosRefrigerio() == null ? 60 : r.minutosRefrigerio());
+        h.setMinutosRefrigerio(r.minutosRefrigerio() == null ? parametros.entero("horario_refrigerio_defecto") : r.minutosRefrigerio());
         h.setActivo(r.activo() == null || r.activo());
     }
 
@@ -286,6 +297,7 @@ public class MaestroService implements MaestroUseCase {
         t.setCodigo(codigo);
         t.setNombre(trim(r.nombre()));
         t.setRequiereSustento(Boolean.TRUE.equals(r.requiereSustento()));
+        t.setEsVacaciones(Boolean.TRUE.equals(r.esVacaciones()));
         t.setActivo(r.activo() == null || r.activo());
     }
 
@@ -293,9 +305,25 @@ public class MaestroService implements MaestroUseCase {
         c.setCodigo(codigo);
         c.setNombre(trim(r.nombre()));
         c.setUso(uso);
-        String nat = r.naturaleza() == null || r.naturaleza().isBlank() ? "GASTO" : r.naturaleza().trim().toUpperCase(Locale.ROOT);
-        c.setNaturaleza(nat);
+        c.setNaturaleza(naturaleza(r.naturaleza()));
         c.setActivo(r.activo() == null || r.activo());
+    }
+
+    private String naturaleza(String solicitada) {
+        if (solicitada == null || solicitada.isBlank()) {
+            return catalogoValores.findFirstByTipoAndPorDefectoTrueAndActivoTrue("NATURALEZA_CUENTA")
+                    .map(CatalogoValor::getCodigo)
+                    .orElseThrow(() -> DomainException.badRequest("Indique la naturaleza o configure una por defecto en Maestros › Catálogos"));
+        }
+        String codigo = solicitada.trim().toUpperCase(Locale.ROOT);
+        catalogoValores.findByTipoAndCodigo("NATURALEZA_CUENTA", codigo)
+                .filter(v -> Boolean.TRUE.equals(v.getActivo()))
+                .orElseThrow(() -> DomainException.badRequest("Naturaleza de cuenta no válida"));
+        return codigo;
+    }
+
+    private static String ambito(String solicitado, String actual) {
+        return solicitado == null || solicitado.isBlank() ? actual : solicitado.trim().toUpperCase(Locale.ROOT);
     }
 
     private void validarHorario(HorarioRequest r) {
@@ -324,11 +352,11 @@ public class MaestroService implements MaestroUseCase {
 
     private TipoPermisoMaestroResponse toTipo(TipoPermiso t) {
         return new TipoPermisoMaestroResponse(t.getIdTipoPermiso(), t.getCodigo(), t.getNombre(),
-                t.getRequiereSustento(), t.getActivo());
+                t.getRequiereSustento(), t.getEsVacaciones(), t.getActivo());
     }
 
     private ParametroResponse toParametro(ParametroSistema p) {
-        return new ParametroResponse(p.getClave(), p.getValor(), p.getDescripcion());
+        return new ParametroResponse(p.getClave(), p.getValor(), p.getDescripcion(), p.getAmbito());
     }
 
     private CuentaResponse toCuenta(CuentaContable c) {

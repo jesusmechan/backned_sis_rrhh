@@ -21,9 +21,9 @@ public class OpenApiConfig {
                         .title("RRHH Andina API")
                         .version("1.0.0")
                         .description("""
-                                API del Sistema de Gestión de Recursos Humanos — Consultora Contable Andina S.A.C.
+                                API del Sistema de Gestión de Recursos Humanos.
 
-                                1. Ejecuta **POST /api/auth/login** (usuario de prueba: `jesus.mechan` / `Andina2026`).
+                                1. Ejecuta **POST /api/auth/login** con sus credenciales.
                                 2. Copia el `accessToken`.
                                 3. Pulsa **Authorize** y pégalo (sin la palabra Bearer).
                                 """))

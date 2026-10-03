@@ -14,7 +14,7 @@ import pe.andina.rrhh.application.port.in.PlanillaUseCase;
 
 @RestController
 @RequestMapping("/api/asientos")
-@PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+@PreAuthorize("hasAuthority('CONTABILIDAD_CONSULTAR')")
 @Tag(name = "Contabilidad", description = "Asientos de planilla")
 public class ContabilidadController {
 

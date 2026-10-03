@@ -101,7 +101,7 @@ export function PlanillaDetalle() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {detalle?.estado && <Badge value={detalle.estado} />}
+          {detalle?.estado && <Badge tipo="ESTADO_PLANILLA" value={detalle.estado} />}
           {puedePdf && (
             <Button
               variant="secondary"

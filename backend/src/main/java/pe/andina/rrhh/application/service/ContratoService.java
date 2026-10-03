@@ -11,6 +11,8 @@ import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.Contrato;
 import pe.andina.rrhh.domain.model.Empleado;
 import pe.andina.rrhh.domain.model.HorarioLaboral;
+import pe.andina.rrhh.domain.model.Permisos;
+import pe.andina.rrhh.application.port.out.ReglasPlanillaPort;
 import pe.andina.rrhh.domain.model.SolicitudPermiso;
 import pe.andina.rrhh.domain.model.enums.EstadoContrato;
 import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
@@ -35,8 +37,6 @@ import java.util.Set;
 @Service
 public class ContratoService implements ContratoUseCase {
 
-    private static final String PARAM_TASA = "dias_vacaciones_mensuales";
-    private static final BigDecimal TASA_DEFAULT = new BigDecimal("1.5");
     private static final Set<EstadoSolicitud> ESTADOS_QUE_CONSUMEN = EnumSet.of(
             EstadoSolicitud.PENDIENTE, EstadoSolicitud.APROBADO);
 
@@ -48,6 +48,8 @@ public class ContratoService implements ContratoUseCase {
     private final AuditoriaUseCase auditoriaService;
 
     private final CurrentUserPort currentUser;
+    private final ReglasPlanillaPort reglas;
+    private final CatalogoReglas catalogo;
 
     public ContratoService(ContratoPort contratoRepository,
                            HorarioLaboralPort horarioRepository,
@@ -55,7 +57,11 @@ public class ContratoService implements ContratoUseCase {
                            ParametroPort parametros,
                            EmpleadoUseCase empleadoService,
                            AuditoriaUseCase auditoriaService,
-                           CurrentUserPort currentUser) {
+                           CurrentUserPort currentUser,
+                           ReglasPlanillaPort reglas,
+                           CatalogoReglas catalogo) {
+        this.reglas = reglas;
+        this.catalogo = catalogo;
         this.contratoRepository = contratoRepository;
         this.horarioRepository = horarioRepository;
         this.permisoRepository = permisoRepository;
@@ -73,7 +79,7 @@ public class ContratoService implements ContratoUseCase {
     @Transactional(readOnly = true)
     public ContratoResponse obtener(Integer id) {
         Contrato c = buscar(id);
-        if (!currentUser.isAdminOrRrhh()) {
+        if (!currentUser.tienePermiso(Permisos.CONTRATO_GESTIONAR)) {
             Integer propio = currentUser.idEmpleado();
             if (propio == null || !propio.equals(c.getEmpleado().getIdEmpleado())) {
                 throw DomainException.forbidden("Solo puede consultar su propio contrato");
@@ -113,7 +119,7 @@ public class ContratoService implements ContratoUseCase {
     @Transactional(readOnly = true)
     public VacacionSaldoResponse saldoVacaciones(Integer idEmpleado) {
         Integer destino = idEmpleado;
-        if (!currentUser.isAdminOrRrhh()) {
+        if (!currentUser.tienePermiso(Permisos.CONTRATO_GESTIONAR)) {
             Integer propio = currentUser.idEmpleado();
             if (propio == null) {
                 throw DomainException.forbidden("El usuario no está asociado a un trabajador");
@@ -157,9 +163,21 @@ public class ContratoService implements ContratoUseCase {
         if (r.fechaFin() != null && r.fechaInicio() != null && r.fechaFin().isBefore(r.fechaInicio())) {
             throw DomainException.badRequest("La fecha de fin no puede ser anterior al inicio");
         }
+        BigDecimal maxima = parametros.decimal("remuneracion_maxima");
+        if (r.remuneracionBasica() != null && r.remuneracionBasica().compareTo(maxima) > 0) {
+            throw DomainException.badRequest("La remuneración no puede superar " + maxima.stripTrailingZeros().toPlainString());
+        }
         RegimenPensionario regimen = resolverRegimen(r);
-        if (regimen == RegimenPensionario.AFP && r.afpNombre() == null) {
-            throw DomainException.badRequest("Seleccione la AFP del trabajador");
+        if (regimen == RegimenPensionario.AFP) {
+            if (r.afpNombre() == null || r.afpNombre().isBlank()) {
+                throw DomainException.badRequest("Seleccione la AFP del trabajador");
+            }
+            if (!Boolean.TRUE.equals(reglas.afp(r.afpNombre()).getActivo())) {
+                throw DomainException.badRequest("La AFP seleccionada está inactiva");
+            }
+        }
+        if (!Boolean.TRUE.equals(reglas.regimen(r.regimenLaboral()).getActivo())) {
+            throw DomainException.badRequest("El régimen laboral seleccionado está inactivo");
         }
     }
 
@@ -167,7 +185,7 @@ public class ContratoService implements ContratoUseCase {
         if (r.modalidad() == ModalidadContrato.PRACTICANTE) {
             return RegimenPensionario.NINGUNO;
         }
-        return r.regimenPensionario() != null ? r.regimenPensionario() : RegimenPensionario.ONP;
+        return catalogo.oPorDefecto(r.regimenPensionario(), CatalogoReglas.REGIMEN_PENSIONARIO, RegimenPensionario.class);
     }
 
     private void aplicar(Contrato c, ContratoRequest r) {
@@ -184,10 +202,11 @@ public class ContratoService implements ContratoUseCase {
         RegimenPensionario regimen = resolverRegimen(r);
         c.setRegimenPensionario(regimen);
         c.setAfpNombre(regimen == RegimenPensionario.AFP ? r.afpNombre() : null);
+        c.setRegimenLaboral(reglas.regimen(r.regimenLaboral()).getCodigo());
         c.setTieneAsignacionFamiliar(
                 r.modalidad() != ModalidadContrato.PRACTICANTE
                         && Boolean.TRUE.equals(r.tieneAsignacionFamiliar()));
-        c.setEstado(r.estado() != null ? r.estado() : EstadoContrato.VIGENTE);
+        c.setEstado(catalogo.oPorDefecto(r.estado(), CatalogoReglas.ESTADO_CONTRATO, EstadoContrato.class));
         c.setObservaciones(r.observaciones());
     }
 
@@ -222,11 +241,11 @@ public class ContratoService implements ContratoUseCase {
         Contrato vigente = contratoRepository
                 .findFirstByEmpleado_IdEmpleadoAndEstado(empleado.getIdEmpleado(), EstadoContrato.VIGENTE)
                 .orElse(null);
+        LocalDate hoy = LocalDate.now(parametros.zona());
         LocalDate inicio = vigente != null ? vigente.getFechaInicio() : empleado.getFechaIngreso();
         if (inicio == null) {
-            inicio = LocalDate.now();
+            inicio = hoy;
         }
-        LocalDate hoy = LocalDate.now();
         int meses = (int) Math.max(0, ChronoUnit.MONTHS.between(inicio, hoy));
         BigDecimal tasa = tasaMensual();
         BigDecimal ganados = tasa.multiply(BigDecimal.valueOf(meses)).setScale(1, RoundingMode.HALF_UP);
@@ -254,7 +273,7 @@ public class ContratoService implements ContratoUseCase {
 
     private boolean consumeVacaciones(SolicitudPermiso s) {
         return s.getTipoPermiso() != null
-                && "VACACIONES".equalsIgnoreCase(s.getTipoPermiso().getCodigo())
+                && Boolean.TRUE.equals(s.getTipoPermiso().getEsVacaciones())
                 && ESTADOS_QUE_CONSUMEN.contains(s.getEstado());
     }
 
@@ -263,7 +282,7 @@ public class ContratoService implements ContratoUseCase {
     }
 
     private BigDecimal tasaMensual() {
-        return parametros.decimal(PARAM_TASA, TASA_DEFAULT);
+        return parametros.decimal("dias_vacaciones_mensuales");
     }
 
     private ModalidadContrato mapearModalidad(Empleado e) {
@@ -273,14 +292,16 @@ public class ContratoService implements ContratoUseCase {
     }
 
     private String siguienteCodigo() {
+        String prefijo = parametros.texto("codigo_contrato_prefijo") + "-";
         int max = contratoRepository.findAll().stream()
                 .map(Contrato::getCodigo)
-                .map(codigo -> codigo.replaceAll("\\D", ""))
+                .filter(codigo -> codigo != null && codigo.startsWith(prefijo))
+                .map(codigo -> codigo.substring(prefijo.length()).replaceAll("\\D", ""))
                 .filter(s -> !s.isBlank())
                 .mapToInt(Integer::parseInt)
                 .max()
                 .orElse(0);
-        return "CTR-" + String.format("%03d", max + 1);
+        return prefijo + String.format("%0" + parametros.entero("codigo_correlativo_digitos") + "d", max + 1);
     }
 
     private Contrato buscar(Integer id) {
@@ -306,6 +327,9 @@ public class ContratoService implements ContratoUseCase {
                 c.getRemuneracionBasica(),
                 c.getRegimenPensionario(),
                 c.getAfpNombre(),
+                c.getAfpNombre() != null ? reglas.afp(c.getAfpNombre()).getNombre() : null,
+                c.getRegimenLaboral(),
+                c.getRegimenLaboral() != null ? reglas.regimen(c.getRegimenLaboral()).getNombre() : null,
                 c.isTieneAsignacionFamiliar(),
                 c.getEstado(),
                 c.getObservaciones(),

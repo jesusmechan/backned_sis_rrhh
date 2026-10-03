@@ -23,7 +23,7 @@ import pe.andina.rrhh.application.dto.BoletaPdfFile;
 
 @RestController
 @RequestMapping("/api/planillas")
-@PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+@PreAuthorize("hasAuthority('PLANILLA_GESTIONAR')")
 @Tag(name = "Planillas", description = "Cálculo mensual de remuneraciones")
 public class PlanillaController {
 

@@ -1,17 +1,15 @@
 -- =============================================================================
 -- Limpia trámites y deja las 4 cuentas de prueba.
--- Conserva: áreas, cargos, horarios, tipos de permiso, parámetros, roles,
--- permisos funcionales, menú y configuración de flujos.
--- Vuelve a sembrar marcaciones hábiles desde el 2026-08-03 hasta hoy.
+-- Conserva: áreas, cargos, horarios, tipos de permiso, parámetros, vigencias,
+-- catálogos, AFP, regímenes, tramos de 5ta, roles, permisos funcionales, menú,
+-- plan de cuentas y cabeceras de flujos.
+-- Restaura los pasos de los flujos y vuelve a sembrar marcaciones hábiles
+-- desde el 2026-08-03 hasta hoy.
 --
+-- Requiere una base instalada con 01_install.sql.
 -- pgAdmin: Query Tool sobre rrhh_andina, F5.
 -- Contraseña: Andina2026. Guía: docs/PRUEBAS.md
 -- =============================================================================
-
--- Por si quedó un paso USUARIO (vacaciones antiguas) apuntando a una cuenta.
-UPDATE configuracion_aprobacion_detalle
-SET tipo_aprobador = 'JEFE_INMEDIATO', id_rol = NULL, id_usuario = NULL
-WHERE tipo_aprobador = 'USUARIO';
 
 DELETE FROM refresh_token;
 DELETE FROM notificacion;
@@ -36,82 +34,9 @@ DELETE FROM usuario;
 UPDATE empleado SET id_jefe_inmediato = NULL;
 DELETE FROM empleado;
 
-INSERT INTO rol (codigo, nombre, descripcion)
-SELECT v.codigo, v.nombre, v.descripcion
-FROM (VALUES
-    ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría. No participa en los circuitos.'),
-    ('GERENCIA', 'Gerencia', 'Autoriza vacaciones, comisiones y decisiones de alto impacto'),
-    ('RRHH', 'Recursos Humanos', 'Valida solicitudes, gestiona personal y genera reportes'),
-    ('JEFE', 'Jefe de área', 'Aprueba el primer paso de los trámites de su equipo (el asignado sale del organigrama)'),
-    ('EMPLEADO', 'Colaborador', 'Registra asistencia, permisos y horas extras propias')
-) AS v(codigo, nombre, descripcion)
-WHERE NOT EXISTS (SELECT 1 FROM rol r WHERE r.codigo = v.codigo);
-
-UPDATE rol SET nombre = v.nombre, descripcion = v.descripcion, activo = TRUE
-FROM (VALUES
-    ('ADMIN', 'Administrador', 'Administra usuarios, roles, configuración y auditoría. No participa en los circuitos.'),
-    ('GERENCIA', 'Gerencia', 'Autoriza vacaciones, comisiones y decisiones de alto impacto'),
-    ('RRHH', 'Recursos Humanos', 'Valida solicitudes, gestiona personal y genera reportes'),
-    ('JEFE', 'Jefe de área', 'Aprueba el primer paso de los trámites de su equipo (el asignado sale del organigrama)'),
-    ('EMPLEADO', 'Colaborador', 'Registra asistencia, permisos y horas extras propias')
-) AS v(codigo, nombre, descripcion)
-WHERE rol.codigo = v.codigo;
-
-INSERT INTO rol_permiso (id_rol, id_permiso)
-SELECT r.id_rol, p.id_permiso
-FROM rol r
-JOIN permiso_funcional p ON p.codigo IN (
-    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO', 'PERMISO_GESTIONAR',
-    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO', 'HEXTRA_GESTIONAR',
-    'ASISTENCIA_MARCAR'
-)
-WHERE r.codigo = 'RRHH'
-  AND NOT EXISTS (
-        SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
-
-INSERT INTO rol_permiso (id_rol, id_permiso)
-SELECT r.id_rol, p.id_permiso
-FROM rol r
-JOIN permiso_funcional p ON p.codigo IN (
-    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
-    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
-    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA'
-)
-WHERE r.codigo = 'JEFE'
-  AND NOT EXISTS (
-        SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
-
-INSERT INTO rol_permiso (id_rol, id_permiso)
-SELECT r.id_rol, p.id_permiso
-FROM rol r
-JOIN permiso_funcional p ON p.codigo IN (
-    'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
-    'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
-    'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA',
-    'PERSONAL_CONSULTAR',
-    'REPORTE_PERMISOS', 'REPORTE_HORAS_EXTRAS', 'REPORTE_ASISTENCIA'
-)
-WHERE r.codigo = 'GERENCIA'
-  AND NOT EXISTS (
-        SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
-
-INSERT INTO menu_rol (id_menu, id_rol)
-SELECT m.id_menu, r.id_rol
-FROM menu_item m
-JOIN rol r ON r.codigo = 'JEFE'
-WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL', 'DESEMPENO')
-  AND NOT EXISTS (SELECT 1 FROM menu_rol x WHERE x.id_menu = m.id_menu AND x.id_rol = r.id_rol);
-
-INSERT INTO menu_rol (id_menu, id_rol)
-SELECT m.id_menu, r.id_rol
-FROM menu_item m
-JOIN rol r ON r.codigo = 'GERENCIA'
-WHERE m.codigo IN (
-    'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
-    'PERSONAL', 'DESEMPENO', 'REPORTES'
-)
-  AND NOT EXISTS (SELECT 1 FROM menu_rol x WHERE x.id_menu = m.id_menu AND x.id_rol = r.id_rol);
-
+-- -----------------------------------------------------------------------------
+-- Pasos de los flujos de aprobación
+-- -----------------------------------------------------------------------------
 DELETE FROM configuracion_aprobacion_detalle;
 INSERT INTO configuracion_aprobacion_detalle (
     id_configuracion, numero_paso, nombre_paso, tipo_aprobador, id_rol, id_usuario, es_obligatorio
@@ -138,13 +63,10 @@ FROM (VALUES
 JOIN configuracion_aprobacion c ON c.codigo = v.codigo
 LEFT JOIN rol r ON r.codigo = v.codigo_rol;
 
-UPDATE configuracion_aprobacion SET descripcion = 'Jefe inmediato y Gerencia.'
-WHERE codigo = 'CFG-PERMISO-COMISION';
-
-DELETE FROM menu_rol WHERE id_rol IN (SELECT id_rol FROM rol WHERE codigo = 'APROBADOR');
-DELETE FROM rol_permiso WHERE id_rol IN (SELECT id_rol FROM rol WHERE codigo = 'APROBADOR');
-DELETE FROM rol WHERE codigo = 'APROBADOR';
-
+-- -----------------------------------------------------------------------------
+-- Personal de demostración
+-- Organigrama: Juan → Pantoja (jefe) → Mechan (gerencia). Carla (RR. HH.) reporta a Mechan.
+-- -----------------------------------------------------------------------------
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,
     nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
@@ -212,15 +134,19 @@ FROM (VALUES
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
 JOIN rol r ON r.codigo = v.codigo_rol;
 
-INSERT INTO contrato (codigo, id_empleado, modalidad, id_horario, fecha_inicio, estado, observaciones, remuneracion_basica)
+INSERT INTO contrato (
+    codigo, id_empleado, modalidad, id_horario, fecha_inicio, estado, observaciones,
+    remuneracion_basica, regimen_pensionario, afp_nombre, regimen_laboral, tiene_asignacion_familiar
+)
 SELECT v.codigo, e.id_empleado, v.modalidad::modalidad_contrato, e.id_horario, e.fecha_ingreso, 'VIGENTE',
-       'Contrato inicial de demostración', v.remuneracion
+       'Contrato inicial de demostración', v.remuneracion,
+       v.regimen::regimen_pensionario, v.afp, 'GENERAL', v.asignacion
 FROM (VALUES
-    ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC),
-    ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC),
-    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC),
-    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC)
-) AS v(codigo, codigo_empleado, modalidad, remuneracion)
+    ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC, 'ONP', NULL, TRUE),
+    ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC, 'AFP', 'INTEGRA', TRUE),
+    ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC, 'AFP', 'HABITAT', FALSE),
+    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC, 'ONP', NULL, FALSE)
+) AS v(codigo, codigo_empleado, modalidad, remuneracion, regimen, afp, asignacion)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado;
 
 INSERT INTO convocatoria (codigo, puesto, id_area, vacantes, fecha_inicio, fecha_fin, descripcion, estado)
@@ -256,14 +182,7 @@ CROSS JOIN LATERAL (
 WHERE u.activo
   AND e.estado = 'ACTIVO'
   AND d.dia >= e.fecha_ingreso
-  AND EXTRACT(ISODOW FROM d.dia) BETWEEN 1 AND 5
-  AND NOT EXISTS (
-        SELECT 1
-        FROM marcacion m
-        WHERE m.id_empleado = e.id_empleado
-          AND m.tipo = v.tipo::tipo_marcacion
-          AND m.fecha = d.dia
-  );
+  AND EXTRACT(ISODOW FROM d.dia) BETWEEN 1 AND 5;
 
 INSERT INTO auditoria (id_usuario, accion, entidad, id_entidad, detalle)
 SELECT id_usuario, 'RESET_PRUEBAS', 'SISTEMA', NULL,

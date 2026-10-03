@@ -3,20 +3,24 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, Clock3, Download, Timer } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Avatar, Button, DataList, DatePicker, Field, FilterBar, Modal, Pager, Panel, SearchField, TimePicker, downloadBlob } from '../components/ui';
+import { useConfig } from '../auth/ConfigContext';
+import { Alert, Avatar, Badge, Button, CatalogoOptions, DataList, DatePicker, Field, FilterBar, Modal, Pager, Panel, SearchField, TimePicker, downloadBlob } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
+import { diaIsoEnZona, fmtIntl, hhmmEnZona, isoConZona, isoDateEnZona } from '../lib/format';
 
-function sameMonth(iso, d = new Date()) {
-  const x = new Date(iso);
-  return x.getMonth() === d.getMonth() && x.getFullYear() === d.getFullYear();
+const NOMBRES_DIA = ['', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+function sameMonth(iso) {
+  return isoDateEnZona(iso).slice(0, 7) === isoDateEnZona().slice(0, 7);
 }
 
-function businessDaysSoFar(d = new Date()) {
+function businessDaysSoFar(laborables) {
+  const hoy = isoDateEnZona();
+  const [y, m, d] = hoy.split('-').map(Number);
   let n = 0;
-  for (let day = 1; day <= d.getDate(); day += 1) {
-    const w = new Date(d.getFullYear(), d.getMonth(), day).getDay();
-    if (w !== 0 && w !== 6) n += 1;
+  for (let day = 1; day <= d; day += 1) {
+    if (laborables.includes(diaIsoEnZona(new Date(Date.UTC(y, m - 1, day, 12))))) n += 1;
   }
   return n;
 }
@@ -24,7 +28,7 @@ function businessDaysSoFar(d = new Date()) {
 function pairHours(list) {
   const byDay = {};
   list.forEach((r) => {
-    const day = new Date(r.fechaHora).toISOString().slice(0, 10);
+    const day = isoDateEnZona(r.fechaHora);
     byDay[day] = byDay[day] || {};
     byDay[day][r.tipo] = new Date(r.fechaHora);
   });
@@ -35,25 +39,32 @@ function pairHours(list) {
   return Math.max(0, hours);
 }
 
+function minutosDelDia(hhmm) {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  return Number.isNaN(h) ? null : h * 60 + (m || 0);
+}
+
 function formatStamp(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return fmtIntl(iso, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 function limaDate(iso) {
-  if (!iso) return '';
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+  return iso ? isoDateEnZona(iso) : '';
 }
 
 function limaTime(iso) {
-  if (!iso) return '';
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+  return iso ? hhmmEnZona(iso) : '';
 }
 
 export function Asistencia() {
-  const { usuario, hasAnyRole } = useAuth();
-  const canSupervise = hasAnyRole('ADMIN', 'RRHH');
+  const { usuario, hasPermission } = useAuth();
+  const { param, num, etiqueta } = useConfig();
+  const canSupervise = hasPermission('ASISTENCIA_GESTIONAR');
+  const laborables = String(param('dias_laborables')).split(',').map((x) => Number(x.trim())).filter(Boolean);
+  const tolerancia = num('minutos_tolerancia_tardanza', 0);
+  const horasJornada = num('horas_mensuales_base', 0) / (num('dias_mes_computable', 0) || 1);
+  const [horaIngreso, setHoraIngreso] = useState('');
   const [mineRows, setMineRows] = useState([]);
   const [mineTotal, setMineTotal] = useState(0);
   const [equipoTotal, setEquipoTotal] = useState(0);
@@ -82,10 +93,8 @@ export function Asistencia() {
   );
 
   function monthRange() {
-    const d = new Date();
-    const desdeMes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-    const hastaHoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return { desde: desdeMes, hasta: hastaHoy };
+    const hastaHoy = isoDateEnZona();
+    return { desde: `${hastaHoy.slice(0, 7)}-01`, hasta: hastaHoy };
   }
 
   async function loadMetrics() {
@@ -103,8 +112,10 @@ export function Asistencia() {
       try {
         const emp = await http.get(`/api/empleados/${usuario.idEmpleado}`);
         setHorario(emp.horario || '');
+        setHoraIngreso(emp.horaIngreso ? String(emp.horaIngreso).slice(0, 5) : '');
       } catch {
         setHorario('');
+        setHoraIngreso('');
       }
     }
   }
@@ -112,15 +123,16 @@ export function Asistencia() {
   useEffect(() => { loadMetrics().catch((e) => setError(e.message)); }, []);
 
   const monthMine = mineRows.filter((r) => sameMonth(r.fechaHora));
-  const dias = new Set(monthMine.filter((r) => r.tipo === 'INGRESO').map((r) => new Date(r.fechaHora).toDateString())).size;
-  const habiles = businessDaysSoFar();
+  const dias = new Set(monthMine.filter((r) => r.tipo === 'INGRESO').map((r) => isoDateEnZona(r.fechaHora))).size;
+  const habiles = businessDaysSoFar(laborables);
   const horas = pairHours(monthMine);
-  const metaHoras = habiles * 8;
-  const tardanzas = monthMine.filter((r) => {
-    if (r.tipo !== 'INGRESO') return false;
-    const t = new Date(r.fechaHora);
-    return t.getHours() > 8 || (t.getHours() === 8 && t.getMinutes() > 30);
-  }).length;
+  const metaHoras = Math.round(habiles * horasJornada);
+  const limiteIngreso = minutosDelDia(horaIngreso) == null ? null : minutosDelDia(horaIngreso) + tolerancia;
+  const limiteTexto = limiteIngreso == null ? '' : `${String(Math.floor(limiteIngreso / 60)).padStart(2, '0')}:${String(limiteIngreso % 60).padStart(2, '0')}`;
+  const tardanzas = limiteIngreso == null ? 0 : monthMine.filter((r) => (
+    r.tipo === 'INGRESO' && minutosDelDia(hhmmEnZona(r.fechaHora)) > limiteIngreso
+  )).length;
+  const textoLaborables = laborables.map((d) => NOMBRES_DIA[d]).filter(Boolean).join(', ');
 
   async function exportar() {
     try {
@@ -155,7 +167,7 @@ export function Asistencia() {
     try {
       await http.put(`/api/asistencias/${edit.idMarcacion}`, {
         tipo: edit.tipo,
-        fechaHora: `${edit.fecha}T${edit.hora}:00-05:00`,
+        fechaHora: isoConZona(edit.fecha, edit.hora),
         observacion: edit.observacion.trim() || 'Corrección de marcación'
       });
       setOk('Marcación corregida.');
@@ -168,7 +180,7 @@ export function Asistencia() {
     }
   }
 
-  const periodo = useMemo(() => new Date().toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }), []);
+  const periodo = useMemo(() => fmtIntl(new Date(), { month: 'long', year: 'numeric' }), []);
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : 'WEB';
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : 'Navegador';
 
@@ -177,7 +189,7 @@ export function Asistencia() {
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Presencia y control horario · Consultora Contable Andina
+            Presencia y control horario · {param('empresa_razon_social')}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="page-title">Asistencia</h1>
@@ -198,11 +210,11 @@ export function Asistencia() {
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric icon={<CalendarDays size={16} />} label="Días asistidos" value={`${dias} / ${habiles}`} hint="días hábiles del mes" pct={habiles ? (dias / habiles) * 100 : 0} />
           <Metric icon={<Clock3 size={16} />} label="Horas efectivas" value={`${horas.toFixed(1)} hrs`} hint={`meta aprox. ${metaHoras} hrs`} pct={metaHoras ? (horas / metaHoras) * 100 : 0} />
-          <Metric icon={<Timer size={16} />} label="Tardanzas mes" value={`${tardanzas}`} hint={tardanzas === 0 ? 'Sin tardanzas detectadas' : 'Ingresos después de 08:30'} />
+          <Metric icon={<Timer size={16} />} label="Tardanzas mes" value={`${tardanzas}`} hint={!limiteTexto ? 'Sin horario asignado' : tardanzas === 0 ? 'Sin tardanzas detectadas' : `Ingresos después de ${limiteTexto}`} />
           <Panel>
             <p className="text-xs text-muted">Jornada asignada</p>
             <p className="mt-1 text-sm font-semibold text-navy">{horario || 'Horario de la ficha de personal'}</p>
-            <p className="mt-1 text-xs text-muted">Lunes a viernes · tolerancia según política interna</p>
+            <p className="mt-1 text-xs text-muted first-letter:uppercase">{textoLaborables} · tolerancia de {tolerancia} min</p>
           </Panel>
       </div>
 
@@ -213,8 +225,7 @@ export function Asistencia() {
         </select>
         <select className="w-auto" value={tipoFiltro} onChange={(e) => { setTipoFiltro(e.target.value); setPage(1); }}>
           <option value="">Tipo</option>
-          <option value="INGRESO">Entrada</option>
-          <option value="SALIDA">Salida</option>
+          <CatalogoOptions tipo="TIPO_MARCACION" />
         </select>
         <DatePicker value={desde} onChange={(v) => { setDesde(v); setPage(1); }} max={hasta || undefined} />
         <DatePicker value={hasta} onChange={(v) => { setHasta(v); setPage(1); }} min={desde || undefined} />
@@ -255,10 +266,8 @@ export function Asistencia() {
               <p className="font-medium text-navy">{r.empleado}</p>
               <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
-                  {r.tipo}
-                </span>
-                <span className="text-xs text-muted">{r.origen || 'WEB'} · {r.observacion || 'Jornada ordinaria'}</span>
+                <Badge tipo="TIPO_MARCACION" value={r.tipo} />
+                <span className="text-xs text-muted">{etiqueta('ORIGEN_MARCACION', r.origen)} · {r.observacion || 'Jornada ordinaria'}</span>
                 {canSupervise && (
                   <Button variant="secondary" className="ml-auto px-3 py-1.5 text-xs" onClick={() => abrirCorreccion(r)}>Corregir</Button>
                 )}
@@ -287,26 +296,24 @@ export function Asistencia() {
                       <Avatar name={r.empleado} />
                       <div>
                         <p className="font-medium text-navy">{r.empleado}</p>
-                        <p className="text-xs text-muted">#{r.idEmpleado} · {r.tipo}</p>
+                        <p className="text-xs text-muted">#{r.idEmpleado} · {etiqueta('TIPO_MARCACION', r.tipo)}</p>
                       </div>
                     </div>
                   </td>
                   <td>
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
-                      {r.tipo}
-                    </span>
+                    <Badge tipo="TIPO_MARCACION" value={r.tipo} />
                   </td>
                   <td>
                     <p>{formatStamp(r.fechaHora)}</p>
                     <p className="text-xs text-muted">Hora del registro</p>
                   </td>
                   <td>
-                    <p className="text-sm">{r.origen || 'WEB'}</p>
+                    <p className="text-sm">{etiqueta('ORIGEN_MARCACION', r.origen)}</p>
                     <p className="text-xs text-muted">{browser}</p>
                   </td>
                   <td>
                     <span className="rounded-full bg-info-soft px-2 py-0.5 text-xs font-medium text-info">
-                      {r.tipo === 'INGRESO' ? 'Entrada registrada' : 'Salida registrada'}
+                      {etiqueta('TIPO_MARCACION', r.tipo)} registrada
                     </span>
                   </td>
                   <td className="text-sm text-muted">{r.observacion || 'Jornada ordinaria'}</td>
@@ -327,7 +334,7 @@ export function Asistencia() {
 
       {edit && (
         <Modal title="Corregir marcación" onClose={() => !saving && setEdit(null)}>
-          <p className="mb-4 text-sm text-slate-600">{edit.empleado} · {edit.tipo}</p>
+          <p className="mb-4 text-sm text-slate-600">{edit.empleado} · {etiqueta('TIPO_MARCACION', edit.tipo)}</p>
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={guardarCorreccion}>
             <Field label="Fecha">
               <DatePicker value={edit.fecha} onChange={(v) => setEdit((f) => ({ ...f, fecha: v }))} required />

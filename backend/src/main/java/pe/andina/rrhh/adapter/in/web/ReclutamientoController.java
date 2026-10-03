@@ -23,7 +23,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/convocatorias")
-@PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+@PreAuthorize("hasAuthority('RECLUTAMIENTO_GESTIONAR')")
 @Tag(name = "Reclutamiento", description = "Convocatorias y postulantes")
 public class ReclutamientoController {
 

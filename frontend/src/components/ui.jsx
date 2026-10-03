@@ -1,6 +1,7 @@
 import { Children, isValidElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search } from 'lucide-react';
+import { useConfig } from '../auth/ConfigContext';
 
 function findControl(children) {
   let found = null;
@@ -98,36 +99,28 @@ export function Avatar({ name, className = '' }) {
   );
 }
 
-export function Badge({ value }) {
-  const tone = {
-    PENDIENTE: 'bg-warn-soft text-warn',
-    EN_CURSO: 'bg-warn-soft text-warn',
-    APROBADO: 'bg-ok-soft text-ok',
-    ACTIVO: 'bg-ok-soft text-ok',
-    COMPLETADA: 'bg-ok-soft text-ok',
-    INGRESO: 'bg-info-soft text-info',
-    SALIDA: 'bg-slate-100 text-slate-600',
-    RECHAZADO: 'bg-danger-soft text-danger',
-    CANCELADO: 'bg-danger-soft text-danger',
-    INACTIVO: 'bg-danger-soft text-danger',
-    CESADO: 'bg-danger-soft text-danger',
-    OBLIGATORIO: 'bg-slate-100 text-navy',
-    OPCIONAL: 'bg-warn-soft text-warn',
-    BORRADOR: 'bg-slate-100 text-muted',
-    CALCULADA: 'bg-info-soft text-info',
-    CERRADA: 'bg-ok-soft text-ok',
-    CONTABILIZADO: 'bg-ok-soft text-ok',
-    ABIERTA: 'bg-ok-soft text-ok',
-    POSTULADO: 'bg-slate-100 text-muted',
-    ENTREVISTA: 'bg-warn-soft text-warn',
-    SELECCIONADO: 'bg-info-soft text-info',
-    CONTRATADO: 'bg-ok-soft text-ok',
-    DESCARTADO: 'bg-danger-soft text-danger',
-    ANULADA: 'bg-danger-soft text-danger',
-    ANULADO: 'bg-danger-soft text-danger'
-  }[value] || 'bg-slate-100 text-muted';
+const TONOS = {
+  ok: 'bg-ok-soft text-ok',
+  warn: 'bg-warn-soft text-warn',
+  danger: 'bg-danger-soft text-danger',
+  info: 'bg-info-soft text-info',
+  neutral: 'bg-slate-100 text-navy',
+  muted: 'bg-slate-100 text-muted'
+};
 
-  return <span className={cn('inline-block rounded-md px-2 py-0.5 text-xs font-medium', tone)}>{value || '—'}</span>;
+/** Etiqueta y color salen de Maestros › Catálogos; `tipo` desambigua códigos repetidos entre catálogos. */
+export function Badge({ value, tipo, label }) {
+  const { etiqueta, tono } = useConfig();
+  const clase = TONOS[tono(tipo, value)] || TONOS.muted;
+  return <span className={cn('inline-block rounded-md px-2 py-0.5 text-xs font-medium', clase)}>{label || etiqueta(tipo, value)}</span>;
+}
+
+/** `<option>` de un catálogo de Maestros › Catálogos, en el orden configurado. */
+export function CatalogoOptions({ tipo, excluir = [] }) {
+  const { opciones } = useConfig();
+  return opciones(tipo)
+    .filter((o) => !excluir.includes(o.codigo))
+    .map((o) => <option key={o.codigo} value={o.codigo}>{o.nombre}</option>);
 }
 
 export function Alert({ children, ok }) {

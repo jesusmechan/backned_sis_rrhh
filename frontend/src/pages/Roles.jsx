@@ -13,7 +13,8 @@ const empty = {
   descripcion: '',
   activo: true,
   idMenus: [],
-  idPermisos: []
+  idPermisos: [],
+  idRolSuplente: ''
 };
 
 function toggleId(list, id) {
@@ -26,7 +27,8 @@ export function Roles() {
   const [permisos, setPermisos] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
-  const [editCodigo, setEditCodigo] = useState('');
+  const [esSistema, setEsSistema] = useState(false);
+  const [roles, setRoles] = useState([]);
   const [open, setOpen] = useState(false);
   const [ok, setOk] = useState('');
   const [saving, setSaving] = useState(false);
@@ -47,11 +49,13 @@ export function Roles() {
   useEffect(() => {
     Promise.all([
       http.page(pagePath('/api/menus', { page: 1, size: SELECT_SIZE, activo: true })),
-      http.get('/api/catalogos/permisos-funcionales')
+      http.get('/api/catalogos/permisos-funcionales'),
+      http.page(pagePath('/api/roles', { page: 1, size: SELECT_SIZE, activo: true }))
     ])
-      .then(([menuData, permData]) => {
+      .then(([menuData, permData, rolData]) => {
         setMenus(menuData.content || []);
         setPermisos(Array.isArray(permData) ? permData : []);
+        setRoles(rolData.content || []);
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -72,7 +76,6 @@ export function Roles() {
   useEffect(() => { loadCounts().catch(() => {}); }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const esAdmin = editCodigo === 'ADMIN';
 
   const menusPorGrupo = useMemo(() => {
     const grupos = {};
@@ -96,18 +99,19 @@ export function Roles() {
     setError('');
     if (row) {
       setEditId(row.idRol);
-      setEditCodigo(row.codigo || '');
+      setEsSistema(row.esSistema === true);
       setForm({
         codigo: row.codigo || '',
         nombre: row.nombre || '',
         descripcion: row.descripcion || '',
         activo: row.activo !== false,
         idMenus: row.idMenus || [],
-        idPermisos: row.idPermisos || []
+        idPermisos: row.idPermisos || [],
+        idRolSuplente: row.idRolSuplente || ''
       });
     } else {
       setEditId(null);
-      setEditCodigo('');
+      setEsSistema(false);
       setForm(empty);
     }
     setOpen(true);
@@ -124,7 +128,8 @@ export function Roles() {
       descripcion: form.descripcion || null,
       activo: form.activo !== false,
       idMenus: form.idMenus,
-      idPermisos: form.idPermisos
+      idPermisos: form.idPermisos,
+      idRolSuplente: form.idRolSuplente ? Number(form.idRolSuplente) : null
     };
     try {
       if (editId) await http.put(`/api/roles/${editId}`, body);
@@ -180,7 +185,7 @@ export function Roles() {
             key={r.idRol}
             title={r.nombre}
             meta={`${r.codigo} · ${r.usuarios} ${r.usuarios === 1 ? 'cuenta' : 'cuentas'}`}
-            badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            badge={<Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
             actions={<Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>}
           />
         ))}
@@ -215,7 +220,7 @@ export function Roles() {
                       )}
                     </div>
                   </td>
-                  <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                  <td><Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
                   <td>
                     <ListActions>
                       <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
@@ -235,8 +240,8 @@ export function Roles() {
         <Modal title={editId ? 'Editar rol' : 'Nuevo rol'} onClose={() => setOpen(false)}>
           <Alert>{error}</Alert>
           <FormGrid onSubmit={guardar}>
-            <Field label="Código" hint={esAdmin ? 'El código Administrador no se cambia' : 'Mayúsculas, números y guion'}>
-              <input value={form.codigo} onChange={(e) => set('codigo', code(e.target.value, 30))} required disabled={esAdmin} />
+            <Field label="Código" hint={esSistema ? 'Rol del sistema: el código no se cambia' : 'Mayúsculas, números y guion'}>
+              <input value={form.codigo} onChange={(e) => set('codigo', code(e.target.value, 30))} required disabled={esSistema} />
             </Field>
             <Field label="Nombre">
               <input value={form.nombre} onChange={(e) => set('nombre', label(e.target.value))} required />
@@ -244,14 +249,20 @@ export function Roles() {
             <Field label="Descripción" full>
               <input value={form.descripcion} onChange={(e) => set('descripcion', text(e.target.value, 250))} />
             </Field>
-            <Field label="Estado" hint={esAdmin ? 'El Administrador permanece activo' : 'Inactivo se oculta al asignar cuentas'}>
+            <Field label="Estado" hint={esSistema ? 'Los roles del sistema permanecen activos' : 'Inactivo se oculta al asignar cuentas'}>
               <select
                 value={form.activo ? '1' : '0'}
                 onChange={(e) => set('activo', e.target.value === '1')}
-                disabled={esAdmin}
+                disabled={esSistema}
               >
                 <option value="1">Activo</option>
                 <option value="0">Inactivo</option>
+              </select>
+            </Field>
+            <Field label="Rol suplente" hint="Aprueba cuando nadie con este rol está disponible">
+              <select value={form.idRolSuplente} onChange={(e) => set('idRolSuplente', e.target.value)}>
+                <option value="">Ninguno</option>
+                {roles.filter((r) => r.idRol !== editId).map((r) => <option key={r.idRol} value={r.idRol}>{r.nombre}</option>)}
               </select>
             </Field>
             <div className="md:col-span-2">

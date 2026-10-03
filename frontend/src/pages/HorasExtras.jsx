@@ -59,7 +59,7 @@ export function HorasExtras() {
             leading={<Avatar name={r.empleado} />}
             title={r.empleado}
             meta={`${fmtDate(r.fecha)} · ${fmtTime(r.horaInicio)} – ${fmtTime(r.horaFin)} · ${r.cantidadHoras} h`}
-            badge={<Badge value={r.estado} />}
+            badge={<Badge tipo="ESTADO_SOLICITUD" value={r.estado} />}
             actions={(
               <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/horas-extras/${r.idSolicitudHoraExtra}`)}>
                 Ver
@@ -90,7 +90,7 @@ export function HorasExtras() {
                   <td className="text-sm">{fmtTime(r.horaInicio)} – {fmtTime(r.horaFin)}</td>
                   <td className="text-sm">{r.cantidadHoras} h</td>
                   <td className="max-w-xs truncate text-sm text-muted">{r.motivo || '—'}</td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_SOLICITUD" value={r.estado} /></td>
                   <td>
                     <ListActions>
                       <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/horas-extras/${r.idSolicitudHoraExtra}`)}>
