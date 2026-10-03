@@ -1,5 +1,6 @@
 package pe.andina.rrhh.domain.service;
 
+import pe.andina.rrhh.domain.model.Rol;
 import pe.andina.rrhh.domain.model.SolicitudPasoAprobacion;
 import pe.andina.rrhh.domain.model.enums.TipoAprobador;
 
@@ -36,10 +37,13 @@ public final class BandejaAsignacion {
                 && paso.getUsuarioAsignado().getIdUsuario().equals(idUsuario);
     }
 
+    /** El perfil del paso o su perfil suplente (configurado en Roles). */
     private static boolean mismoRol(SolicitudPasoAprobacion paso, Integer idUsuario, String codigoRol) {
-        return paso.getRol() != null
-                && codigoRol != null
-                && (paso.getRol().getCodigo().equals(codigoRol)
-                    || ("GERENCIA".equals(paso.getRol().getCodigo()) && "ADMIN".equals(codigoRol)));
+        if (paso.getRol() == null || codigoRol == null) {
+            return false;
+        }
+        Rol suplente = paso.getRol().getRolSuplente();
+        return paso.getRol().getCodigo().equals(codigoRol)
+                || (suplente != null && suplente.getCodigo().equals(codigoRol));
     }
 }

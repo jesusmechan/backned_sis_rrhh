@@ -19,7 +19,7 @@ import pe.andina.rrhh.application.dto.AppDtos.PasoResponse;
 import pe.andina.rrhh.application.port.in.SolicitudUseCase;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -29,11 +29,12 @@ import java.util.Locale;
 @Tag(name = "Aprobación", description = "Bandeja y decisión de pasos")
 public class AprobacionController {
 
-    private static final ZoneId LIMA = ZoneId.of("America/Lima");
 
     private final SolicitudUseCase solicitudService;
+    private final ParametroPort parametros;
 
-    public AprobacionController(SolicitudUseCase solicitudService) {
+    public AprobacionController(SolicitudUseCase solicitudService, ParametroPort parametros) {
+        this.parametros = parametros;
         this.solicitudService = solicitudService;
     }
 
@@ -83,7 +84,7 @@ public class AprobacionController {
         if (item.fechaInicio() == null) {
             return false;
         }
-        LocalDate dia = item.fechaInicio().atZoneSameInstant(LIMA).toLocalDate();
+        LocalDate dia = item.fechaInicio().atZoneSameInstant(parametros.zona()).toLocalDate();
         if (desde != null && dia.isBefore(desde)) {
             return false;
         }

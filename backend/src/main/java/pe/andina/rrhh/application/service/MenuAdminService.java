@@ -72,8 +72,8 @@ public class MenuAdminService implements MenuAdminUseCase {
     @Transactional
     public void eliminar(Integer id) {
         MenuItem item = buscar(id);
-        if (esMantenedor(item)) {
-            throw DomainException.badRequest("No se puede eliminar este mantenedor");
+        if (esSistema(item)) {
+            throw DomainException.badRequest("No se puede eliminar una opción de sistema");
         }
         auditoriaService.registrar(currentUser.usuario(), "ELIMINAR", "MENU", id, item.getCodigo());
         menuItemRepository.delete(item);
@@ -81,11 +81,11 @@ public class MenuAdminService implements MenuAdminUseCase {
 
     private void aplicar(MenuItem item, MenuAdminRequest request) {
         Set<Rol> perfiles = resolverPerfiles(request.idPerfiles());
-        if (esMantenedor(request) && perfiles.stream().noneMatch(r -> "ADMIN".equalsIgnoreCase(r.getCodigo()))) {
-            throw DomainException.badRequest("El mantenedor debe quedar asignado al perfil Administrador");
-        }
-        if (Boolean.FALSE.equals(request.activo()) && esMantenedor(item)) {
-            throw DomainException.badRequest("El mantenedor no puede desactivarse");
+        if (esSistema(item)) {
+            if (Boolean.FALSE.equals(request.activo())) {
+                throw DomainException.badRequest("Una opción de sistema no puede desactivarse");
+            }
+            rolRepository.findAllByOrderByNombreAsc().stream().filter(Rol::esSistema).forEach(perfiles::add);
         }
         item.setCodigo(request.codigo().trim().toUpperCase());
         item.setEtiqueta(request.etiqueta().trim());
@@ -131,22 +131,14 @@ public class MenuAdminService implements MenuAdminUseCase {
                 item.getDescripcion(),
                 item.getOrden(),
                 item.getActivo(),
+                esSistema(item),
                 perfiles.stream().map(Rol::getIdRol).toList(),
                 perfiles.stream().map(Rol::getNombre).toList()
         );
     }
 
-    private boolean esMantenedor(MenuItem item) {
-        return esMantenedor(item.getCodigo(), item.getRuta());
-    }
-
-    private boolean esMantenedor(MenuAdminRequest request) {
-        return esMantenedor(request.codigo(), normalizarRuta(request.ruta()));
-    }
-
-    private boolean esMantenedor(String codigo, String ruta) {
-        return "MENU".equalsIgnoreCase(codigo) || "/menu".equals(ruta)
-                || "ROLES".equalsIgnoreCase(codigo) || "/roles".equals(ruta);
+    private boolean esSistema(MenuItem item) {
+        return Boolean.TRUE.equals(item.getEsSistema());
     }
 
     private String normalizarRuta(String ruta) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { http, pagePath, SELECT_SIZE, toTime } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
 import { Alert, BackLink, Button, DatePicker, Field, TimePicker } from '../components/ui';
 import { useDuplicarPrefill } from '../lib/useDuplicarPrefill';
 import { text } from '../lib/input';
@@ -13,8 +14,10 @@ const empty = {
 export function PermisoNuevo() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { usuario, hasAnyRole } = useAuth();
-  const puedeElegirEmpleado = hasAnyRole('ADMIN', 'RRHH');
+  const { usuario, hasPermission } = useAuth();
+  const { num } = useConfig();
+  const puedeElegirEmpleado = hasPermission('ALCANCE_TOTAL');
+  const motivoMin = num('motivo_min_caracteres', 1);
   const [form, setForm] = useDuplicarPrefill(empty);
   const [empleados, setEmpleados] = useState([]);
   const [tipos, setTipos] = useState([]);
@@ -34,7 +37,7 @@ export function PermisoNuevo() {
         setTipos(t);
         setEmpleados(emp.content || []);
         if (prefillVacaciones) {
-          const vac = (t || []).find((x) => x.codigo === 'VACACIONES');
+          const vac = (t || []).find((x) => x.esVacaciones);
           if (vac) setForm((f) => ({ ...f, idTipoPermiso: String(vac.id) }));
         }
       })
@@ -44,7 +47,7 @@ export function PermisoNuevo() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const tipoSel = tipos.find((t) => String(t.id) === String(form.idTipoPermiso));
-  const esVacaciones = tipoSel?.codigo === 'VACACIONES';
+  const esVacaciones = Boolean(tipoSel?.esVacaciones);
   const idEmpleadoSaldo = form.idEmpleado || usuario?.idEmpleado;
 
   useEffect(() => {
@@ -72,8 +75,8 @@ export function PermisoNuevo() {
       setError('La hora de fin debe ser posterior a la de inicio. Para un día completo, deje las horas vacías.');
       return;
     }
-    if (form.motivo.trim().length < 5) {
-      setError('El motivo debe tener al menos 5 caracteres.');
+    if (form.motivo.trim().length < motivoMin) {
+      setError(`El motivo debe tener al menos ${motivoMin} caracteres.`);
       return;
     }
     setSaving(true);
@@ -161,7 +164,7 @@ export function PermisoNuevo() {
             <TimePicker value={form.horaFin} onChange={(v) => set('horaFin', v)} />
           </Field>
           <Field label="Motivo" full>
-            <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={5} placeholder="Mínimo 5 caracteres" />
+            <textarea value={form.motivo} onChange={(e) => set('motivo', text(e.target.value, 400))} required minLength={motivoMin} placeholder={`Mínimo ${motivoMin} caracteres`} />
           </Field>
         </div>
         <p className="mt-4 text-xs text-muted">Las horas son opcionales. Si las indica, deben ir las dos y la de fin debe ser posterior a la de inicio. Dejarlas vacías registra el día completo.</p>

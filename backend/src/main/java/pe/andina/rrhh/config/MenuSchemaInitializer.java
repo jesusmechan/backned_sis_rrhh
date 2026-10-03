@@ -8,6 +8,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+
 @Component
 @Order(1)
 public class MenuSchemaInitializer implements ApplicationRunner {
@@ -66,5 +70,16 @@ public class MenuSchemaInitializer implements ApplicationRunner {
         populator.setContinueOnError(true);
         populator.addScript(new ClassPathResource("db/schema.sql"));
         populator.execute(jdbcTemplate.getDataSource());
+
+        // Contiene bloques $$ que ResourceDatabasePopulator no sabe partir: se envía entero.
+        jdbcTemplate.execute(leer("db/06_configuracion_dinamica.sql"));
+    }
+
+    private static String leer(String ruta) {
+        try {
+            return new ClassPathResource(ruta).getContentAsString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

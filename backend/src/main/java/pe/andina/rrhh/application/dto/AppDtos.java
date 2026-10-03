@@ -10,7 +10,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import pe.andina.rrhh.domain.model.enums.AfpNombre;
 import pe.andina.rrhh.domain.model.enums.EstadoAsiento;
 import pe.andina.rrhh.domain.model.enums.EstadoContrato;
 import pe.andina.rrhh.domain.model.enums.EstadoConvocatoria;
@@ -41,14 +40,20 @@ public final class AppDtos {
     public record IdNombre(Integer id, String nombre) {}
     public record CatalogoItem(Integer id, String codigo, String nombre) {}
     public record PermisoFuncionalItem(Integer id, String codigo, String nombre, String modulo) {}
+    public record TipoPermisoItem(Integer id, String codigo, String nombre, boolean esVacaciones) {}
+    public record CatalogoValorItem(String codigo, String nombre, String tono, Integer orden, boolean porDefecto,
+                                    String regla, String mensajeRegla) {}
+    public record AfpItem(String codigo, String nombre, BigDecimal tasaComision) {}
+    public record RegimenLaboralItem(String codigo, String nombre, String descripcion, boolean porDefecto) {}
 
     public record EmpleadoRequest(
             @NotBlank(message = "Indique el código")
-            @Pattern(regexp = "^[A-Z]{2,8}-[0-9]{3,6}$", message = "El código debe tener el formato AND-001")
+            @Size(max = 20)
             String codigoEmpleado,
             TipoDocumento tipoDocumento,
             @NotBlank(message = "Indique el documento")
-            @Pattern(regexp = "^[A-Z0-9]{8,12}$", message = "El documento solo admite letras y números")
+            @Size(max = 20)
+            @Pattern(regexp = "^[A-Z0-9]+$", message = "El documento solo admite letras y números")
             String numeroDocumento,
             @NotBlank(message = "Indique los nombres")
             @Pattern(regexp = "^\\p{L}+(?:[ '\\-]\\p{L}+)*$", message = "Los nombres solo admiten letras")
@@ -108,7 +113,9 @@ public final class AppDtos {
             TipoContrato tipoContrato,
             EstadoEmpleado estado,
             Integer idJefeInmediato,
-            String jefeInmediato
+            String jefeInmediato,
+            LocalTime horaIngreso,
+            LocalTime horaSalida
     ) {}
 
     public record UsuarioRequest(
@@ -120,7 +127,7 @@ public final class AppDtos {
             @NotBlank(message = "Indique el correo")
             @Email(message = "Indique un correo válido")
             String correo,
-            @Pattern(regexp = "^$|^.{6,80}$", message = "La contraseña debe tener al menos 6 caracteres")
+            @Size(max = 80, message = "La contraseña no puede superar 80 caracteres")
             String password,
             Boolean activo
     ) {}
@@ -128,7 +135,7 @@ public final class AppDtos {
     public record CambioPasswordRequest(
             @NotBlank(message = "Indique la contraseña actual") String actual,
             @NotBlank(message = "Indique la nueva contraseña")
-            @Size(min = 6, max = 80, message = "La nueva contraseña debe tener entre 6 y 80 caracteres")
+            @Size(max = 80, message = "La nueva contraseña no puede superar 80 caracteres")
             String nueva
     ) {}
 
@@ -188,6 +195,7 @@ public final class AppDtos {
             String descripcion,
             Integer orden,
             Boolean activo,
+            boolean esSistema,
             List<Integer> idPerfiles,
             List<String> perfiles
     ) {}
@@ -202,7 +210,8 @@ public final class AppDtos {
             @Size(max = 250) String descripcion,
             Boolean activo,
             List<Integer> idMenus,
-            List<Integer> idPermisos
+            List<Integer> idPermisos,
+            Integer idRolSuplente
     ) {}
 
     public record RolResponse(
@@ -211,6 +220,9 @@ public final class AppDtos {
             String nombre,
             String descripcion,
             Boolean activo,
+            boolean esSistema,
+            Integer idRolSuplente,
+            String rolSuplente,
             int usuarios,
             List<Integer> idMenus,
             List<String> menus,
@@ -239,7 +251,7 @@ public final class AppDtos {
             LocalTime horaInicio,
             LocalTime horaFin,
             @NotBlank(message = "Indique el motivo")
-            @Size(min = 5, max = 400, message = "El motivo debe tener entre 5 y 400 caracteres")
+            @Size(max = 400, message = "El motivo no puede superar 400 caracteres")
             String motivo
     ) {}
 
@@ -266,11 +278,9 @@ public final class AppDtos {
             @NotNull(message = "Indique la hora de inicio") LocalTime horaInicio,
             @NotNull(message = "Indique la hora de fin") LocalTime horaFin,
             @NotNull(message = "Indique la cantidad de horas")
-            @DecimalMin(value = "0.5", message = "La cantidad mínima es 0.5 horas")
-            @DecimalMax(value = "8", message = "La cantidad máxima es 8 horas")
             BigDecimal cantidadHoras,
             @NotBlank(message = "Indique el motivo")
-            @Size(min = 5, max = 400, message = "El motivo debe tener entre 5 y 400 caracteres")
+            @Size(max = 400, message = "El motivo no puede superar 400 caracteres")
             String motivo
     ) {}
 
@@ -424,7 +434,8 @@ public final class AppDtos {
             @DecimalMin(value = "0", message = "La remuneración no puede ser negativa")
             BigDecimal remuneracionBasica,
             RegimenPensionario regimenPensionario,
-            AfpNombre afpNombre,
+            @Size(max = 20) String afpNombre,
+            @Size(max = 20) String regimenLaboral,
             Boolean tieneAsignacionFamiliar,
             EstadoContrato estado,
             @Size(max = 400, message = "Las observaciones no pueden superar 400 caracteres")
@@ -446,7 +457,10 @@ public final class AppDtos {
             LocalDate fechaFin,
             BigDecimal remuneracionBasica,
             RegimenPensionario regimenPensionario,
-            AfpNombre afpNombre,
+            String afpNombre,
+            String afp,
+            String regimenLaboral,
+            String regimenLaboralNombre,
             boolean tieneAsignacionFamiliar,
             EstadoContrato estado,
             String observaciones,
@@ -539,10 +553,10 @@ public final class AppDtos {
             @NotNull Integer idEmpleado,
             @NotBlank @Size(max = 20) String periodo,
             LocalDate fecha,
-            @NotNull @Min(1) @Max(5) Integer puntualidad,
-            @NotNull @Min(1) @Max(5) Integer calidad,
-            @NotNull @Min(1) @Max(5) Integer cooperacion,
-            @NotNull @Min(1) @Max(5) Integer iniciativa,
+            @NotNull Integer puntualidad,
+            @NotNull Integer calidad,
+            @NotNull Integer cooperacion,
+            @NotNull Integer iniciativa,
             @Size(max = 400) String comentario
     ) {}
 
@@ -592,7 +606,7 @@ public final class AppDtos {
             @NotBlank @Size(max = 20) String documento,
             @Size(max = 120) String correo,
             @Size(max = 20) String telefono,
-            @Min(0) @Max(100) Integer puntaje,
+            @Min(0) Integer puntaje,
             EstadoPostulacion estado,
             @Size(max = 400) String observacion
     ) {}
@@ -649,6 +663,7 @@ public final class AppDtos {
             @NotBlank @Size(max = 30) String codigo,
             @NotBlank @Size(max = 80) String nombre,
             Boolean requiereSustento,
+            Boolean esVacaciones,
             Boolean activo
     ) {}
 
@@ -657,16 +672,83 @@ public final class AppDtos {
             String codigo,
             String nombre,
             Boolean requiereSustento,
+            Boolean esVacaciones,
             Boolean activo
     ) {}
 
     public record ParametroRequest(
             @NotBlank @Size(max = 80) String clave,
             @NotBlank @Size(max = 200) String valor,
+            @Size(max = 300) String descripcion,
+            @Pattern(regexp = "^(PUBLICO|SESION|PRIVADO)?$", message = "Ámbito no válido") String ambito
+    ) {}
+
+    public record ParametroResponse(String clave, String valor, String descripcion, String ambito) {}
+
+    public record CatalogoValorRequest(
+            @NotBlank @Size(max = 40) String tipo,
+            @NotBlank @Size(max = 40) String codigo,
+            @NotBlank @Size(max = 120) String nombre,
+            @Pattern(regexp = "^(ok|warn|danger|info|neutral|muted)?$", message = "Color no válido") String tono,
+            @Min(0) @Max(9999) Integer orden,
+            Boolean porDefecto,
+            @Size(max = 200) String regla,
+            @Size(max = 200) String mensajeRegla,
+            Boolean activo
+    ) {}
+
+    public record CatalogoValorResponse(
+            Integer idValor, String tipo, String tipoNombre, boolean tipoExtensible,
+            String codigo, String nombre, String tono, Integer orden, Boolean porDefecto,
+            String regla, String mensajeRegla, Boolean activo
+    ) {}
+
+    public record CatalogoTipoResponse(String codigo, String nombre, boolean extensible) {}
+
+    public record AfpRequest(
+            @NotBlank @Size(max = 20) String codigo,
+            @NotBlank @Size(max = 80) String nombre,
+            @NotNull @DecimalMin("0") @DecimalMax("1") BigDecimal tasaComision,
+            @Min(0) @Max(9999) Integer orden,
+            Boolean activo
+    ) {}
+
+    public record AfpResponse(String codigo, String nombre, BigDecimal tasaComision, Integer orden, Boolean activo) {}
+
+    public record RegimenLaboralRequest(
+            @NotBlank @Size(max = 20) String codigo,
+            @NotBlank @Size(max = 80) String nombre,
+            @Size(max = 250) String descripcion,
+            @NotNull @DecimalMin("0") @DecimalMax("9.9999") BigDecimal factorGratificacion,
+            @NotNull @DecimalMin("0") @DecimalMax("9.9999") BigDecimal factorCts,
+            Boolean aplicaEssalud,
+            Boolean porDefecto,
+            @Min(0) @Max(9999) Integer orden,
+            Boolean activo
+    ) {}
+
+    public record RegimenLaboralResponse(
+            String codigo, String nombre, String descripcion, BigDecimal factorGratificacion, BigDecimal factorCts,
+            Boolean aplicaEssalud, Boolean porDefecto, Integer orden, Boolean activo
+    ) {}
+
+    public record TramoQuintaRequest(
+            @NotNull @Min(1) Integer orden,
+            @DecimalMin(value = "0", inclusive = false) BigDecimal hastaUit,
+            @NotNull @DecimalMin("0") @DecimalMax("1") BigDecimal tasa,
+            Boolean activo
+    ) {}
+
+    public record TramoQuintaResponse(Integer idTramo, Integer orden, BigDecimal hastaUit, BigDecimal tasa, Boolean activo) {}
+
+    public record VigenciaRequest(
+            @NotBlank @Size(max = 80) String clave,
+            @NotBlank @Size(max = 200) String valor,
+            @NotNull LocalDate vigenteDesde,
             @Size(max = 300) String descripcion
     ) {}
 
-    public record ParametroResponse(String clave, String valor, String descripcion) {}
+    public record VigenciaResponse(Integer idVigencia, String clave, String valor, LocalDate vigenteDesde, String descripcion) {}
 
     public record CuentaRequest(
             @NotBlank @Size(max = 20) String codigo,

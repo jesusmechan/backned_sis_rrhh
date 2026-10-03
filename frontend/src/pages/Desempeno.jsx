@@ -7,14 +7,24 @@ import { usePagedLoad } from '../lib/usePagedLoad';
 import { hoyISO } from './altaShared';
 import { text } from '../lib/input';
 import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
 
 const empty = {
-  idEmpleado: '', periodo: '', fecha: hoyISO(), puntualidad: '4', calidad: '4', cooperacion: '4', iniciativa: '4', comentario: ''
+  idEmpleado: '', periodo: '', fecha: '', puntualidad: '', calidad: '', cooperacion: '', iniciativa: '', comentario: ''
 };
 
+
 export function Desempeno() {
-  const { hasAnyRole } = useAuth();
-  const puedeRegistrar = hasAnyRole('ADMIN', 'RRHH', 'JEFE', 'GERENCIA');
+  const { hasPermission } = useAuth();
+  const { num, opciones } = useConfig();
+  const puedeRegistrar = hasPermission('DESEMPENO_REGISTRAR');
+  const escalaMin = num('evaluacion_escala_min', 1);
+  const escalaMax = num('evaluacion_escala_max', escalaMin);
+  const escala = Array.from({ length: Math.max(0, escalaMax - escalaMin + 1) }, (_, i) => escalaMin + i);
+  const criterios = opciones('CRITERIO_EVALUACION')
+    .map((c) => ({ campo: c.codigo.toLowerCase(), nombre: c.nombre }))
+    .filter((c) => c.campo in empty && c.campo !== 'comentario');
+  const nombreCriterio = (campo) => criterios.find((c) => c.campo === campo)?.nombre || campo;
   const [empleados, setEmpleados] = useState([]);
   const [form, setForm] = useState(empty);
   const [open, setOpen] = useState(false);
@@ -79,7 +89,7 @@ export function Desempeno() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Gestión</p>
           <h1 className="page-title mt-1">Desempeño</h1>
           <p className="mt-2 text-sm text-muted">
-            Evaluación de puntualidad, calidad, cooperación e iniciativa (escala 1 a 5). El promedio se calcula al guardar.
+            Evaluación de {criterios.map((c) => c.nombre.toLowerCase()).join(', ')} (escala {escalaMin} a {escalaMax}). El promedio se calcula al guardar.
           </p>
         </div>
         {puedeRegistrar && <Button onClick={() => { setError(''); setForm({ ...empty, fecha: hoyISO() }); setOpen(true); }}><Plus size={16} /> Nueva evaluación</Button>}
@@ -126,7 +136,7 @@ export function Desempeno() {
             meta={`${r.periodo} · ${r.fecha}${r.evaluador ? ` · ${r.evaluador}` : ''}`}
             badge={(
               <div className="text-right">
-                <Badge value={r.estado} />
+                <Badge tipo="ESTADO_EVALUACION" value={r.estado} />
                 <p className="mt-1 text-sm font-semibold text-navy">{Number(r.promedio).toFixed(2)}</p>
               </div>
             )}
@@ -154,11 +164,11 @@ export function Desempeno() {
                     <p className="text-xs text-muted">{r.fecha}</p>
                   </td>
                   <td className="text-sm text-muted">
-                    Punt. {r.puntualidad} · Cal. {r.calidad} · Coop. {r.cooperacion} · Ini. {r.iniciativa}
+                    {criterios.map((c) => `${c.nombre} ${r[c.campo]}`).join(' · ')}
                     {r.comentario ? <p className="mt-1 text-xs">{r.comentario}</p> : null}
                   </td>
                   <td className="text-sm font-semibold text-navy">{Number(r.promedio).toFixed(2)}</td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_EVALUACION" value={r.estado} /></td>
                 </tr>
               ))}
             </tbody>
@@ -185,10 +195,11 @@ export function Desempeno() {
             <Field label="Fecha">
               <DatePicker value={form.fecha} onChange={(v) => set('fecha', v)} required />
             </Field>
-            {['puntualidad', 'calidad', 'cooperacion', 'iniciativa'].map((k) => (
-              <Field key={k} label={k.charAt(0).toUpperCase() + k.slice(1)}>
+            {criterios.map(({ campo: k }) => (
+              <Field key={k} label={nombreCriterio(k)}>
                 <select value={form[k]} onChange={(e) => set(k, e.target.value)} required>
-                  {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+                  <option value="">Seleccione</option>
+                  {escala.map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
               </Field>
             ))}

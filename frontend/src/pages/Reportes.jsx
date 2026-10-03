@@ -1,17 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { http, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, DatePicker, Empty, FilterBar, PageHeader, Panel, SearchField, StackTable, downloadBlob } from '../components/ui';
+import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
+import { fmtIntl, isoDateEnZona } from '../lib/format';
+import { Alert, Avatar, Badge, Button, CatalogoOptions, DatePicker, Empty, FilterBar, PageHeader, Panel, SearchField, StackTable, downloadBlob } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { fmtDate, fmtTime } from './bandejaShared';
 
-const TIPOS = [
-  { id: 'ASISTENCIA', label: 'Asistencia', hint: 'Todas las marcaciones de ingreso y salida' },
-  { id: 'TRABAJADORES', label: 'Trabajadores', hint: 'Directorio con tipo de contrato' },
-  { id: 'PERMISOS', label: 'Permisos', hint: 'Solicitudes de permiso y vacaciones' },
-  { id: 'HORAS_EXTRAS', label: 'Horas extras', hint: 'Tiempo extra registrado' },
-  { id: 'USUARIOS', label: 'Usuarios', hint: 'Cuentas de acceso' }
-];
+const HINTS = {
+  ASISTENCIA: 'Todas las marcaciones de ingreso y salida',
+  TRABAJADORES: 'Directorio con tipo de contrato',
+  PERMISOS: 'Solicitudes de permiso y vacaciones',
+  HORAS_EXTRAS: 'Tiempo extra registrado',
+  USUARIOS: 'Cuentas de acceso'
+};
+
+const PERMISO_REPORTE = {
+  ASISTENCIA: 'REPORTE_ASISTENCIA',
+  TRABAJADORES: 'PERSONAL_CONSULTAR',
+  PERMISOS: 'REPORTE_PERMISOS',
+  HORAS_EXTRAS: 'REPORTE_HORAS_EXTRAS',
+  USUARIOS: 'REPORTE_USUARIOS'
+};
 
 const PATHS = {
   ASISTENCIA: '/api/reportes/asistencia',
@@ -21,21 +32,17 @@ const PATHS = {
   USUARIOS: '/api/reportes/usuarios'
 };
 
-function monthStart() {
-  const d = new Date();
-  return `${d.getFullYear()}-01-01`;
+function todayIso() {
+  return isoDateEnZona();
 }
 
-function todayIso() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function monthStart() {
+  return `${todayIso().slice(0, 4)}-01-01`;
 }
 
 function formatStamp(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-PE', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
-  });
+  return fmtIntl(iso, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 function haystack(vista, r) {
@@ -47,6 +54,11 @@ function haystack(vista, r) {
 }
 
 export function Reportes() {
+  const { hasPermission } = useAuth();
+  const { opciones } = useConfig();
+  const TIPOS = opciones('TIPO_REPORTE')
+    .filter((t) => PATHS[t.codigo] && hasPermission(PERMISO_REPORTE[t.codigo]))
+    .map((t) => ({ id: t.codigo, label: t.nombre, hint: HINTS[t.codigo] || '' }));
   const [error, setError] = useState('');
   const [empleados, setEmpleados] = useState([]);
   const [rows, setRows] = useState([]);
@@ -55,7 +67,11 @@ export function Reportes() {
   const [hasta, setHasta] = useState(todayIso());
   const [tipo, setTipo] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
-  const [vista, setVista] = useState('ASISTENCIA');
+  const [vista, setVista] = useState('');
+  const vistaActiva = TIPOS.some((t) => t.id === vista) ? vista : (TIPOS[0]?.id || '');
+  useEffect(() => {
+    if (vistaActiva !== vista) setVista(vistaActiva);
+  }, [vistaActiva, vista]);
   const [q, setQ] = useQuerySearch();
   const [loading, setLoading] = useState(false);
 
@@ -68,6 +84,7 @@ export function Reportes() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      if (!vista) return;
       setError('');
       setLoading(true);
       try {
@@ -109,7 +126,7 @@ export function Reportes() {
     }
   }
 
-  const actual = TIPOS.find((t) => t.id === vista) || TIPOS[0];
+  const actual = TIPOS.find((t) => t.id === vista) || TIPOS[0] || { label: 'Sin reportes', hint: 'Su perfil no tiene reportes asignados' };
 
   return (
     <div>
@@ -136,26 +153,20 @@ export function Reportes() {
             <DatePicker value={hasta} onChange={setHasta} min={desde || undefined} />
             <select className="w-auto" value={tipo} onChange={(e) => setTipo(e.target.value)}>
               <option value="">Tipo</option>
-              <option value="INGRESO">Ingreso</option>
-              <option value="SALIDA">Salida</option>
+              <CatalogoOptions tipo="TIPO_MARCACION" />
             </select>
           </>
         )}
         {(vista === 'PERMISOS' || vista === 'HORAS_EXTRAS') && (
           <select className="w-auto" value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}>
             <option value="">Todos los estados</option>
-            <option value="PENDIENTE">Pendiente</option>
-            <option value="APROBADO">Aprobado</option>
-            <option value="RECHAZADO">Rechazado</option>
-            <option value="CANCELADO">Cancelado</option>
+            <CatalogoOptions tipo="ESTADO_SOLICITUD" />
           </select>
         )}
         {vista === 'TRABAJADORES' && (
           <select className="w-auto" value={estadoFiltro} onChange={(e) => setEstadoFiltro(e.target.value)}>
             <option value="">Todos los estados</option>
-            <option value="ACTIVO">Activo</option>
-            <option value="INACTIVO">Inactivo</option>
-            <option value="CESADO">Cesado</option>
+            <CatalogoOptions tipo="ESTADO_EMPLEADO" />
           </select>
         )}
         {vista === 'USUARIOS' && (
@@ -182,8 +193,8 @@ export function Reportes() {
             Limpiar filtros
           </button>
         )}
-        <Button variant="secondary" onClick={() => bajar(vista, 'excel')}><Download size={14} /> Excel</Button>
-        <Button variant="secondary" onClick={() => bajar(vista, 'pdf')}>PDF</Button>
+        <Button variant="secondary" disabled={!vista} onClick={() => bajar(vista, 'excel')}><Download size={14} /> Excel</Button>
+        <Button variant="secondary" disabled={!vista} onClick={() => bajar(vista, 'pdf')}>PDF</Button>
       </FilterBar>
 
       <section className="mb-8">
@@ -205,6 +216,11 @@ export function Reportes() {
   );
 }
 
+function Etiqueta({ tipo, value }) {
+  const { etiqueta } = useConfig();
+  return etiqueta(tipo, value);
+}
+
 function PreviewTable({ vista, rows }) {
   if (vista === 'ASISTENCIA') {
     return (
@@ -216,10 +232,8 @@ function PreviewTable({ vista, rows }) {
               <p className="font-medium text-navy">{r.empleado}</p>
               <p className="text-xs text-muted">{formatStamp(r.fechaHora)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
-                  {r.tipo}
-                </span>
-                <span className="text-xs text-muted">{r.origen || 'WEB'}</span>
+                <Badge tipo="TIPO_MARCACION" value={r.tipo} />
+                <span className="text-xs text-muted"><Etiqueta tipo="ORIGEN_MARCACION" value={r.origen} /></span>
               </div>
             </div>
           </div>
@@ -247,13 +261,9 @@ function PreviewTable({ vista, rows }) {
                       </div>
                     </div>
                   </td>
-                  <td>
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${r.tipo === 'INGRESO' ? 'bg-info-soft text-info' : 'bg-slate-100 text-slate-700'}`}>
-                      {r.tipo}
-                    </span>
-                  </td>
+                  <td><Badge tipo="TIPO_MARCACION" value={r.tipo} /></td>
                   <td>{formatStamp(r.fechaHora)}</td>
-                  <td>{r.origen || 'WEB'}</td>
+                  <td><Etiqueta tipo="ORIGEN_MARCACION" value={r.origen} /></td>
                   <td className="text-sm text-muted">{r.observacion || '—'}</td>
                 </tr>
               ))}
@@ -292,7 +302,7 @@ function PreviewTable({ vista, rows }) {
                   </td>
                   <td>{r.area || '—'}</td>
                   <td>{r.cargo || '—'}</td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_EMPLEADO" value={r.estado} /></td>
                 </tr>
               ))}
             </tbody>
@@ -311,7 +321,7 @@ function PreviewTable({ vista, rows }) {
             <p className="text-xs text-muted">
               {vista === 'PERMISOS' ? `${r.tipoPermiso} · ${fmtDate(r.fechaInicio)} – ${fmtDate(r.fechaFin)}` : `${fmtDate(r.fecha)} · ${r.cantidadHoras} h`}
             </p>
-            <div className="mt-2"><Badge value={r.estado} /></div>
+            <div className="mt-2"><Badge tipo="ESTADO_SOLICITUD" value={r.estado} /></div>
           </div>
         ))}
         table={(
@@ -334,7 +344,7 @@ function PreviewTable({ vista, rows }) {
                       ? `${fmtDate(r.fechaInicio)} – ${fmtDate(r.fechaFin)}`
                       : `${fmtDate(r.fecha)} ${fmtTime(r.horaInicio)}–${fmtTime(r.horaFin)}`}
                   </td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_SOLICITUD" value={r.estado} /></td>
                 </tr>
               ))}
             </tbody>
@@ -368,7 +378,7 @@ function PreviewTable({ vista, rows }) {
                 <td>{r.nombreUsuario}</td>
                 <td>{r.nombreCompleto || '—'}</td>
                 <td>{r.perfil || r.rol}</td>
-                <td><Badge value={r.activo === false ? 'INACTIVO' : 'ACTIVO'} /></td>
+                <td><Badge tipo="ESTADO_REGISTRO" value={r.activo === false ? 'INACTIVO' : 'ACTIVO'} /></td>
               </tr>
             ))}
           </tbody>

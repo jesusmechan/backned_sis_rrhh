@@ -9,24 +9,24 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.Empleado;
 import pe.andina.rrhh.domain.model.Marcacion;
+import pe.andina.rrhh.domain.model.Permisos;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.dto.AppDtos.MarcacionRequest;
 import pe.andina.rrhh.application.dto.AppDtos.MarcacionResponse;
 import pe.andina.rrhh.application.port.out.MarcacionPort;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class AsistenciaService implements AsistenciaUseCase {
 
-    private static final ZoneId LIMA = ZoneId.of("America/Lima");
     private final MarcacionPort marcacionRepository;
     private final EmpleadoUseCase empleadoService;
     private final EmpleadoScope empleadoScope;
     private final AuditoriaUseCase auditoriaService;
+    private final ParametroPort parametros;
 
     private final CurrentUserPort currentUser;
 
@@ -34,7 +34,9 @@ public class AsistenciaService implements AsistenciaUseCase {
                              EmpleadoUseCase empleadoService,
                              EmpleadoScope empleadoScope,
                              AuditoriaUseCase auditoriaService,
-                           CurrentUserPort currentUser) {
+                             CurrentUserPort currentUser,
+                             ParametroPort parametros) {
+        this.parametros = parametros;
         this.marcacionRepository = marcacionRepository;
         this.empleadoService = empleadoService;
         this.empleadoScope = empleadoScope;
@@ -46,20 +48,19 @@ public class AsistenciaService implements AsistenciaUseCase {
     public MarcacionResponse marcar(MarcacionRequest request) {
         String origen = request.origen() != null ? request.origen() : "WEB";
         Empleado empleado = empleadoScope.resolverSolicitante(request.idEmpleado());
-        boolean gestor = currentUser.isAdminOrRrhh();
+        boolean gestor = currentUser.tienePermiso(Permisos.ASISTENCIA_GESTIONAR);
         if (gestor && request.idEmpleado() != null && request.origen() == null) {
             origen = "MANUAL";
         }
-        // Solo RR. HH./Admin registran marcaciones manuales o con otra hora; el colaborador marca "ahora".
+        // Solo quien gestiona asistencia registra marcaciones manuales o con otra hora; el colaborador marca "ahora".
         if (!gestor && !"MOVIL".equals(origen)) {
             origen = "WEB";
         }
         OffsetDateTime fechaHora = gestor && request.fechaHora() != null ? request.fechaHora() : OffsetDateTime.now();
-        LocalDate fecha = fechaHora.atZoneSameInstant(LIMA).toLocalDate();
-        DayOfWeek dia = fecha.getDayOfWeek();
+        LocalDate fecha = fechaHora.atZoneSameInstant(parametros.zona()).toLocalDate();
         if (("WEB".equals(origen) || "MOVIL".equals(origen))
-                && (dia == DayOfWeek.SATURDAY || dia == DayOfWeek.SUNDAY)) {
-            throw DomainException.badRequest("No se puede marcar asistencia los sábados ni los domingos");
+                && !parametros.diasLaborables().contains(fecha.getDayOfWeek())) {
+            throw DomainException.badRequest("Hoy no es un día laborable para marcar asistencia");
         }
         if (!marcacionRepository.findByEmpleado_IdEmpleadoAndTipoAndFecha(empleado.getIdEmpleado(), request.tipo(), fecha).isEmpty()
                 && ("WEB".equals(origen) || "MOVIL".equals(origen))) {
@@ -79,9 +80,10 @@ public class AsistenciaService implements AsistenciaUseCase {
 
     @Transactional(readOnly = true)
     public List<MarcacionResponse> listar(Integer idEmpleado, LocalDate desde, LocalDate hasta) {
-        LocalDate ini = desde != null ? desde : LocalDate.now().minusDays(15);
-        LocalDate fin = hasta != null ? hasta : LocalDate.now();
-        if (!currentUser.isAdminOrRrhh()) {
+        LocalDate hoy = LocalDate.now(parametros.zona());
+        LocalDate ini = desde != null ? desde : hoy.minusDays(parametros.entero("asistencia_dias_historial"));
+        LocalDate fin = hasta != null ? hasta : hoy;
+        if (!currentUser.tienePermiso(Permisos.ASISTENCIA_GESTIONAR)) {
             Integer propio = currentUser.idEmpleado();
             if (propio == null) {
                 throw DomainException.forbidden("No tiene trabajador asociado");
@@ -103,8 +105,8 @@ public class AsistenciaService implements AsistenciaUseCase {
 
     @Transactional(readOnly = true)
     public List<MarcacionResponse> reporte(Integer idEmpleado, LocalDate desde, LocalDate hasta) {
-        LocalDate ini = desde != null ? desde : LocalDate.of(2019, 1, 1);
-        LocalDate fin = hasta != null ? hasta : LocalDate.now();
+        LocalDate ini = desde != null ? desde : LocalDate.EPOCH;
+        LocalDate fin = hasta != null ? hasta : LocalDate.now(parametros.zona());
         if (idEmpleado != null) {
             return marcacionRepository.findByEmpleado_IdEmpleadoOrderByFechaHoraDesc(idEmpleado).stream()
                     .filter(m -> {
@@ -128,8 +130,8 @@ public class AsistenciaService implements AsistenciaUseCase {
 
     @Transactional
     public MarcacionResponse actualizar(Integer id, MarcacionRequest request) {
-        if (!currentUser.isAdminOrRrhh()) {
-            throw DomainException.forbidden("Solo RR. HH. o Administrador puede corregir marcaciones");
+        if (!currentUser.tienePermiso(Permisos.ASISTENCIA_GESTIONAR)) {
+            throw DomainException.forbidden("Su perfil no tiene permiso para corregir marcaciones");
         }
         Marcacion m = marcacionRepository.findById(id).orElseThrow(() -> DomainException.notFound("Marcación no encontrada"));
         if (request.tipo() != null) {

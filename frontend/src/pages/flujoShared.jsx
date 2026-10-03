@@ -1,10 +1,13 @@
 import { User, UserCog, Users } from 'lucide-react';
+import { useConfig } from '../auth/ConfigContext';
+import { Badge } from '../components/ui';
+import { fmtShortDateTime } from '../lib/format';
 
-export const ORIGEN = { PERMISO: 'Permiso', HORA_EXTRA: 'Horas extras' };
-export const APROBADOR = {
-  JEFE_INMEDIATO: { label: 'Jefe inmediato', icon: Users },
-  ROL: { label: 'Perfil', icon: UserCog },
-  USUARIO: { label: 'Usuario', icon: User }
+/** Icono por tipo de aprobador; la etiqueta sale del catálogo TIPO_APROBADOR. */
+export const APROBADOR_ICONO = {
+  JEFE_INMEDIATO: Users,
+  ROL: UserCog,
+  USUARIO: User
 };
 
 let pasoSeq = 1;
@@ -114,7 +117,8 @@ function Diamond() {
 }
 
 function PasoBox({ paso, index, roles, usuarios }) {
-  const Icon = APROBADOR[paso.tipoAprobador]?.icon || User;
+  const { etiqueta } = useConfig();
+  const Icon = APROBADOR_ICONO[paso.tipoAprobador] || User;
   return (
     <div className="w-[220px] rounded-lg border border-line bg-white px-3 py-3">
       <div className="flex items-start gap-2">
@@ -125,7 +129,7 @@ function PasoBox({ paso, index, roles, usuarios }) {
           <p className="text-sm font-semibold leading-snug text-navy">{paso.nombrePaso || 'Sin nombre'}</p>
           <p className="mt-1 flex items-center gap-1 text-xs text-muted">
             <Icon size={12} />
-            {APROBADOR[paso.tipoAprobador]?.label}
+            {etiqueta('TIPO_APROBADOR', paso.tipoAprobador)}
           </p>
           <p className="truncate text-xs text-slate-500">{asignado(paso, roles, usuarios)}</p>
         </div>
@@ -169,17 +173,18 @@ export function Flujograma({ pasos, roles, usuarios }) {
 }
 
 export function FlujogramaCompact({ pasos, roles, usuarios }) {
+  const { etiqueta } = useConfig();
   if (!pasos?.length) return <p className="text-sm text-muted">Sin pasos configurados.</p>;
   return (
     <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
       <span className="rounded-full border border-line bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-navy">Inicio</span>
       <span className="text-slate-300">→</span>
       {pasos.map((p, i) => {
-        const Icon = APROBADOR[p.tipoAprobador]?.icon || User;
+        const Icon = APROBADOR_ICONO[p.tipoAprobador] || User;
         const quien = asignado(p, roles, usuarios);
         return (
           <div key={p.key || p.numeroPaso || i} className="flex items-center gap-1">
-            <div className="rounded-md border border-line bg-white px-2 py-1" title={`${APROBADOR[p.tipoAprobador]?.label || ''} · ${quien}`}>
+            <div className="rounded-md border border-line bg-white px-2 py-1" title={`${etiqueta('TIPO_APROBADOR', p.tipoAprobador, '')} · ${quien}`}>
               <div className="flex items-center gap-1.5">
                 <span className="grid h-5 w-5 place-items-center rounded bg-primary text-[10px] font-semibold text-white">
                   {p.numeroPaso || i + 1}
@@ -199,22 +204,23 @@ export function FlujogramaCompact({ pasos, roles, usuarios }) {
 }
 
 export function PasosInstancia({ pasos }) {
+  const { etiqueta } = useConfig();
   if (!pasos?.length) return <p className="text-sm text-muted">Sin pasos instanciados.</p>;
   return (
     <ol className="space-y-3">
       {pasos.map((p) => {
-        const quien = p.usuarioAsignado || p.rol || APROBADOR[p.tipoAprobador]?.label || p.tipoAprobador;
+        const quien = p.usuarioAsignado || p.rol || etiqueta('TIPO_APROBADOR', p.tipoAprobador);
         return (
           <li key={p.idPasoSolicitud || p.numeroPaso} className="rounded-lg border border-line bg-surface px-3 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-medium text-navy">Paso {p.numeroPaso}: {p.nombrePaso}</p>
-              <BadgeLite value={p.estado} />
+              <Badge tipo="ESTADO_PASO" value={p.estado} />
             </div>
             <p className="mt-1 text-xs text-muted">Responsable: {quien}</p>
             {(p.usuarioDecision || p.fechaDecision) && (
               <p className="mt-1.5 text-xs text-slate-600">
                 Decidió: <span className="font-medium text-navy">{p.usuarioDecision || '—'}</span>
-                {p.fechaDecision ? ` · ${new Date(p.fechaDecision).toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                {p.fechaDecision ? ` · ${fmtShortDateTime(p.fechaDecision)}` : ''}
                 {p.comentario ? ` · ${p.comentario}` : ''}
               </p>
             )}
@@ -223,18 +229,6 @@ export function PasosInstancia({ pasos }) {
       })}
     </ol>
   );
-}
-
-function BadgeLite({ value }) {
-  const tone = {
-    PENDIENTE: 'bg-warn-soft text-warn',
-    EN_CURSO: 'bg-navy text-white',
-    APROBADO: 'bg-ok-soft text-ok',
-    RECHAZADO: 'bg-danger-soft text-danger',
-    OMITIDO: 'bg-slate-100 text-muted',
-    CANCELADO: 'bg-danger-soft text-danger'
-  }[value] || 'bg-slate-100 text-muted';
-  return <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>{value || '—'}</span>;
 }
 
 export function toPayload(form) {

@@ -1,3 +1,5 @@
+import { isoDateEnZona } from '../lib/format';
+
 export function slugCuenta(nombres = '', apellido = '') {
   const fold = (value) => String(value)
     .normalize('NFD')
@@ -10,20 +12,22 @@ export function slugCuenta(nombres = '', apellido = '') {
   return `${first}.${last}`;
 }
 
-export function correoAndina(nombres, apellido) {
+/** nombre.apellido@dominio con el dominio de Maestros › Parámetros (empresa_dominio_correo). */
+export function correoInstitucional(nombres, apellido, dominio) {
   const slug = slugCuenta(nombres, apellido);
-  return slug ? `${slug}@andina.pe` : '';
+  return slug && dominio ? `${slug}@${dominio}` : '';
 }
 
-export function siguienteCodigo(empleados = []) {
+/** Siguiente código de trabajador con el prefijo y los dígitos configurados (codigo_empleado_*). */
+export function siguienteCodigo(empleados = [], prefijo = '', digitos = 3) {
   const nums = empleados
     .map((e) => Number(String(e.codigoEmpleado || '').replace(/\D/g, '')))
     .filter((n) => n > 0);
   const next = (nums.length ? Math.max(...nums) : 0) + 1;
-  return `AND-${String(next).padStart(3, '0')}`;
+  const numero = String(next).padStart(digitos, '0');
+  return prefijo ? `${prefijo}-${numero}` : numero;
 }
 
 export function hoyISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return isoDateEnZona();
 }

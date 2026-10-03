@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 export function useQuerySearch() {
@@ -19,5 +19,10 @@ export function useQuerySearch() {
     return () => clearTimeout(t);
   }, [q, qDebounced]);
 
-  return [q, setQ, qDebounced];
+  const reset = useCallback(() => {
+    setQ('');
+    setQDebounced('');
+  }, []);
+
+  return [q, setQ, qDebounced, reset];
 }

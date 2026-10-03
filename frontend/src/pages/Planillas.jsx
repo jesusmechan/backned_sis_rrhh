@@ -2,27 +2,29 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Download } from 'lucide-react';
 import { http, PAGE_SIZE, pagePath } from '../api/client';
-import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
+import { Alert, Badge, Button, CatalogoOptions, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField, downloadBlob } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
-import { fmtMoney } from '../lib/format';
+import { fmtMoney, isoDateEnZona, regional } from '../lib/format';
 
-const MESES = [
-  ['1', 'Enero'], ['2', 'Febrero'], ['3', 'Marzo'], ['4', 'Abril'],
-  ['5', 'Mayo'], ['6', 'Junio'], ['7', 'Julio'], ['8', 'Agosto'],
-  ['9', 'Septiembre'], ['10', 'Octubre'], ['11', 'Noviembre'], ['12', 'Diciembre']
-];
+function meses() {
+  const fmt = new Intl.DateTimeFormat(regional.locale, { month: 'long', timeZone: 'UTC' });
+  return Array.from({ length: 12 }, (_, i) => {
+    const nombre = fmt.format(new Date(Date.UTC(2000, i, 1)));
+    return [String(i + 1), nombre.charAt(0).toUpperCase() + nombre.slice(1)];
+  });
+}
 
 export function Planillas() {
   const navigate = useNavigate();
-  const now = new Date();
+  const [anioActual, mesActual] = isoDateEnZona().split('-').map(Number);
   const [tab, setTab] = useState('');
   const [anio, setAnio] = useState('');
   const [ok, setOk] = useState('');
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pdfId, setPdfId] = useState(null);
-  const [form, setForm] = useState({ anio: String(now.getFullYear()), mes: String(now.getMonth() + 1), observaciones: '' });
+  const [form, setForm] = useState({ anio: String(anioActual), mes: String(mesActual), observaciones: '' });
   const [counts, setCounts] = useState({ total: 0, calculadas: 0, cerradas: 0 });
   const [q, setQ, qDebounced] = useQuerySearch();
 
@@ -90,7 +92,7 @@ export function Planillas() {
   }
 
   const filtrosActivos = Boolean(qDebounced || tab || anio);
-  const aniosOpts = Array.from({ length: 6 }, (_, i) => String(now.getFullYear() - i));
+  const aniosOpts = Array.from({ length: 6 }, (_, i) => String(anioActual - i));
 
   return (
     <div>
@@ -118,10 +120,8 @@ export function Planillas() {
         <SearchField placeholder="Buscar periodo u observaciones" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         <select className="w-auto" value={tab} onChange={(e) => { setTab(e.target.value); setPage(1); }}>
           <option value="">Todos los estados</option>
-          <option value="BORRADOR">Borrador</option>
-          <option value="CALCULADA">Calculada</option>
-          <option value="CERRADA">Cerrada</option>
-          <option value="ANULADA">Anulada</option>
+          <CatalogoOptions tipo="ESTADO_PLANILLA" />
+
         </select>
         <select className="w-auto" value={anio} onChange={(e) => { setAnio(e.target.value); setPage(1); }}>
           <option value="">Todos los años</option>
@@ -142,7 +142,7 @@ export function Planillas() {
             key={r.idPlanilla}
             title={r.periodo}
             meta={`Bruto ${fmtMoney(r.totalBruto)} · Neto ${fmtMoney(r.totalNeto)}`}
-            badge={<Badge value={r.estado} />}
+            badge={<Badge tipo="ESTADO_PLANILLA" value={r.estado} />}
             actions={(
               <>
                 {(r.estado === 'CALCULADA' || r.estado === 'CERRADA') && (
@@ -174,7 +174,7 @@ export function Planillas() {
                   <td className="text-sm">{fmtMoney(r.totalBruto)}</td>
                   <td className="text-sm">{fmtMoney(r.totalNeto)}</td>
                   <td className="text-sm">{fmtMoney(r.totalAportes)}</td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_PLANILLA" value={r.estado} /></td>
                   <td>
                     <ListActions>
                       {(r.estado === 'CALCULADA' || r.estado === 'CERRADA') && (
@@ -204,7 +204,7 @@ export function Planillas() {
             </Field>
             <Field label="Mes">
               <select value={form.mes} onChange={(e) => setForm((f) => ({ ...f, mes: e.target.value }))} required>
-                {MESES.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                {meses().map(([v, n]) => <option key={v} value={v}>{n}</option>)}
               </select>
             </Field>
             <Field label="Observaciones" full>

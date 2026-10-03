@@ -37,7 +37,8 @@ public final class DtoMapper {
                 e.getHorario().getIdHorario(), e.getHorario().getNombre(),
                 e.getTipoContrato(), e.getEstado(),
                 e.getJefeInmediato() != null ? e.getJefeInmediato().getIdEmpleado() : null,
-                e.getJefeInmediato() != null ? e.getJefeInmediato().nombreCompleto() : null
+                e.getJefeInmediato() != null ? e.getJefeInmediato().nombreCompleto() : null,
+                e.getHorario().getHoraIngreso(), e.getHorario().getHoraSalida()
         );
     }
 

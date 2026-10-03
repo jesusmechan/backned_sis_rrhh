@@ -13,6 +13,7 @@ import pe.andina.rrhh.application.dto.AppDtos.CambioPasswordRequest;
 import pe.andina.rrhh.application.dto.AppDtos.UsuarioRequest;
 import pe.andina.rrhh.application.dto.AppDtos.UsuarioResponse;
 import pe.andina.rrhh.application.port.out.EmpleadoPort;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.port.out.RolPort;
 import pe.andina.rrhh.application.port.out.UsuarioPort;
 
@@ -28,13 +29,16 @@ public class UsuarioService implements UsuarioUseCase {
     private final AuditoriaUseCase auditoriaService;
 
     private final CurrentUserPort currentUser;
+    private final ParametroPort parametros;
 
     public UsuarioService(UsuarioPort usuarioRepository,
                           RolPort rolRepository,
                           EmpleadoPort empleadoRepository,
                           PasswordEncoder passwordEncoder,
                           AuditoriaUseCase auditoriaService,
-                           CurrentUserPort currentUser) {
+                          CurrentUserPort currentUser,
+                          ParametroPort parametros) {
+        this.parametros = parametros;
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.empleadoRepository = empleadoRepository;
@@ -60,9 +64,6 @@ public class UsuarioService implements UsuarioUseCase {
 
     @Transactional
     public UsuarioResponse crear(UsuarioRequest request) {
-        if (request.password() == null || request.password().isBlank()) {
-            throw DomainException.badRequest("La contraseña es obligatoria");
-        }
         if (usuarioRepository.existsByNombreUsuario(request.nombreUsuario())) {
             throw DomainException.conflict("El nombre de usuario ya existe");
         }
@@ -93,6 +94,7 @@ public class UsuarioService implements UsuarioUseCase {
         if (request.nueva().equals(request.actual())) {
             throw DomainException.badRequest("La nueva contraseña debe ser distinta a la actual");
         }
+        validarLongitud(request.nueva());
         u.setPasswordHash(passwordEncoder.encode(request.nueva()));
         auditoriaService.registrar(u, "CAMBIAR_PASSWORD", "USUARIO", u.getIdUsuario(), null);
         return DtoMapper.usuario(u);
@@ -131,12 +133,20 @@ public class UsuarioService implements UsuarioUseCase {
             u.setEmpleado(null);
         }
         if (r.password() != null && !r.password().isBlank()) {
+            validarLongitud(r.password());
             u.setPasswordHash(passwordEncoder.encode(r.password()));
         } else if (nuevo) {
-            throw DomainException.badRequest("La contraseña es obligatoria");
+            u.setPasswordHash(passwordEncoder.encode(parametros.texto("password_inicial")));
         }
         if (r.activo() != null) {
             u.setActivo(r.activo());
+        }
+    }
+
+    private void validarLongitud(String password) {
+        int min = parametros.entero("password_min_longitud");
+        if (password.length() < min) {
+            throw DomainException.badRequest("La contraseña debe tener al menos " + min + " caracteres");
         }
     }
 }

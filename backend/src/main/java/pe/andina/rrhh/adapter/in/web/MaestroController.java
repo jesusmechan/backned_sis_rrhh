@@ -30,7 +30,7 @@ import pe.andina.rrhh.application.port.in.MaestroUseCase;
 
 @RestController
 @RequestMapping("/api/maestros")
-@PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+@PreAuthorize("hasAuthority('MAESTRO_GESTIONAR')")
 @Tag(name = "Maestros", description = "Áreas, cargos, horarios, tipos de permiso, parámetros y cuentas contables")
 public class MaestroController {
 

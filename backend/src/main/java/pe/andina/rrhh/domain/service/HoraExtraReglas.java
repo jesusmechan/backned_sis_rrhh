@@ -30,21 +30,41 @@ public class HoraExtraReglas {
     }
 
     /**
-     * Suma las horas {@code PENDIENTE} y {@code APROBADO} del empleado y verifica que, con la
-     * nueva solicitud, no se superen {@code max_horas_extras_diarias} (4 por defecto) ni
-     * {@code max_horas_extras_semanales} (12 por defecto, semana de lunes a domingo).
+     * Valida la cantidad pedida contra {@code hora_extra_min_solicitud} y {@code hora_extra_max_solicitud},
+     * y que la suma de horas {@code PENDIENTE} y {@code APROBADO} del empleado no supere
+     * {@code max_horas_extras_diarias} ni {@code max_horas_extras_semanales} (semana de lunes a domingo).
      *
      * @param empleado solicitante
-     * @param request  fecha y cantidad de horas
-     * @throws DomainException 400 si se supera algún tope
+     * @param request  fecha, cantidad de horas y motivo
+     * @throws DomainException 400 si se incumple alguna regla
      */
     public void validarAlCrear(Empleado empleado, HoraExtraRequest request) {
+        validarCantidad(request.cantidadHoras());
+        validarMotivo(request.motivo());
         validarTope(empleado.getIdEmpleado(), request.fecha(), request.cantidadHoras());
     }
 
+    private void validarCantidad(BigDecimal cantidad) {
+        BigDecimal min = parametros.decimal("hora_extra_min_solicitud");
+        BigDecimal max = parametros.decimal("hora_extra_max_solicitud");
+        if (cantidad.compareTo(min) < 0) {
+            throw DomainException.badRequest("La cantidad mínima es " + min.stripTrailingZeros().toPlainString() + " horas");
+        }
+        if (cantidad.compareTo(max) > 0) {
+            throw DomainException.badRequest("La cantidad máxima es " + max.stripTrailingZeros().toPlainString() + " horas");
+        }
+    }
+
+    private void validarMotivo(String motivo) {
+        int min = parametros.entero("motivo_min_caracteres");
+        if (motivo == null || motivo.trim().length() < min) {
+            throw DomainException.badRequest("El motivo debe tener al menos " + min + " caracteres");
+        }
+    }
+
     private void validarTope(Integer idEmpleado, LocalDate fecha, BigDecimal cantidad) {
-        BigDecimal maxDia = parametros.decimal("max_horas_extras_diarias", "4");
-        BigDecimal maxSemana = parametros.decimal("max_horas_extras_semanales", "12");
+        BigDecimal maxDia = parametros.decimal("max_horas_extras_diarias");
+        BigDecimal maxSemana = parametros.decimal("max_horas_extras_semanales");
         LocalDate inicioSemana = fecha.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate finSemana = inicioSemana.plusDays(6);
         BigDecimal dia = BigDecimal.ZERO;

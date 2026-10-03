@@ -25,9 +25,14 @@ public class TipoPermiso {
     @Column(name = "requiere_sustento", nullable = false)
     private Boolean requiereSustento = false;
 
+    @Column(name = "es_vacaciones", nullable = false)
+    private Boolean esVacaciones = false;
+
     @Column(nullable = false)
     private Boolean activo = true;
 
+    public Boolean getEsVacaciones() { return esVacaciones; }
+    public void setEsVacaciones(Boolean esVacaciones) { this.esVacaciones = esVacaciones; }
     public Integer getIdTipoPermiso() { return idTipoPermiso; }
     public void setIdTipoPermiso(Integer idTipoPermiso) { this.idTipoPermiso = idTipoPermiso; }
     public String getCodigo() { return codigo; }

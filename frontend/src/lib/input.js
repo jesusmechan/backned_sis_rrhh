@@ -50,9 +50,9 @@ export function decimal(value, max = 8) {
   return next;
 }
 
-export function documentNumber(tipo, value) {
-  if (tipo === 'DNI') return digits(value, 8);
-  return String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+/** Letras y números en mayúsculas; el formato exacto lo valida la regla del catálogo TIPO_DOCUMENTO. */
+export function documentNumber(value, max = 20) {
+  return String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, max);
 }
 
 export function label(value, max = 80) {
@@ -71,6 +71,9 @@ export function isUsername(value) {
   return /^[a-z][a-z0-9._]{2,59}$/.test(String(value || ''));
 }
 
-export function isEmployeeCode(value) {
-  return /^[A-Z]{2,8}-\d{3,6}$/.test(String(value || ''));
+/** Código PREFIJO-000 con el prefijo y la cantidad mínima de dígitos configurados. */
+export function isEmployeeCode(value, prefijo, digitos = 1) {
+  const escapado = String(prefijo || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const cabeza = prefijo ? `^${escapado}-` : '^';
+  return new RegExp(`${cabeza}\\d{${digitos},}$`).test(String(value || ''));
 }

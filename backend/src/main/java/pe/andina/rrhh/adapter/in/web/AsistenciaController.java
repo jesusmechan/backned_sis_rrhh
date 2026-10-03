@@ -61,7 +61,7 @@ public class AsistenciaController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('ASISTENCIA_GESTIONAR')")
     @Operation(summary = "Corregir una marcación (solo RR. HH. / Admin)")
     public MarcacionResponse actualizar(@PathVariable Integer id, @Valid @RequestBody MarcacionRequest request) {
         return asistenciaService.actualizar(id, request);

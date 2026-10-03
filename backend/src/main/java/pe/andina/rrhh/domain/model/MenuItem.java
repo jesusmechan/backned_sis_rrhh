@@ -47,6 +47,9 @@ public class MenuItem {
     @Column(nullable = false)
     private Boolean activo = true;
 
+    @Column(name = "es_sistema", nullable = false)
+    private Boolean esSistema = false;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "menu_rol",
@@ -73,6 +76,8 @@ public class MenuItem {
     public void setOrden(Integer orden) { this.orden = orden; }
     public Boolean getActivo() { return activo; }
     public void setActivo(Boolean activo) { this.activo = activo; }
+    public Boolean getEsSistema() { return esSistema; }
+    public void setEsSistema(Boolean esSistema) { this.esSistema = esSistema; }
     public Set<Rol> getPerfiles() { return perfiles; }
     public void setPerfiles(Set<Rol> perfiles) { this.perfiles = perfiles; }
 }

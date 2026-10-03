@@ -24,6 +24,7 @@ import pe.andina.rrhh.application.dto.AppDtos.PasoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoResponse;
 import pe.andina.rrhh.application.port.out.HistorialSolicitudPort;
+import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.port.out.SolicitudHoraExtraPort;
 import pe.andina.rrhh.application.port.out.SolicitudPasoAprobacionPort;
 import pe.andina.rrhh.application.port.out.SolicitudPermisoPort;
@@ -55,6 +56,7 @@ public class SolicitudService implements SolicitudUseCase {
     private final NotificacionUseCase notificacionService;
 
     private final CurrentUserPort currentUser;
+    private final ParametroPort parametros;
 
     public SolicitudService(SolicitudPermisoPort permisoRepository,
                             SolicitudHoraExtraPort horaExtraRepository,
@@ -67,7 +69,9 @@ public class SolicitudService implements SolicitudUseCase {
                             EntityManager entityManager,
                             AuditoriaUseCase auditoriaService,
                             NotificacionUseCase notificacionService,
-                           CurrentUserPort currentUser) {
+                            CurrentUserPort currentUser,
+                            ParametroPort parametros) {
+        this.parametros = parametros;
         this.permisoRepository = permisoRepository;
         this.horaExtraRepository = horaExtraRepository;
         this.pasoRepository = pasoRepository;
@@ -125,7 +129,7 @@ public class SolicitudService implements SolicitudUseCase {
 
     @Transactional(readOnly = true)
     public List<PermisoResponse> listarPermisos() {
-        List<SolicitudPermiso> data = currentUser.puedeVerConjuntoOperativo()
+        List<SolicitudPermiso> data = currentUser.veConjuntoOperativo()
                 ? permisoRepository.findAll()
                 : permisoRepository.findByEmpleado_IdEmpleadoOrderByIdSolicitudPermisoDesc(currentUser.idEmpleado());
         return data.stream().map(this::toPermiso).toList();
@@ -142,7 +146,7 @@ public class SolicitudService implements SolicitudUseCase {
 
     @Transactional(readOnly = true)
     public List<HoraExtraResponse> listarHorasExtras() {
-        List<SolicitudHoraExtra> data = currentUser.puedeVerConjuntoOperativo()
+        List<SolicitudHoraExtra> data = currentUser.veConjuntoOperativo()
                 ? horaExtraRepository.findAll()
                 : horaExtraRepository.findByEmpleado_IdEmpleadoOrderByIdSolicitudHoraExtraDesc(currentUser.idEmpleado());
         return data.stream().map(this::toHoraExtra).toList();
@@ -189,6 +193,10 @@ public class SolicitudService implements SolicitudUseCase {
         SolicitudPasoAprobacion paso = exigirPasoEnCurso(idPaso);
         if (!BandejaAsignacion.corresponde(paso, currentUser.idUsuario(), currentUser.codigoRol())) {
             throw DomainException.forbidden("Este paso no le corresponde");
+        }
+        int minRechazo = parametros.entero("comentario_rechazo_min_caracteres");
+        if (!aprobar && request.comentario().trim().length() < minRechazo) {
+            throw DomainException.badRequest("Al rechazar, el comentario debe tener al menos " + minRechazo + " caracteres");
         }
         Usuario decisor = currentUser.usuario();
         paso.setUsuarioDecision(decisor);
@@ -340,7 +348,7 @@ public class SolicitudService implements SolicitudUseCase {
         SolicitudPasoAprobacion paso = pasoRepository.findById(idPaso)
                 .orElseThrow(() -> DomainException.notFound("Paso no encontrado"));
         if (paso.getEstado() != EstadoPasoAprobacion.EN_CURSO) {
-            throw DomainException.badRequest("Este paso ya no está pendiente de decisión");
+            throw DomainException.badRequest("Este paso ya no estÃ¡ pendiente de decisiÃ³n");
         }
         return paso;
     }

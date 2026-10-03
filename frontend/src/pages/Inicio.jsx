@@ -18,33 +18,33 @@ import {
   PlanillaBarras
 } from '../components/DashboardCharts';
 import { Avatar, Badge, PageHeader, Panel } from '../components/ui';
-import { fmtMoney } from '../lib/format';
-import { TIPO, fmtDate, fmtDateTime } from './bandejaShared';
+import { diaIsoEnZona, fmtMoney, regional } from '../lib/format';
+import { useConfig } from '../auth/ConfigContext';
+import { fmtDate, fmtDateTime } from './bandejaShared';
 
 function fmtHora(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' });
+  return new Date(iso).toLocaleTimeString(regional.locale, { hour: '2-digit', minute: '2-digit', timeZone: regional.zona });
 }
 
 function todayIso() {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
+    timeZone: regional.zona,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
   }).format(new Date());
 }
 
-function esFinDeSemana() {
-  const dia = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/Lima' }).format(new Date());
-  return dia === 'Sat' || dia === 'Sun';
+function esNoLaborable(laborables) {
+  return !laborables.includes(diaIsoEnZona());
 }
 
 function saludo() {
   const hora = Number(new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     hour12: false,
-    timeZone: 'America/Lima'
+    timeZone: regional.zona
   }).format(new Date()));
   if (hora < 12) return 'Buenos días';
   if (hora < 19) return 'Buenas tardes';
@@ -67,6 +67,7 @@ async function safePage(path, params) {
 
 export function Inicio() {
   const { usuario, perfil, canAccess } = useAuth();
+  const { param, etiqueta } = useConfig();
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -96,7 +97,7 @@ export function Inicio() {
   const canPersonal = canAccess('/empleados');
   const canUsuarios = canAccess('/usuarios');
   const canPlanillas = canAccess('/planillas');
-  const weekend = esFinDeSemana();
+  const weekend = esNoLaborable(String(param('dias_laborables')).split(',').map((x) => Number(x.trim())).filter(Boolean));
   const showCharts = canPermisos || canHextras || canPlanillas;
 
   useEffect(() => {
@@ -176,12 +177,12 @@ export function Inicio() {
 
   const ingreso = hoy.find((m) => m.tipo === 'INGRESO');
   const salida = hoy.find((m) => m.tipo === 'SALIDA');
-  const hora = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' });
-  const fechaLarga = now.toLocaleDateString('es-PE', {
+  const hora = now.toLocaleTimeString(regional.locale, { hour: '2-digit', minute: '2-digit', timeZone: regional.zona });
+  const fechaLarga = now.toLocaleDateString(regional.locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    timeZone: 'America/Lima'
+    timeZone: regional.zona
   });
   const planilla = planillas[0] || null;
 
@@ -356,7 +357,7 @@ export function Inicio() {
                   {planilla && (
                     <div className="mt-1 flex flex-wrap items-center gap-2 px-2 text-xs text-muted">
                       <span>Última: {planilla.periodo} · Neto {fmtMoney(planilla.totalNeto)}</span>
-                      <Badge value={planilla.estado} />
+                      <Badge tipo="ESTADO_PLANILLA" value={planilla.estado} />
                     </div>
                   )}
                 </ChartCard>
@@ -382,7 +383,7 @@ export function Inicio() {
                       <Avatar name={it.solicitante} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-navy">{it.solicitante}</p>
-                        <p className="text-xs text-muted">{TIPO[it.tipoSolicitud] || it.tipoSolicitud} · {it.tipoTramite}</p>
+                        <p className="text-xs text-muted">{etiqueta('TIPO_ORIGEN_FLUJO', it.tipoSolicitud)} · {it.tipoTramite}</p>
                         <p className="mt-0.5 text-xs text-muted">Paso {it.numeroPaso}: {it.nombrePaso}</p>
                       </div>
                       <p className="shrink-0 text-xs text-muted">{fmtDateTime(it.fechaInicio)}</p>
@@ -406,7 +407,7 @@ export function Inicio() {
                         <p className="truncate text-sm font-medium text-navy">{p.tipoPermiso}</p>
                         <p className="text-xs text-muted">{fmtDate(p.fechaInicio)} – {fmtDate(p.fechaFin)}</p>
                       </div>
-                      <Badge value={p.estado} />
+                      <Badge tipo="ESTADO_SOLICITUD" value={p.estado} />
                     </Link>
                   ))}
                 </PanelList>
@@ -436,7 +437,7 @@ export function Inicio() {
                         <p className="truncate text-sm font-medium text-navy">{p.empleado}</p>
                         <p className="text-xs text-muted">{p.tipoPermiso} · {fmtDate(p.fechaInicio)}</p>
                       </div>
-                      <Badge value={p.estado} />
+                      <Badge tipo="ESTADO_SOLICITUD" value={p.estado} />
                     </Link>
                   ))}
                 </PanelList>
@@ -453,7 +454,7 @@ export function Inicio() {
                     )}
                   </div>
                   {weekend ? (
-                    <p className="text-sm text-muted">Hoy es fin de semana. La marcación web está deshabilitada.</p>
+                    <p className="text-sm text-muted">Hoy no es día laborable. La marcación web está deshabilitada.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <MarcaBox label="Entrada" value={ingreso ? fmtHora(ingreso.fechaHora) : 'Pendiente'} done={Boolean(ingreso)} />
@@ -480,7 +481,7 @@ export function Inicio() {
                         <p className="truncate text-sm font-medium text-navy">{h.empleado}</p>
                         <p className="text-xs text-muted">{fmtDate(h.fecha)} · {h.cantidadHoras} h</p>
                       </div>
-                      <Badge value={h.estado} />
+                      <Badge tipo="ESTADO_SOLICITUD" value={h.estado} />
                     </Link>
                   ))}
                 </PanelList>

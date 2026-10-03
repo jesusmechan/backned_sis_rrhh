@@ -1,5 +1,4 @@
 package pe.andina.rrhh.adapter.in.security;
-import pe.andina.rrhh.adapter.in.security.UsuarioPrincipal;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,16 +16,8 @@ public final class SecurityUtils {
         return principal;
     }
 
-    public static boolean hasRole(String codigoRol) {
+    public static boolean tienePermiso(String codigoPermiso) {
         return current().getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_" + codigoRol));
-    }
-
-    public static boolean isAdminOrRrhh() {
-        return hasRole("ADMIN") || hasRole("RRHH");
-    }
-
-    public static boolean puedeVerConjuntoOperativo() {
-        return isAdminOrRrhh() || hasRole("JEFE") || hasRole("GERENCIA");
+                .anyMatch(a -> a.getAuthority().equals(codigoPermiso));
     }
 }

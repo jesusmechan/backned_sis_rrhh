@@ -3,19 +3,13 @@ import { Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { http } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
 import { Alert, Avatar, Badge, Button, Field, PageHeader, Panel } from '../components/ui';
-import { calcAge } from '../lib/format';
-
-const SEXO = { M: 'Masculino', F: 'Femenino' };
-const CONTRATO = {
-  PLANILLA: 'Planilla',
-  RECIBO_HONORARIOS: 'Recibo por honorarios',
-  PRACTICAS: 'Prácticas'
-};
+import { calcAge, regional } from '../lib/format';
 
 function formatDate(value) {
   if (!value) return '—';
-  return new Date(`${value}T00:00:00`).toLocaleDateString('es-PE', {
+  return new Date(`${value}T00:00:00`).toLocaleDateString(regional.locale, {
     day: '2-digit',
     month: 'long',
     year: 'numeric'
@@ -24,19 +18,14 @@ function formatDate(value) {
 
 function formatDateTime(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-PE', {
+  return new Date(iso).toLocaleString(regional.locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: regional.zona
   });
-}
-
-function modalidadLabel(value) {
-  if (value === 'PRACTICANTE') return 'Practicante';
-  if (value === 'COLABORADOR') return 'Colaborador';
-  return value || '—';
 }
 
 function Item({ label, value }) {
@@ -59,6 +48,8 @@ function Section({ title, children }) {
 
 export function Perfil() {
   const { usuario, canAccess } = useAuth();
+  const { num, etiqueta } = useConfig();
+  const minPassword = num('password_min_longitud', 1);
   const [cuenta, setCuenta] = useState(null);
   const [ficha, setFicha] = useState(null);
   const [vacaciones, setVacaciones] = useState(null);
@@ -90,8 +81,8 @@ export function Perfil() {
     e.preventDefault();
     setError('');
     setOk('');
-    if (nueva.length < 6) {
-      setError('La nueva contraseña debe tener al menos 6 caracteres.');
+    if (nueva.length < minPassword) {
+      setError(`La nueva contraseña debe tener al menos ${minPassword} caracteres.`);
       return;
     }
     if (nueva !== confirma) {
@@ -173,7 +164,7 @@ export function Perfil() {
                   <Item label="Nombres" value={ficha.nombres} />
                   <Item label="Apellido paterno" value={ficha.apellidoPaterno} />
                   <Item label="Apellido materno" value={ficha.apellidoMaterno} />
-                  <Item label="Sexo" value={SEXO[ficha.sexo] || ficha.sexo} />
+                  <Item label="Sexo" value={etiqueta('SEXO', ficha.sexo)} />
                   <Item
                     label="Documento"
                     value={ficha.tipoDocumento && ficha.numeroDocumento
@@ -201,8 +192,8 @@ export function Perfil() {
                   <Item label="Cargo" value={ficha.cargo} />
                   <Item label="Horario" value={ficha.horario} />
                   <Item label="Jefe inmediato" value={ficha.jefeInmediato} />
-                  <Item label="Tipo de contrato" value={CONTRATO[ficha.tipoContrato] || ficha.tipoContrato} />
-                  <Item label="Modalidad" value={modalidadLabel(vacaciones?.modalidad)} />
+                  <Item label="Tipo de contrato" value={etiqueta('TIPO_CONTRATO', ficha.tipoContrato)} />
+                  <Item label="Modalidad" value={etiqueta('MODALIDAD_CONTRATO', vacaciones?.modalidad)} />
                   <Item label="Estado" value={ficha.estado} />
                   <Item label="Fecha de cese" value={formatDate(ficha.fechaCese)} />
                 </Section>
@@ -275,7 +266,7 @@ export function Perfil() {
                   value={nueva}
                   onChange={(e) => setNueva(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={minPassword}
                   autoComplete="new-password"
                 />
               </Field>
@@ -285,7 +276,7 @@ export function Perfil() {
                   value={confirma}
                   onChange={(e) => setConfirma(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={minPassword}
                   autoComplete="new-password"
                 />
               </Field>

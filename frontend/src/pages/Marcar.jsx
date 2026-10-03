@@ -4,8 +4,9 @@ import { CalendarDays, CheckCircle2, Clock3, LogIn, LogOut } from 'lucide-react'
 import { http, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Avatar, Button } from '../components/ui';
+import { diaIsoEnZona, regional } from '../lib/format';
+import { useConfig } from '../auth/ConfigContext';
 
-const LIMA = { timeZone: 'America/Lima' };
 
 const TIPOS = [
   { id: 'INGRESO', label: 'Entrada', hint: 'Inicio de jornada', icon: LogIn },
@@ -13,22 +14,21 @@ const TIPOS = [
 ];
 
 function todayIso() {
-  return new Intl.DateTimeFormat('en-CA', { ...LIMA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  return new Intl.DateTimeFormat('en-CA', { timeZone: regional.zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
-function esFinDeSemana(date = new Date()) {
-  const dia = new Intl.DateTimeFormat('en-US', { weekday: 'short', ...LIMA }).format(date);
-  return dia === 'Sat' || dia === 'Sun';
+function esNoLaborable(date, laborables) {
+  return !laborables.includes(diaIsoEnZona(date));
 }
 
 function formatTime(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('es-PE', {
+  return new Date(iso).toLocaleTimeString(regional.locale, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-    ...LIMA
+    timeZone: regional.zona
   });
 }
 
@@ -50,7 +50,7 @@ function shiftIso(iso, days) {
 function formatDayLabel(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d, 12));
-  return dt.toLocaleDateString('es-PE', {
+  return dt.toLocaleDateString(regional.locale, {
     weekday: 'short',
     day: '2-digit',
     month: 'short',
@@ -63,7 +63,7 @@ function groupByDay(rows) {
   const map = new Map();
   rows.forEach((r) => {
     const fecha = r.fecha
-      || new Intl.DateTimeFormat('en-CA', { ...LIMA, year: 'numeric', month: '2-digit', day: '2-digit' })
+      || new Intl.DateTimeFormat('en-CA', { timeZone: regional.zona, year: 'numeric', month: '2-digit', day: '2-digit' })
         .format(new Date(r.fechaHora));
     if (!map.has(fecha)) map.set(fecha, { fecha, entrada: null, salida: null });
     const day = map.get(fecha);
@@ -75,6 +75,8 @@ function groupByDay(rows) {
 
 export function Marcar() {
   const { usuario, canAccess } = useAuth();
+  const { param, etiqueta } = useConfig();
+  const laborables = String(param('dias_laborables')).split(',').map((x) => Number(x.trim())).filter(Boolean);
   const [now, setNow] = useState(new Date());
   const [hoy, setHoy] = useState([]);
   const [historial, setHistorial] = useState([]);
@@ -139,7 +141,7 @@ export function Marcar() {
 
   const entrada = hoy.find((r) => r.tipo === 'INGRESO');
   const salida = hoy.find((r) => r.tipo === 'SALIDA');
-  const finDeSemana = esFinDeSemana(now);
+  const finDeSemana = esNoLaborable(now, laborables);
   const jornadaCerrada = Boolean(entrada && salida);
   const siguiente = finDeSemana ? null : (!entrada ? 'INGRESO' : (!salida ? 'SALIDA' : null));
   const nextTipo = TIPOS.find((t) => t.id === siguiente);
@@ -153,7 +155,7 @@ export function Marcar() {
   }, [entrada, salida, now]);
 
   const estadoDia = finDeSemana
-    ? 'Fin de semana'
+    ? 'Día no laborable'
     : jornadaCerrada
       ? 'Jornada completa'
       : entrada
@@ -168,7 +170,7 @@ export function Marcar() {
       return;
     }
     if (finDeSemana) {
-      setError('La marcación no está disponible sábados ni domingos.');
+      setError('La marcación no está disponible en días no laborables.');
       return;
     }
     if (!nextTipo) {
@@ -193,14 +195,14 @@ export function Marcar() {
     }
   }
 
-  const hora = now.toLocaleTimeString('es-PE', {
+  const hora = now.toLocaleTimeString(regional.locale, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-    ...LIMA
+    timeZone: regional.zona
   });
-  const fechaLarga = now.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', ...LIMA });
+  const fechaLarga = now.toLocaleDateString(regional.locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: regional.zona });
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -222,7 +224,7 @@ export function Marcar() {
       <Alert>{error}</Alert>
       <Alert ok>{ok}</Alert>
       {finDeSemana && (
-        <Alert>Hoy es fin de semana. La marcación de entrada y salida está deshabilitada.</Alert>
+        <Alert>Hoy no es día laborable. La marcación de entrada y salida está deshabilitada.</Alert>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -331,7 +333,7 @@ export function Marcar() {
             >
               <NextIcon size={18} />
               {finDeSemana
-                ? 'No disponible el fin de semana'
+                ? 'No disponible en día no laborable'
                 : saving
                   ? 'Registrando…'
                   : `Registrar ${nextTipo?.label?.toLowerCase() || 'marcación'} ahora`}
@@ -341,9 +343,9 @@ export function Marcar() {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <Hint icon={<CalendarDays size={16} />} title="Día hábil" text="Sábados y domingo no se marca por web." />
+        <Hint icon={<CalendarDays size={16} />} title="Día hábil" text="Solo se marca en los días laborables configurados." />
         <Hint icon={<Clock3 size={16} />} title="Una marca por tipo" text="No se puede repetir la entrada ni la salida del mismo día." />
-        <Hint icon={<LogIn size={16} />} title="Origen WEB" text="El registro usa la hora oficial America/Lima." />
+        <Hint icon={<LogIn size={16} />} title={`Origen ${etiqueta('ORIGEN_MARCACION', 'WEB')}`} text={`El registro usa la hora oficial ${regional.zona}.`} />
       </div>
 
       <section className="mt-6 rounded-2xl border border-line bg-white p-5 shadow-sm">

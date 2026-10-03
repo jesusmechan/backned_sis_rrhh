@@ -23,8 +23,9 @@ import pe.andina.rrhh.domain.model.enums.EstadoEmpleado;
 import pe.andina.rrhh.domain.model.enums.EstadoPlanilla;
 import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
-import pe.andina.rrhh.domain.model.enums.RegimenLaboral;
+import pe.andina.rrhh.domain.model.RegimenLaboral;
 import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
+import pe.andina.rrhh.application.port.out.ReglasPlanillaPort;
 import pe.andina.rrhh.application.dto.AppDtos.AsientoLineaResponse;
 import pe.andina.rrhh.application.dto.AppDtos.AsientoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PlanillaDetalleResponse;
@@ -67,6 +68,7 @@ public class PlanillaService implements PlanillaUseCase {
     private final BoletaPdfPort boletaPdfService;
 
     private final CurrentUserPort currentUser;
+    private final ReglasPlanillaPort reglas;
 
     public PlanillaService(PlanillaPort planillaRepository,
                            PlanillaDetallePort detalleRepository,
@@ -79,7 +81,9 @@ public class PlanillaService implements PlanillaUseCase {
                            CuentaContablePort cuentaRepository,
                            AuditoriaUseCase auditoriaService,
                            BoletaPdfPort boletaPdfService,
-                           CurrentUserPort currentUser) {
+                           CurrentUserPort currentUser,
+                           ReglasPlanillaPort reglas) {
+        this.reglas = reglas;
         this.planillaRepository = planillaRepository;
         this.detalleRepository = detalleRepository;
         this.asientoRepository = asientoRepository;
@@ -136,7 +140,7 @@ public class PlanillaService implements PlanillaUseCase {
         YearMonth ym = YearMonth.of(p.getAnio(), p.getMes());
         LocalDate desde = ym.atDay(1);
         LocalDate hasta = ym.atEndOfMonth();
-        PlanillaCalculoPeruDinamico calc = new PlanillaCalculoPeruDinamico(parametros);
+        PlanillaCalculoPeruDinamico calc = new PlanillaCalculoPeruDinamico(parametros, reglas);
 
         BigDecimal tBruto = CERO;
         BigDecimal tDesc = CERO;
@@ -232,17 +236,17 @@ public class PlanillaService implements PlanillaUseCase {
 
     private PlanillaDetalle calcularBoleta(Planilla p, Empleado empleado, Contrato contrato,
                                           LocalDate desde, LocalDate hasta, PlanillaCalculoPeruDinamico calc, YearMonth periodo) {
-        RegimenLaboral regimenLaboral = contrato.getRegimenLaboral() != null 
-                ? contrato.getRegimenLaboral() 
-                : RegimenLaboral.GENERAL;
-        
-        BigDecimal rmv = calc.rmv(hasta);
+        RegimenLaboral regimenLaboral = reglas.regimen(contrato.getRegimenLaboral());
+
         BigDecimal sueldoContrato = contrato.getRemuneracionBasica() == null || contrato.getRemuneracionBasica().signum() <= 0
-                ? (contrato.getModalidad() == ModalidadContrato.PRACTICANTE ? new BigDecimal("1025") : rmv)
+                ? (contrato.getModalidad() == ModalidadContrato.PRACTICANTE
+                        ? parametros.decimal("subvencion_practicante_minima")
+                        : calc.rmv(hasta))
                 : contrato.getRemuneracionBasica();
         sueldoContrato = sueldoContrato.setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal diasComputados = diasComputadosEnMes(contrato, desde, hasta);
+        BigDecimal diasMes = calc.diasMes();
+        BigDecimal diasComputados = diasComputadosEnMes(contrato, desde, hasta, diasMes);
         BigDecimal basica = calc.prorratear(sueldoContrato, diasComputados);
         boolean colaborador = contrato.getModalidad() != ModalidadContrato.PRACTICANTE;
         boolean asignacion = colaborador && contrato.isTieneAsignacionFamiliar();
@@ -254,7 +258,7 @@ public class PlanillaService implements PlanillaUseCase {
         BigDecimal montoHe = calc.montoHorasExtras(ordinaria, horas);
 
         BigDecimal diasAus = diasNoLaborados(empleado.getIdEmpleado(), desde, hasta);
-        BigDecimal descAus = diasAus.multiply(sueldoContrato).divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP);
+        BigDecimal descAus = diasAus.multiply(sueldoContrato).divide(diasMes, 2, RoundingMode.HALF_UP);
 
         BigDecimal bruto = ordinaria.add(montoHe).setScale(2, RoundingMode.HALF_UP);
         // Base de aportes: bruto menos descuento por ausencias (días no pagados)
@@ -271,7 +275,7 @@ public class PlanillaService implements PlanillaUseCase {
                 .setScale(2, RoundingMode.HALF_UP);
 
         // Proyectar beneficios semestrales según régimen laboral
-        BigDecimal mesesSemestre = BigDecimal.valueOf(diasComputados.doubleValue() / 5.0).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal mesesSemestre = diasComputados.multiply(calc.mesesSemestre()).divide(diasMes, 2, RoundingMode.HALF_UP);
         BigDecimal remuneracionComputable = ordinaria;
         BigDecimal gratificacionProyectada = calc.gratificacion(remuneracionComputable, regimenLaboral, mesesSemestre);
         BigDecimal ctsProyectado = calc.ctsSemestral(remuneracionComputable, gratificacionProyectada, regimenLaboral, mesesSemestre);
@@ -282,7 +286,7 @@ public class PlanillaService implements PlanillaUseCase {
         d.setContrato(contrato);
         d.setModalidad(contrato.getModalidad().name());
         d.setRegimenPensionario(regimenPension.name());
-        d.setRegimenLaboral(regimenLaboral.name());
+        d.setRegimenLaboral(regimenLaboral.getCodigo());
         d.setRemuneracionBasica(basica);
         d.setAsignacionFamiliar(asigFamiliar);
         d.setHorasExtras(horas);
@@ -312,8 +316,8 @@ public class PlanillaService implements PlanillaUseCase {
                 : RegimenPensionario.ONP;
     }
 
-    /** Días del mes en que el contrato estuvo vigente (tope 30, método laboral peruano). */
-    private BigDecimal diasComputadosEnMes(Contrato contrato, LocalDate desde, LocalDate hasta) {
+    /** Días del mes en que el contrato estuvo vigente, con tope en los días del mes computable. */
+    private BigDecimal diasComputadosEnMes(Contrato contrato, LocalDate desde, LocalDate hasta, BigDecimal diasMes) {
         LocalDate ini = contrato.getFechaInicio().isAfter(desde) ? contrato.getFechaInicio() : desde;
         LocalDate fin = contrato.getFechaFin() != null && contrato.getFechaFin().isBefore(hasta)
                 ? contrato.getFechaFin() : hasta;
@@ -321,7 +325,7 @@ public class PlanillaService implements PlanillaUseCase {
             return CERO;
         }
         long dias = fin.toEpochDay() - ini.toEpochDay() + 1;
-        return BigDecimal.valueOf(Math.min(30, dias)).setScale(2, RoundingMode.HALF_UP);
+        return BigDecimal.valueOf(dias).min(diasMes).setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal horasExtras(Integer idEmpleado, LocalDate desde, LocalDate hasta) {
@@ -340,7 +344,7 @@ public class PlanillaService implements PlanillaUseCase {
             if (s.getEstado() != EstadoSolicitud.APROBADO) {
                 continue;
             }
-            if (s.getTipoPermiso() != null && "VACACIONES".equalsIgnoreCase(s.getTipoPermiso().getCodigo())) {
+            if (s.getTipoPermiso() != null && Boolean.TRUE.equals(s.getTipoPermiso().getEsVacaciones())) {
                 continue;
             }
             LocalDate ini = s.getFechaInicio().isBefore(desde) ? desde : s.getFechaInicio();
@@ -355,13 +359,13 @@ public class PlanillaService implements PlanillaUseCase {
 
     private AsientoContable generarAsiento(Planilla p) {
         AsientoContable a = new AsientoContable();
-        a.setCodigo(String.format("ASI-%d-%02d", p.getAnio(), p.getMes()));
+        a.setCodigo(String.format("%s-%d-%02d", parametros.texto("codigo_asiento_prefijo"), p.getAnio(), p.getMes()));
         a.setPlanilla(p);
         a.setFecha(YearMonth.of(p.getAnio(), p.getMes()).atEndOfMonth());
         a.setGlosa("Planilla de remuneraciones " + periodo(p.getAnio(), p.getMes()));
         a.setEstado(EstadoAsiento.CONTABILIZADO);
-        addLineaUso(a, "SUELDOS", "6211", "Sueldos y salarios", p.getTotalBruto(), CERO);
-        addLineaUso(a, "ESSALUD_GASTO", "6271", "EsSalud", p.getTotalAportes(), CERO);
+        addLineaUso(a, "SUELDOS", p.getTotalBruto(), CERO);
+        addLineaUso(a, "ESSALUD_GASTO", p.getTotalAportes(), CERO);
         BigDecimal onp = CERO;
         BigDecimal afp = CERO;
         BigDecimal quinta = CERO;
@@ -372,26 +376,26 @@ public class PlanillaService implements PlanillaUseCase {
             quinta = quinta.add(d.getQuintaCategoria());
             ausencias = ausencias.add(d.getDescuentoAusencias());
         }
-        addLineaUso(a, "ONP_POR_PAGAR", "4031", "ONP por pagar", CERO, onp);
-        addLineaUso(a, "AFP_POR_PAGAR", "4033", "AFP por pagar", CERO, afp);
-        addLineaUso(a, "QUINTA_POR_PAGAR", "4017", "Renta 5ta por pagar", CERO, quinta);
-        addLineaUso(a, "ESSALUD_POR_PAGAR", "4032", "EsSalud por pagar", CERO, p.getTotalAportes());
-        addLineaUso(a, "REMU_POR_PAGAR", "4111", "Remuneraciones por pagar", CERO, p.getTotalNeto());
-        addLineaUso(a, "DESC_AUSENCIAS", "4699", "Descuentos por ausencias", CERO, ausencias);
+        addLineaUso(a, "ONP_POR_PAGAR", CERO, onp);
+        addLineaUso(a, "AFP_POR_PAGAR", CERO, afp);
+        addLineaUso(a, "QUINTA_POR_PAGAR", CERO, quinta);
+        addLineaUso(a, "ESSALUD_POR_PAGAR", CERO, p.getTotalAportes());
+        addLineaUso(a, "REMU_POR_PAGAR", CERO, p.getTotalNeto());
+        addLineaUso(a, "DESC_AUSENCIAS", CERO, ausencias);
         a.setTotalDebe(p.getTotalBruto().add(p.getTotalAportes()));
         a.setTotalHaber(onp.add(afp).add(quinta).add(p.getTotalAportes()).add(p.getTotalNeto()).add(ausencias));
         return a;
     }
 
-    private void addLineaUso(AsientoContable a, String uso, String fallbackCodigo, String fallbackNombre,
-                             BigDecimal debe, BigDecimal haber) {
+    private void addLineaUso(AsientoContable a, String uso, BigDecimal debe, BigDecimal haber) {
+        if ((debe == null || debe.signum() == 0) && (haber == null || haber.signum() == 0)) {
+            return;
+        }
         CuentaContable c = cuentaRepository.findByUsoIgnoreCase(uso)
                 .filter(item -> Boolean.TRUE.equals(item.getActivo()))
-                .orElse(null);
-        addLinea(a,
-                c != null ? c.getCodigo() : fallbackCodigo,
-                c != null ? c.getNombre() : fallbackNombre,
-                debe, haber);
+                .orElseThrow(() -> DomainException.badRequest(
+                        "Asigne una cuenta contable activa con uso «" + uso + "» en Maestros › Cuentas contables"));
+        addLinea(a, c.getCodigo(), c.getNombre(), debe, haber);
     }
 
     private void addLinea(AsientoContable a, String cuenta, String nombre, BigDecimal debe, BigDecimal haber) {
@@ -415,7 +419,7 @@ public class PlanillaService implements PlanillaUseCase {
     }
 
     private String periodo(Integer anio, Integer mes) {
-        String nombre = java.time.Month.of(mes).getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-PE"));
+        String nombre = java.time.Month.of(mes).getDisplayName(TextStyle.FULL, Locale.forLanguageTag(parametros.texto("locale")));
         return Character.toUpperCase(nombre.charAt(0)) + nombre.substring(1) + " " + anio;
     }
 

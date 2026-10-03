@@ -3,12 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { http } from '../api/client';
 import { Alert, Avatar, BackLink, Badge, Button, Field, Modal } from '../components/ui';
 import { SolicitudHistorial } from '../components/solicitud/SolicitudHistorial';
-import { ORIGEN, PasosInstancia } from './flujoShared';
-import { TIPO, factsOf, solicitudPath } from './bandejaShared';
+import { useConfig } from '../auth/ConfigContext';
+import { PasosInstancia } from './flujoShared';
+import { factsOf, solicitudPath } from './bandejaShared';
 import { text } from '../lib/input';
 
 export function BandejaDecision() {
   const { idPaso, tipo, id } = useParams();
+  const { etiqueta, num } = useConfig();
+  const comentarioMin = num('comentario_rechazo_min_caracteres', 1);
   const navigate = useNavigate();
   const deciding = Boolean(idPaso);
   const [item, setItem] = useState(null);
@@ -72,7 +75,7 @@ export function BandejaDecision() {
 
   function pedirRechazo() {
     if (!idPaso) return;
-    if (comentario.trim().length < 3) {
+    if (comentario.trim().length < comentarioMin) {
       setError('Indique el motivo del rechazo.');
       return;
     }
@@ -83,7 +86,7 @@ export function BandejaDecision() {
   async function decidir(accion) {
     if (!idPaso) return;
     const textComentario = comentario.trim();
-    if (accion === 'rechazar' && textComentario.length < 3) {
+    if (accion === 'rechazar' && textComentario.length < comentarioMin) {
       setError('Indique el motivo del rechazo.');
       setConfirmReject(false);
       return;
@@ -123,12 +126,12 @@ export function BandejaDecision() {
           </h1>
           {item && (
             <p className="mt-2 text-sm text-muted">
-              {ORIGEN[item.tipoSolicitud] || TIPO[item.tipoSolicitud]} · #{item.idSolicitud}
+              {etiqueta('TIPO_ORIGEN_FLUJO', item.tipoSolicitud)} · #{item.idSolicitud}
               {pasoActual ? ` · Paso ${pasoActual.numeroPaso}: ${pasoActual.nombrePaso}` : ''}
             </p>
           )}
         </div>
-        {detalle?.estado && <Badge value={detalle.estado} />}
+        {detalle?.estado && <Badge tipo="ESTADO_SOLICITUD" value={detalle.estado} />}
       </div>
 
       <Alert>{error}</Alert>

@@ -1,8 +1,6 @@
 package pe.andina.rrhh.application.port.in;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import pe.andina.rrhh.application.dto.AppDtos.AreaRequest;
 import pe.andina.rrhh.application.dto.AppDtos.AreaResponse;
 import pe.andina.rrhh.application.dto.AppDtos.CargoRequest;
@@ -15,12 +13,6 @@ import pe.andina.rrhh.application.dto.AppDtos.ParametroRequest;
 import pe.andina.rrhh.application.dto.AppDtos.ParametroResponse;
 import pe.andina.rrhh.application.dto.AppDtos.TipoPermisoMaestroResponse;
 import pe.andina.rrhh.application.dto.AppDtos.TipoPermisoRequest;
-import pe.andina.rrhh.domain.model.Area;
-import pe.andina.rrhh.domain.model.Cargo;
-import pe.andina.rrhh.domain.model.CuentaContable;
-import pe.andina.rrhh.domain.model.HorarioLaboral;
-import pe.andina.rrhh.domain.model.ParametroSistema;
-import pe.andina.rrhh.domain.model.TipoPermiso;
 
 public interface MaestroUseCase {
     List<AreaResponse> areas();

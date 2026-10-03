@@ -29,7 +29,7 @@ public class FlujoController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('FLUJO_CONFIGURAR')")
     public PageResponse<FlujoResponse> listar(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
@@ -45,19 +45,19 @@ public class FlujoController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('FLUJO_CONFIGURAR')")
     public FlujoResponse obtener(@PathVariable Integer id) {
         return flujoService.obtener(id);
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('FLUJO_CONFIGURAR')")
     public FlujoResponse crear(@Valid @RequestBody FlujoRequest request) {
         return flujoService.crear(request);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @PreAuthorize("hasAuthority('FLUJO_CONFIGURAR')")
     public FlujoResponse actualizar(@PathVariable Integer id, @Valid @RequestBody FlujoRequest request) {
         return flujoService.actualizar(id, request);
     }

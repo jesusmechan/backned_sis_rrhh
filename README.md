@@ -123,19 +123,31 @@ npm run dev
 
 Abre http://localhost:5173. Vite proxea `/api` al backend en el puerto 8080. El menú cambia según el rol.
 
+## Configuración dinámica
+
+El código no fija reglas de negocio: todo sale de la base y se edita en **Maestros** (permiso `MAESTRO_GESTIONAR`).
+
+- **Parámetros**: marca de la empresa (nombre, RUC, dominio de correo), zona horaria, idioma, moneda, límites (horas extras, tolerancia de tardanza, longitud de contraseña, prefijos de códigos) y tasas de planilla. El ámbito `PUBLICO` se entrega antes del login (`/api/configuracion/publica`), `SESION` a usuarios autenticados y `PRIVADO` solo al servidor.
+- **Catálogos**: opciones de los combos, etiquetas y colores de los estados, valor por defecto y validación por expresión regular (por ejemplo, el formato de cada tipo de documento).
+- **Valores por fecha**: RMV, UIT y cualquier parámetro que cambie con el tiempo; la planilla usa el valor vigente en el periodo.
+- **AFP, regímenes laborales y tramos de 5ta**: comisiones, factores de gratificación/CTS y escala de renta.
+- **Roles**: los permisos funcionales deciden qué puede hacer cada perfil; los roles y menús marcados como de sistema no se pueden desactivar ni borrar.
+
+Los valores iniciales están en `database/01_install.sql`. En bases ya instaladas, el backend aplica `backend/src/main/resources/db/06_configuracion_dinamica.sql` al arrancar.
+
 ## Módulos
 
 | Módulo | Qué cubre |
 |---|---|
 | Personal | Empleados, organigrama (`id_jefe_inmediato`), carga Excel |
-| Contratos | Modalidad, horario, remuneración básica y vacaciones |
-| Maestros | Áreas, cargos, horarios, tipos de permiso, parámetros y plan de cuentas |
+| Contratos | Modalidad, régimen laboral, AFP, horario, remuneración básica y vacaciones |
+| Maestros | Áreas, cargos, horarios, tipos de permiso, plan de cuentas, catálogos, parámetros, valores por fecha (RMV, UIT), AFP, regímenes laborales y tramos de 5ta |
 | Permisos / horas extras | Registro, cancelación, historial |
 | Aprobación | Flujos configurables + bandeja + aprobar/rechazar paso |
 | Asistencia | Marcación de ingreso/salida y corrección |
 | Planillas | Cálculo mensual de boletas y exportación PDF (básico, extras, descuentos, ONP, EsSalud, neto) |
 | Contabilidad | Asiento de partida doble al cerrar la planilla |
-| Desempeño | Evaluación 1–5 en puntualidad, calidad, cooperación e iniciativa |
+| Desempeño | Evaluación con escala y criterios configurables en Maestros |
 | Reclutamiento | Convocatorias y seguimiento de postulantes |
 | Usuarios | Cuentas de acceso; el rol se elige del mantenedor (`rol`) |
 | Roles | Alta y edición de perfiles, menú y permisos funcionales |

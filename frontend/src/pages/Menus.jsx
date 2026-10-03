@@ -2,20 +2,21 @@ import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { http, PAGE_SIZE, pagePath } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
 import { MENU_ICON_OPTIONS, menuIcon } from '../layout/icons';
-import { Alert, Badge, Button, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField } from '../components/ui';
+import { Alert, Badge, Button, CatalogoOptions, DataList, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
 import { code, digits, label, routePath, text } from '../lib/input';
 
-const GRUPOS = ['Operación', 'Administración', 'Control'];
-const empty = {
-  codigo: '', etiqueta: '', ruta: '', icono: 'Home', grupo: 'Operación',
-  descripcion: '', orden: 10, activo: true, idPerfiles: []
-};
 
 export function Menus() {
   const { refreshSesion } = useAuth();
+  const { opciones, porDefecto } = useConfig();
+  const empty = {
+    codigo: '', etiqueta: '', ruta: '', icono: MENU_ICON_OPTIONS[0], grupo: porDefecto('GRUPO_MENU'),
+    descripcion: '', orden: 10, activo: true, idPerfiles: [], esSistema: false
+  };
   const [perfiles, setPerfiles] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
@@ -25,7 +26,7 @@ export function Menus() {
   const [tab, setTab] = useState('');
   const [estado, setEstado] = useState('');
   const [q, setQ, qDebounced] = useQuerySearch();
-  const [counts, setCounts] = useState({ total: 0, operacion: 0, administracion: 0, control: 0, activos: 0, inactivos: 0 });
+  const [counts, setCounts] = useState({ total: 0, activos: 0, inactivos: 0, grupos: {} });
 
   const { page, setPage, rows, meta, error, setError, reload } = usePagedLoad(
     [qDebounced, tab, estado],
@@ -45,25 +46,23 @@ export function Menus() {
   }, []);
 
   async function loadCounts() {
-    const [all, op, ad, co, act, ina] = await Promise.all([
+    const grupos = opciones('GRUPO_MENU');
+    const [all, act, ina, ...porGrupo] = await Promise.all([
       http.page(pagePath('/api/menus', { page: 1, size: 1 })),
-      http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Operación' })),
-      http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Administración' })),
-      http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: 'Control' })),
       http.page(pagePath('/api/menus', { page: 1, size: 1, activo: true })),
-      http.page(pagePath('/api/menus', { page: 1, size: 1, activo: false }))
+      http.page(pagePath('/api/menus', { page: 1, size: 1, activo: false })),
+      ...grupos.map((g) => http.page(pagePath('/api/menus', { page: 1, size: 1, grupo: g.codigo })))
     ]);
     setCounts({
       total: all.totalElements || 0,
-      operacion: op.totalElements || 0,
-      administracion: ad.totalElements || 0,
-      control: co.totalElements || 0,
       activos: act.totalElements || 0,
-      inactivos: ina.totalElements || 0
+      inactivos: ina.totalElements || 0,
+      grupos: Object.fromEntries(grupos.map((g, i) => [g.codigo, porGrupo[i].totalElements || 0]))
     });
   }
 
-  useEffect(() => { loadCounts().catch(() => {}); }, []);
+  const totalGrupos = opciones('GRUPO_MENU').length;
+  useEffect(() => { loadCounts().catch(() => {}); }, [totalGrupos]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -80,7 +79,8 @@ export function Menus() {
         descripcion: row.descripcion || '',
         orden: row.orden ?? 10,
         activo: row.activo !== false,
-        idPerfiles: row.idPerfiles || []
+        idPerfiles: row.idPerfiles || [],
+        esSistema: row.esSistema === true
       });
     } else {
       setEditId(null);
@@ -165,9 +165,9 @@ export function Menus() {
         <SearchField placeholder="Buscar código, etiqueta, ruta o perfil" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
         <select className="w-auto" value={tab} onChange={(e) => { setTab(e.target.value); setPage(1); }}>
           <option value="">Todos los grupos</option>
-          <option value="Operación">Operación ({counts.operacion})</option>
-          <option value="Administración">Administración ({counts.administracion})</option>
-          <option value="Control">Control ({counts.control})</option>
+          {opciones('GRUPO_MENU').map((g) => (
+            <option key={g.codigo} value={g.codigo}>{g.nombre} ({counts.grupos[g.codigo] ?? 0})</option>
+          ))}
         </select>
         {(q || tab || estado) && (
           <button type="button" className="text-xs font-medium text-navy hover:underline" onClick={() => { setQ(''); setTab(''); setEstado(''); setPage(1); }}>
@@ -191,11 +191,11 @@ export function Menus() {
               )}
               title={r.etiqueta}
               meta={`${r.codigo} · ${r.ruta} · ${r.grupo}`}
-              badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+              badge={<Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
               actions={(
                 <>
                   <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
-                  <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => eliminar(r)}>Eliminar</Button>
+                  {!r.esSistema && <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => eliminar(r)}>Eliminar</Button>}
                 </>
               )}
             />
@@ -240,11 +240,11 @@ export function Menus() {
                         ))}
                       </div>
                     </td>
-                    <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                    <td><Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
                     <td>
                       <ListActions>
                         <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
-                        <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => eliminar(r)}>Eliminar</Button>
+                        {!r.esSistema && <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => eliminar(r)}>Eliminar</Button>}
                       </ListActions>
                     </td>
                   </tr>
@@ -272,7 +272,7 @@ export function Menus() {
             </Field>
             <Field label="Grupo">
               <select value={form.grupo} onChange={(e) => set('grupo', e.target.value)}>
-                {GRUPOS.map((g) => <option key={g}>{g}</option>)}
+                <CatalogoOptions tipo="GRUPO_MENU" />
               </select>
             </Field>
             <Field label="Icono">
@@ -291,8 +291,8 @@ export function Menus() {
             <Field label="Descripción" full>
               <input value={form.descripcion} onChange={(e) => set('descripcion', text(e.target.value, 200))} />
             </Field>
-            <Field label="Estado">
-              <select value={form.activo ? '1' : '0'} onChange={(e) => set('activo', e.target.value === '1')}>
+            <Field label="Estado" hint={form.esSistema ? 'Opción del sistema: siempre activa' : undefined}>
+              <select value={form.activo ? '1' : '0'} onChange={(e) => set('activo', e.target.value === '1')} disabled={form.esSistema}>
                 <option value="1">Activo</option>
                 <option value="0">Inactivo</option>
               </select>

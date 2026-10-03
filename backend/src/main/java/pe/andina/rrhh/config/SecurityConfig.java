@@ -41,6 +41,7 @@ public class SecurityConfig {
         return web -> web.ignoring().requestMatchers(
                 new AntPathRequestMatcher("/api/auth/login"),
                 new AntPathRequestMatcher("/api/auth/refresh"),
+                new AntPathRequestMatcher("/api/configuracion/publica"),
                 new AntPathRequestMatcher("/error"),
                 new AntPathRequestMatcher("/swagger-ui.html"),
                 new AntPathRequestMatcher("/swagger-ui/**"),

@@ -4,9 +4,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import pe.andina.rrhh.application.dto.AppDtos.AfpItem;
 import pe.andina.rrhh.application.dto.AppDtos.CatalogoItem;
+import pe.andina.rrhh.application.dto.AppDtos.CatalogoValorItem;
 import pe.andina.rrhh.application.dto.AppDtos.IdNombre;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoFuncionalItem;
+import pe.andina.rrhh.application.dto.AppDtos.RegimenLaboralItem;
+import pe.andina.rrhh.application.dto.AppDtos.TipoPermisoItem;
 import pe.andina.rrhh.application.port.in.CatalogoUseCase;
 
 import java.util.List;
@@ -14,7 +18,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/catalogos")
-@Tag(name = "Catálogos", description = "Áreas, cargos, horarios, tipos de permiso, roles y parámetros")
+@Tag(name = "Catálogos", description = "Listas de selección, valores de catálogo, AFP, regímenes y parámetros")
 public class CatalogoController {
 
     private final CatalogoUseCase catalogoService;
@@ -33,7 +37,7 @@ public class CatalogoController {
     public List<IdNombre> horarios() { return catalogoService.horarios(); }
 
     @GetMapping("/tipos-permiso")
-    public List<CatalogoItem> tiposPermiso() { return catalogoService.tiposPermiso(); }
+    public List<TipoPermisoItem> tiposPermiso() { return catalogoService.tiposPermiso(); }
 
     @GetMapping("/roles")
     public List<CatalogoItem> roles() { return catalogoService.roles(); }
@@ -43,4 +47,13 @@ public class CatalogoController {
 
     @GetMapping("/parametros")
     public List<Map<String, String>> parametros() { return catalogoService.parametros(); }
+
+    @GetMapping("/valores")
+    public Map<String, List<CatalogoValorItem>> valores() { return catalogoService.valores(); }
+
+    @GetMapping("/afps")
+    public List<AfpItem> afps() { return catalogoService.afps(); }
+
+    @GetMapping("/regimenes-laborales")
+    public List<RegimenLaboralItem> regimenesLaborales() { return catalogoService.regimenesLaborales(); }
 }

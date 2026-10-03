@@ -32,14 +32,10 @@ export function AuthProvider({ children }) {
       menu,
       permisos,
       isAuth: Boolean(usuario),
-      hasAnyRole: (...roles) => roles.includes(rol),
       hasPermission: (...codes) => codes.some((code) => permisos.includes(code)),
       canAccess: (path) => {
         const clean = pathOf(path);
-        if (rutas.length === 0) {
-          return ['/', '/perfil', '/permisos', '/horas-extras', '/marcar', '/asistencia'].includes(clean);
-        }
-        return rutas.includes(clean);
+        return clean === '/' || clean === '/perfil' || rutas.includes(clean);
       },
       refreshSesion: async () => {
         const sesion = await http.get('/api/sesion');

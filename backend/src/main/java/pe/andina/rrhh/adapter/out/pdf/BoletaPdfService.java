@@ -47,8 +47,6 @@ public class BoletaPdfService implements BoletaPdfPort {
     private static final Color SURFACE = new Color(248, 250, 252);
     private static final Color GOLD = new Color(180, 138, 60);
     private static final Color WHITE = Color.WHITE;
-    private static final Locale ES = Locale.forLanguageTag("es-PE");
-    private static final ZoneId LIMA = ZoneId.of("America/Lima");
     private static final String[] UNIDADES = {
             "", "UN", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE",
             "DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISEIS", "DIECISIETE",
@@ -75,7 +73,8 @@ public class BoletaPdfService implements BoletaPdfPort {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4, 42, 42, 36, 48);
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(new MarcoPagina());
+            writer.setPageEvent(new MarcoPagina(parametros.zona(), locale(),
+                    parametros.texto("empresa_nombre_comercial"), parametros.texto("formato_fecha")));
             doc.open();
             for (int i = 0; i < boletas.size(); i++) {
                 if (i > 0) {
@@ -100,17 +99,19 @@ public class BoletaPdfService implements BoletaPdfPort {
         BaseFont bf = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
         Fonts f = new Fonts(bf);
         Empleado e = d.getEmpleado();
-        String empresa = parametros.texto("empresa_razon_social", "Consultora Contable Andina S.A.C.");
-        String ruc = parametros.texto("empresa_ruc", "20601234567");
-        String direccion = parametros.texto("empresa_direccion", "Av. Javier Prado 1200, San Isidro, Lima");
+        String empresa = parametros.texto("empresa_razon_social");
+        String ruc = parametros.texto("empresa_ruc");
+        String direccion = parametros.texto("empresa_direccion");
         String periodo = periodo(planilla.getAnio(), planilla.getMes());
-        String nro = String.format("AND-%d-%02d-%04d", planilla.getAnio(), planilla.getMes(), d.getIdDetalle());
+        String nro = String.format("%s-%d-%02d-%04d", parametros.texto("codigo_boleta_prefijo"),
+                planilla.getAnio(), planilla.getMes(), d.getIdDetalle());
         BigDecimal totalDesc = d.totalDescuentosTrabajador();
-        String onpPct = porcentaje(parametros.decimal("tasa_onp", "0.13"));
-        String essaludPct = porcentaje(parametros.decimal("tasa_essalud", "0.09"));
+        String onpPct = porcentaje(parametros.decimal("tasa_onp"));
+        String afpPct = porcentaje(parametros.decimal("tasa_afp_aporte"));
+        String essaludPct = porcentaje(parametros.decimal("tasa_essalud"));
         String regimen = nz(d.getRegimenPensionario());
 
-        doc.add(membrete(empresa, ruc, direccion, periodo, nro, f));
+        doc.add(membrete(parametros.texto("empresa_siglas"), empresa, ruc, direccion, periodo, nro, f));
         doc.add(espacio(10));
         doc.add(seccionTitulo("Datos del trabajador", f));
         doc.add(fichaTrabajador(e, d, f));
@@ -129,7 +130,7 @@ public class BoletaPdfService implements BoletaPdfPort {
         java.util.ArrayList<String[]> descuentos = new java.util.ArrayList<>();
         descuentos.add(fila("Ausencias (" + n(d.getDiasNoLaborados()) + " d)", d.getDescuentoAusencias()));
         if ("AFP".equalsIgnoreCase(regimen)) {
-            descuentos.add(fila("AFP aporte (10%)", d.getAfpAporte()));
+            descuentos.add(fila("AFP aporte (" + afpPct + ")", d.getAfpAporte()));
             descuentos.add(fila("AFP comisión", d.getAfpComision()));
             descuentos.add(fila("AFP seguro", d.getAfpSeguro()));
         } else if ("ONP".equalsIgnoreCase(regimen)) {
@@ -146,25 +147,19 @@ public class BoletaPdfService implements BoletaPdfPort {
         doc.add(firmas(empresa, e.nombreCompleto(), f));
         doc.add(espacio(10));
 
-        Paragraph nota = new Paragraph(
-                "Documento interno del Sistema de Gestión de RR. HH. Andina. "
-                        + "Cálculo alineado a planilla peruana: básica, asignación familiar (10% RMV), "
-                        + "horas extras (+25%/+35%), ONP o AFP, renta de 5ta categoría (proyección simplificada) "
-                        + "y descuento por ausencias. EsSalud (9%) es aporte del empleador. "
-                        + "No sustituye la boleta electrónica SUNAT si el empleador debe emitirla.",
-                f.tiny);
+        Paragraph nota = new Paragraph(parametros.texto("boleta_nota_pie"), f.tiny);
         nota.setAlignment(Element.ALIGN_JUSTIFIED);
         doc.add(nota);
     }
 
-    private PdfPTable membrete(String empresa, String ruc, String direccion, String periodo, String nro, Fonts f) {
+    private PdfPTable membrete(String siglas, String empresa, String ruc, String direccion, String periodo, String nro, Fonts f) {
         PdfPTable header = new PdfPTable(2);
         header.setWidthPercentage(100);
         header.setWidths(new float[]{3.2f, 1.55f});
 
         PdfPTable brand = new PdfPTable(2);
         brand.setWidths(new float[]{0.42f, 2.8f});
-        PdfPCell logo = new PdfPCell(new Phrase("CA", f.logo));
+        PdfPCell logo = new PdfPCell(new Phrase(siglas, f.logo));
         logo.setBackgroundColor(NAVY);
         logo.setBorder(Rectangle.NO_BORDER);
         logo.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -230,7 +225,7 @@ public class BoletaPdfService implements BoletaPdfPort {
         c.setBackgroundColor(SURFACE);
         c.setPadding(7);
         c.setPaddingTop(6);
-        c.addElement(new Paragraph(k.toUpperCase(ES), f.kicker));
+        c.addElement(new Paragraph(k.toUpperCase(Locale.ROOT), f.kicker));
         Paragraph value = new Paragraph(v, f.body);
         value.setSpacingBefore(1.5f);
         c.addElement(value);
@@ -241,7 +236,7 @@ public class BoletaPdfService implements BoletaPdfPort {
         PdfPTable t = new PdfPTable(2);
         t.setWidthPercentage(100);
         t.setWidths(new float[]{1.85f, 1f});
-        PdfPCell head = cell(titulo.toUpperCase(ES), f.colHead, Element.ALIGN_LEFT, NAVY, Rectangle.NO_BORDER);
+        PdfPCell head = cell(titulo.toUpperCase(Locale.ROOT), f.colHead, Element.ALIGN_LEFT, NAVY, Rectangle.NO_BORDER);
         head.setColspan(2);
         head.setPadding(8);
         t.addCell(head);
@@ -322,7 +317,7 @@ public class BoletaPdfService implements BoletaPdfPort {
         Paragraph who = new Paragraph(nombre, f.body);
         who.setAlignment(Element.ALIGN_CENTER);
         who.setSpacingBefore(4);
-        Paragraph role = new Paragraph(rol.toUpperCase(ES), f.kicker);
+        Paragraph role = new Paragraph(rol.toUpperCase(Locale.ROOT), f.kicker);
         role.setAlignment(Element.ALIGN_CENTER);
         role.setSpacingBefore(2);
         c.addElement(line);
@@ -332,7 +327,7 @@ public class BoletaPdfService implements BoletaPdfPort {
     }
 
     private Paragraph seccionTitulo(String texto, Fonts f) {
-        Paragraph p = new Paragraph(texto.toUpperCase(ES), f.section);
+        Paragraph p = new Paragraph(texto.toUpperCase(Locale.ROOT), f.section);
         p.setSpacingAfter(6);
         return p;
     }
@@ -387,9 +382,15 @@ public class BoletaPdfService implements BoletaPdfPort {
     }
 
     private String money(BigDecimal value) {
-        DecimalFormatSymbols s = new DecimalFormatSymbols(Locale.US);
-        DecimalFormat df = new DecimalFormat("#,##0.00", s);
-        return "S/ " + df.format(nz(value));
+        return parametros.texto("moneda_simbolo") + " " + importe(nz(value));
+    }
+
+    private String importe(BigDecimal value) {
+        return new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(locale())).format(value);
+    }
+
+    private Locale locale() {
+        return Locale.forLanguageTag(parametros.texto("locale"));
     }
 
     private String n(BigDecimal value) {
@@ -417,7 +418,7 @@ public class BoletaPdfService implements BoletaPdfPort {
         if (value == null || value.isBlank()) {
             return "-";
         }
-        String raw = value.replace('_', ' ').toLowerCase(ES);
+        String raw = value.replace('_', ' ').toLowerCase(Locale.ROOT);
         return Character.toUpperCase(raw.charAt(0)) + raw.substring(1);
     }
 
@@ -430,11 +431,11 @@ public class BoletaPdfService implements BoletaPdfPort {
         if (date == null) {
             return "-";
         }
-        return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        return date.format(DateTimeFormatter.ofPattern(parametros.texto("formato_fecha")));
     }
 
     private String periodo(Integer anio, Integer mes) {
-        String nombre = Month.of(mes).getDisplayName(TextStyle.FULL, ES);
+        String nombre = Month.of(mes).getDisplayName(TextStyle.FULL, locale());
         return Character.toUpperCase(nombre.charAt(0)) + nombre.substring(1) + " " + anio;
     }
 
@@ -443,7 +444,7 @@ public class BoletaPdfService implements BoletaPdfPort {
         long enteros = n.longValue();
         int centavos = n.remainder(BigDecimal.ONE).movePointRight(2).intValue();
         String letras = enteros == 0 ? "CERO" : convertir(enteros);
-        String moneda = enteros == 1 ? "SOL" : "SOLES";
+        String moneda = parametros.texto(enteros == 1 ? "moneda_nombre_singular" : "moneda_nombre");
         return letras + " CON " + String.format("%02d", centavos) + "/100 " + moneda;
     }
 
@@ -452,7 +453,7 @@ public class BoletaPdfService implements BoletaPdfPort {
             return "CERO";
         }
         if (n < 0 || n > 999_999_999L) {
-            return money(BigDecimal.valueOf(n)).replace("S/ ", "");
+            return importe(BigDecimal.valueOf(n));
         }
         StringBuilder out = new StringBuilder();
         int millones = (int) (n / 1_000_000);
@@ -556,7 +557,18 @@ public class BoletaPdfService implements BoletaPdfPort {
     }
 
     private static final class MarcoPagina extends PdfPageEventHelper {
+        private final ZoneId zona;
+        private final Locale locale;
+        private final String nombreComercial;
+        private final String formatoFecha;
         private BaseFont bf;
+
+        MarcoPagina(ZoneId zona, Locale locale, String nombreComercial, String formatoFecha) {
+            this.zona = zona;
+            this.locale = locale;
+            this.nombreComercial = nombreComercial;
+            this.formatoFecha = formatoFecha;
+        }
 
         @Override
         public void onOpenDocument(PdfWriter writer, Document document) {
@@ -588,9 +600,9 @@ public class BoletaPdfService implements BoletaPdfPort {
                 cb.beginText();
                 cb.setFontAndSize(bf, 7);
                 cb.setColorFill(MUTED);
-                String emitido = ZonedDateTime.now(LIMA)
-                        .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", ES));
-                cb.showTextAligned(Element.ALIGN_LEFT, "Emitido " + emitido + "  |  Consultora Andina", document.left(), 22, 0);
+                String emitido = ZonedDateTime.now(zona)
+                        .format(DateTimeFormatter.ofPattern(formatoFecha + " HH:mm", locale));
+                cb.showTextAligned(Element.ALIGN_LEFT, "Emitido " + emitido + "  |  " + nombreComercial, document.left(), 22, 0);
                 cb.showTextAligned(Element.ALIGN_RIGHT, "Página " + writer.getPageNumber(), document.right(), 22, 0);
                 cb.endText();
             }

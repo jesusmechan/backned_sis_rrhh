@@ -5,9 +5,11 @@ import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
 import { Alert, Badge, Button, DataList, FilterBar, Kpi, KpiRow, ListActions, MobileRow, Pager, SearchField } from '../components/ui';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
-import { FlujogramaCompact, ORIGEN, codigoDesdeNombre, toForm, toPayload } from './flujoShared';
+import { useConfig } from '../auth/ConfigContext';
+import { FlujogramaCompact, codigoDesdeNombre, toForm, toPayload } from './flujoShared';
 
 export function Flujos() {
+  const { etiqueta } = useConfig();
   const navigate = useNavigate();
   const location = useLocation();
   const [origen, setOrigen] = useState('');
@@ -108,8 +110,8 @@ export function Flujos() {
 
       <KpiRow cols={4}>
         <Kpi value={counts.total} label="Total" hint="Circuitos configurados" active={origen === '' && estado === ''} onClick={() => { setOrigen(''); setEstado(''); setPage(1); }} />
-        <Kpi value={counts.permiso} label="Permisos" hint="Flujos de permiso" active={origen === 'PERMISO'} onClick={() => { setOrigen('PERMISO'); setPage(1); }} />
-        <Kpi value={counts.horaExtra} label="Horas extras" hint="Flujos de tiempo extra" active={origen === 'HORA_EXTRA'} onClick={() => { setOrigen('HORA_EXTRA'); setPage(1); }} />
+        <Kpi value={counts.permiso} label={etiqueta('TIPO_ORIGEN_FLUJO', 'PERMISO')} hint="Flujos de permiso" active={origen === 'PERMISO'} onClick={() => { setOrigen('PERMISO'); setPage(1); }} />
+        <Kpi value={counts.horaExtra} label={etiqueta('TIPO_ORIGEN_FLUJO', 'HORA_EXTRA')} hint="Flujos de tiempo extra" active={origen === 'HORA_EXTRA'} onClick={() => { setOrigen('HORA_EXTRA'); setPage(1); }} />
         <Kpi value={counts.activos} label="Activos" hint="Se usan en solicitudes nuevas" active={estado === 'activos'} onClick={() => { setEstado(estado === 'activos' ? '' : 'activos'); setPage(1); }} />
       </KpiRow>
 
@@ -139,8 +141,8 @@ export function Flujos() {
               </span>
             )}
             title={r.nombre}
-            meta={`${r.codigo} · ${ORIGEN[r.tipoOrigen] || r.tipoOrigen} · ${(r.pasos || []).length} pasos`}
-            badge={<Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            meta={`${r.codigo} · ${etiqueta('TIPO_ORIGEN_FLUJO', r.tipoOrigen)} · ${(r.pasos || []).length} pasos`}
+            badge={<Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
             actions={(
               <>
                 <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}>Configurar</Button>
@@ -179,7 +181,7 @@ export function Flujos() {
                           {r.nombre}
                         </button>
                         <p className="text-xs text-muted">
-                          {r.codigo} · {ORIGEN[r.tipoOrigen] || r.tipoOrigen}
+                          {r.codigo} · {etiqueta('TIPO_ORIGEN_FLUJO', r.tipoOrigen)}
                           {r.tipoPermiso ? ` · ${r.tipoPermiso}` : r.tipoOrigen === 'PERMISO' ? ' · Por defecto' : ''}
                           {' · '}{(r.pasos || []).length} paso{(r.pasos || []).length === 1 ? '' : 's'}
                         </p>
@@ -190,7 +192,7 @@ export function Flujos() {
                   <td>
                     <FlujogramaCompact pasos={r.pasos} roles={roles} usuarios={usuarios} />
                   </td>
-                  <td><Badge value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
+                  <td><Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>
                   <td>
                     <ListActions>
                       <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}>Configurar</Button>

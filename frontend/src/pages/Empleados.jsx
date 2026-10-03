@@ -1,32 +1,40 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, Plus, Upload } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
-import { Alert, Avatar, Badge, Button, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField, downloadBlob } from '../components/ui';
-import { correoAndina, hoyISO, siguienteCodigo } from './altaShared';
+import { api, http, PAGE_SIZE, pagePath, SELECT_SIZE } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
+import { useConfig } from '../auth/ConfigContext';
+import { Alert, Avatar, Badge, Button, CatalogoOptions, DataList, DatePicker, Field, FilterBar, FormGrid, Kpi, KpiRow, ListActions, MobileRow, Modal, Pager, PersonCell, SearchField, downloadBlob } from '../components/ui';
+import { correoInstitucional, hoyISO, siguienteCodigo } from './altaShared';
 import { useQuerySearch } from '../lib/useQuerySearch';
 import { usePagedLoad } from '../lib/usePagedLoad';
 import { calcAge } from '../lib/format';
 import { address, documentNumber, email, isEmail, isEmployeeCode, isLetters, letters, phone } from '../lib/input';
 
-const CONTRATO = {
-  PLANILLA: 'Planilla',
-  RECIBO_HONORARIOS: 'Recibo por honorarios',
-  PRACTICAS: 'Prácticas'
-};
-
-const empty = {
-  codigoEmpleado: '', tipoDocumento: 'DNI', numeroDocumento: '', nombres: '',
-  apellidoPaterno: '', apellidoMaterno: '', fechaNacimiento: '', sexo: 'M',
-  correoInstitucional: '', correoPersonal: '', telefono: '', direccion: '', fechaIngreso: '',
-  fechaCese: '', idArea: '', idCargo: '', idHorario: '', tipoContrato: 'PLANILLA',
-  estado: 'ACTIVO', idJefeInmediato: ''
-};
+function fichaVacia(porDefecto) {
+  return {
+    codigoEmpleado: '', tipoDocumento: porDefecto('TIPO_DOCUMENTO'), numeroDocumento: '', nombres: '',
+    apellidoPaterno: '', apellidoMaterno: '', fechaNacimiento: '', sexo: porDefecto('SEXO'),
+    correoInstitucional: '', correoPersonal: '', telefono: '', direccion: '', fechaIngreso: '',
+    fechaCese: '', idArea: '', idCargo: '', idHorario: '', tipoContrato: porDefecto('TIPO_CONTRATO'),
+    estado: porDefecto('ESTADO_EMPLEADO'), idJefeInmediato: ''
+  };
+}
 
 export function Empleados() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const fileRef = useRef(null);
+  const { hasPermission } = useAuth();
+  const { param, num, porDefecto, etiqueta, valor, validarRegla } = useConfig();
+  const empty = fichaVacia(porDefecto);
+  const prefijoCodigo = param('codigo_empleado_prefijo');
+  const digitosCodigo = num('codigo_empleado_digitos', 1);
+  const dominioCorreo = param('empresa_dominio_correo');
+  const nuevoCodigo = (lista) => siguienteCodigo(lista, prefijoCodigo, digitosCodigo);
+  const puedeRegistrar = hasPermission('PERSONAL_REGISTRAR');
+  const puedeEditar = hasPermission('PERSONAL_ACTUALIZAR');
+  const puedeCargar = hasPermission('PERSONAL_CARGAR_EXCEL');
   const [jefes, setJefes] = useState([]);
   const [cats, setCats] = useState({ areas: [], cargos: [], horarios: [] });
   const [ocupados, setOcupados] = useState([]);
@@ -90,8 +98,8 @@ export function Empleados() {
   useEffect(() => {
     if (!open || editId || !jefes.length) return;
     setForm((f) => {
-      const next = siguienteCodigo(jefes);
-      if (!f.codigoEmpleado || f.codigoEmpleado === 'AND-001') {
+      const next = nuevoCodigo(jefes);
+      if (!f.codigoEmpleado || f.codigoEmpleado === nuevoCodigo([])) {
         return { ...f, codigoEmpleado: next };
       }
       return f;
@@ -108,13 +116,13 @@ export function Empleados() {
   function setNombre(k, v) {
     setForm((f) => {
       const next = { ...f, [k]: letters(v) };
-      if (!emailTouched) next.correoInstitucional = correoAndina(next.nombres, next.apellidoPaterno);
+      if (!emailTouched) next.correoInstitucional = correoInstitucional(next.nombres, next.apellidoPaterno, dominioCorreo);
       return next;
     });
   }
 
   function setDocumento(value) {
-    set('numeroDocumento', documentNumber(form.tipoDocumento, value));
+    set('numeroDocumento', documentNumber(value));
   }
 
   function irCrearCuenta(emp) {
@@ -159,7 +167,7 @@ export function Empleados() {
       setCrearCuenta(true);
       setForm({
         ...empty,
-        codigoEmpleado: siguienteCodigo(jefes),
+        codigoEmpleado: nuevoCodigo(jefes),
         fechaIngreso: hoyISO()
       });
     }
@@ -171,15 +179,11 @@ export function Empleados() {
       if (!form.codigoEmpleado.trim() || !form.numeroDocumento.trim() || !form.nombres.trim() || !form.apellidoPaterno.trim() || !form.apellidoMaterno.trim()) {
         return 'Complete código, documento y apellidos.';
       }
-      if (!isEmployeeCode(form.codigoEmpleado.trim())) {
-        return 'El código debe tener el formato AND-001 (letras, guion y dígitos).';
+      if (!isEmployeeCode(form.codigoEmpleado.trim(), prefijoCodigo, digitosCodigo)) {
+        return `El código debe tener el formato ${nuevoCodigo([])}.`;
       }
-      if (form.tipoDocumento === 'DNI' && form.numeroDocumento.length !== 8) {
-        return 'El DNI debe tener 8 dígitos.';
-      }
-      if (form.tipoDocumento !== 'DNI' && form.numeroDocumento.length < 8) {
-        return 'El documento debe tener al menos 8 caracteres.';
-      }
+      const reglaDoc = validarRegla('TIPO_DOCUMENTO', form.tipoDocumento, form.numeroDocumento);
+      if (reglaDoc) return reglaDoc;
       if (![form.nombres, form.apellidoPaterno, form.apellidoMaterno].every(isLetters)) {
         return 'Nombres y apellidos solo admiten letras.';
       }
@@ -220,13 +224,13 @@ export function Empleados() {
     setSaving(true);
     const body = {
       codigoEmpleado: form.codigoEmpleado.trim(),
-      tipoDocumento: form.tipoDocumento || 'DNI',
+      tipoDocumento: form.tipoDocumento || null,
       numeroDocumento: form.numeroDocumento.trim(),
       nombres: form.nombres.trim(),
       apellidoPaterno: form.apellidoPaterno.trim(),
       apellidoMaterno: (form.apellidoMaterno || '').trim(),
       fechaNacimiento: form.fechaNacimiento || null,
-      sexo: form.sexo,
+      sexo: form.sexo || null,
       correoInstitucional: form.correoInstitucional.trim(),
       correoPersonal: form.correoPersonal.trim() || null,
       telefono: form.telefono.trim() || null,
@@ -236,8 +240,8 @@ export function Empleados() {
       idArea: Number(form.idArea),
       idCargo: Number(form.idCargo),
       idHorario: Number(form.idHorario),
-      tipoContrato: form.tipoContrato,
-      estado: form.estado,
+      tipoContrato: form.tipoContrato || null,
+      estado: form.estado || null,
       idJefeInmediato: form.idJefeInmediato ? Number(form.idJefeInmediato) : null
     };
     try {
@@ -301,12 +305,14 @@ export function Empleados() {
           <p className="mt-2 text-sm text-muted">Directorio de colaboradores, organigrama y carga masiva Excel.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={plantilla}><Download size={16} /> Plantilla</Button>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <Upload size={16} /> Cargar Excel
-            <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={cargar} />
-          </label>
-          <Button onClick={() => abrir(null)}><Plus size={16} /> Registrar</Button>
+          {puedeCargar && <Button variant="secondary" onClick={plantilla}><Download size={16} /> Plantilla</Button>}
+          {puedeCargar && (
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <Upload size={16} /> Cargar Excel
+              <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={cargar} />
+            </label>
+          )}
+          {puedeRegistrar && <Button onClick={() => abrir(null)}><Plus size={16} /> Registrar</Button>}
         </div>
       </div>
 
@@ -347,10 +353,10 @@ export function Empleados() {
             leading={<Avatar name={r.nombreCompleto} />}
             title={r.nombreCompleto}
             meta={`${r.codigoEmpleado} · ${r.area} · ${r.cargo}`}
-            badge={<Badge value={r.estado} />}
+            badge={<Badge tipo="ESTADO_EMPLEADO" value={r.estado} />}
             actions={(
               <>
-                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                {puedeEditar && <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>}
                 {sinCuenta(r.idEmpleado) && (
                   <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => irCrearCuenta(r)}>Crear cuenta</Button>
                 )}
@@ -381,14 +387,14 @@ export function Empleados() {
                     <p className="text-xs text-muted">{r.cargo || '—'}</p>
                   </td>
                   <td>
-                    <p className="text-sm">{CONTRATO[r.tipoContrato] || r.tipoContrato}</p>
+                    <p className="text-sm">{etiqueta('TIPO_CONTRATO', r.tipoContrato)}</p>
                     <p className="text-xs text-muted">{r.horario || '—'}</p>
                   </td>
                   <td className="text-sm text-muted">{r.jefeInmediato || 'Sin jefe'}</td>
-                  <td><Badge value={r.estado} /></td>
+                  <td><Badge tipo="ESTADO_EMPLEADO" value={r.estado} /></td>
                   <td>
                     <ListActions>
-                      <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>
+                      {puedeEditar && <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => abrir(r)}>Editar</Button>}
                       {sinCuenta(r.idEmpleado) && (
                         <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => irCrearCuenta(r)}>Crear cuenta</Button>
                       )}
@@ -430,7 +436,7 @@ export function Empleados() {
           <FormGrid onSubmit={guardar}>
             {step === 1 && (
               <>
-                <Field label="Código" hint="Letras, números y guion. Ej. AND-004">
+                <Field label="Código" hint={`Formato ${nuevoCodigo([])}`}>
                   <input value={form.codigoEmpleado} onChange={(e) => set('codigoEmpleado', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20))} required />
                 </Field>
                 <Field label="Tipo de documento">
@@ -441,28 +447,24 @@ export function Empleados() {
                       setForm((f) => ({
                         ...f,
                         tipoDocumento: tipo,
-                        numeroDocumento: documentNumber(tipo, f.numeroDocumento)
+                        numeroDocumento: documentNumber(f.numeroDocumento)
                       }));
                     }}
                   >
-                    <option value="DNI">DNI</option>
-                    <option value="CE">Carné de extranjería</option>
-                    <option value="PASAPORTE">Pasaporte</option>
+                    <CatalogoOptions tipo="TIPO_DOCUMENTO" />
                   </select>
                 </Field>
-                <Field label="Número de documento" hint={form.tipoDocumento === 'DNI' ? 'Solo 8 dígitos' : 'Solo letras y números'}>
+                <Field label="Número de documento" hint={valor('TIPO_DOCUMENTO', form.tipoDocumento)?.mensajeRegla || 'Solo letras y números'}>
                   <input
-                    inputMode={form.tipoDocumento === 'DNI' ? 'numeric' : 'text'}
                     value={form.numeroDocumento}
                     onChange={(e) => setDocumento(e.target.value)}
-                    maxLength={form.tipoDocumento === 'DNI' ? 8 : 20}
+                    maxLength={20}
                     required
                   />
                 </Field>
                 <Field label="Sexo">
                   <select value={form.sexo} onChange={(e) => set('sexo', e.target.value)}>
-                    <option value="M">Masculino</option>
-                    <option value="F">Femenino</option>
+                    <CatalogoOptions tipo="SEXO" />
                   </select>
                 </Field>
                 <Field label="Nombres" hint="Solo letras">
@@ -517,16 +519,12 @@ export function Empleados() {
                 </Field>
                 <Field label="Contrato" hint="La modalidad colaborador/practicante se define en Contratos">
                   <select value={form.tipoContrato} onChange={(e) => set('tipoContrato', e.target.value)}>
-                    <option value="PLANILLA">Planilla</option>
-                    <option value="RECIBO_HONORARIOS">Recibo por honorarios</option>
-                    <option value="PRACTICAS">Prácticas</option>
+                    <CatalogoOptions tipo="TIPO_CONTRATO" />
                   </select>
                 </Field>
                 <Field label="Estado">
                   <select value={form.estado} onChange={(e) => set('estado', e.target.value)}>
-                    <option value="ACTIVO">Activo</option>
-                    <option value="INACTIVO">Inactivo</option>
-                    <option value="CESADO">Cesado</option>
+                    <CatalogoOptions tipo="ESTADO_EMPLEADO" />
                   </select>
                 </Field>
                 <Field label="Ingreso">
@@ -541,7 +539,7 @@ export function Empleados() {
             )}
             {step === 3 && (
               <>
-                <Field label="Correo institucional" hint="Se arma con nombre.apellido@andina.pe" full>
+                <Field label="Correo institucional" hint={dominioCorreo ? `Se arma con nombre.apellido@${dominioCorreo}` : 'Correo del colaborador'} full>
                   <input
                     type="email"
                     value={form.correoInstitucional}
@@ -563,7 +561,7 @@ export function Empleados() {
                     <input type="checkbox" className="mt-0.5" checked={crearCuenta} onChange={(e) => setCrearCuenta(e.target.checked)} />
                     <span>
                       Crear también la cuenta de acceso
-                      <span className="mt-0.5 block text-xs text-muted">Luego se abre Usuarios con el colaborador, el correo y la clave inicial Andina2026.</span>
+                      <span className="mt-0.5 block text-xs text-muted">Luego se abre Usuarios con el colaborador, el correo y la contraseña inicial configurada.</span>
                     </span>
                   </label>
                 )}

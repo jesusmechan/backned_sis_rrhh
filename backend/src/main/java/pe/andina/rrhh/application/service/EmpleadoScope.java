@@ -20,7 +20,7 @@ public class EmpleadoScope {
     }
 
     public Empleado resolverSolicitante(Integer idEmpleadoRequest) {
-        if (currentUser.isAdminOrRrhh() && idEmpleadoRequest != null) {
+        if (currentUser.alcanceTotal() && idEmpleadoRequest != null) {
             return empleadoService.buscar(idEmpleadoRequest);
         }
         if (currentUser.idEmpleado() == null) {
@@ -30,7 +30,7 @@ public class EmpleadoScope {
     }
 
     public void assertDuenioORrhh(Integer idEmpleado) {
-        if (currentUser.isAdminOrRrhh()) {
+        if (currentUser.alcanceTotal()) {
             return;
         }
         if (!idEmpleado.equals(currentUser.idEmpleado())) {
@@ -39,7 +39,7 @@ public class EmpleadoScope {
     }
 
     public void assertPuedeConsultar(Integer idEmpleado, boolean participo) {
-        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("JEFE") || currentUser.hasRole("GERENCIA")) {
+        if (currentUser.veConjuntoOperativo()) {
             return;
         }
         if (idEmpleado.equals(currentUser.idEmpleado()) || participo) {
@@ -49,7 +49,7 @@ public class EmpleadoScope {
     }
 
     public void assertMismaPersona(Integer idEmpleado) {
-        if (currentUser.isAdminOrRrhh()) {
+        if (currentUser.alcanceTotal()) {
             return;
         }
         if (!idEmpleado.equals(currentUser.idEmpleado())) {
@@ -57,12 +57,12 @@ public class EmpleadoScope {
         }
     }
 
-    /** Admin/RRHH/Gerencia: cualquiera. Jefe: solo su equipo directo. */
+    /** Alcance total u organización: cualquiera. Alcance de equipo: solo su equipo directo. */
     public void assertPuedeGestionarEquipo(Empleado subordinado) {
-        if (currentUser.isAdminOrRrhh() || currentUser.hasRole("GERENCIA")) {
+        if (currentUser.alcanceOrganizacion()) {
             return;
         }
-        if (currentUser.hasRole("JEFE") && esJefeDirectoDe(subordinado)) {
+        if (currentUser.alcanceEquipo() && esJefeDirectoDe(subordinado)) {
             return;
         }
         throw DomainException.forbidden("Solo puede gestionar a su equipo directo");

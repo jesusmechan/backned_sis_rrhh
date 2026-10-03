@@ -22,7 +22,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
-          time_zone: America/Lima
+          time_zone: ${APP_DB_TIME_ZONE:America/Lima}
         type:
           preferred_enum_jdbc_type: NAMED_ENUM
     show-sql: false
