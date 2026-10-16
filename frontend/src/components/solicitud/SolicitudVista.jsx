@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { Alert, Avatar, Badge, Button } from '../ui';
+import { ChevronDown, ChevronUp, Paperclip } from 'lucide-react';
+import { http } from '../../api/client';
+import { Alert, Avatar, Badge, Button, downloadBlob } from '../ui';
+import { peso } from '../Dropzone';
 import { useConfig } from '../../auth/ConfigContext';
 import { fmtDate, fmtDateTime, fmtRelative, fmtTime } from '../../lib/format';
 import { SolicitudHistorial } from './SolicitudHistorial';
@@ -41,6 +43,49 @@ function horarioTexto(detalle, tipoSolicitud) {
     return `${fmtTime(detalle.horaInicio)} – ${fmtTime(detalle.horaFin)}`;
   }
   return 'Jornada completa';
+}
+
+function Sustentos({ detalle }) {
+  const [error, setError] = useState('');
+  const adjuntos = detalle?.adjuntos || [];
+  if (!adjuntos.length) return null;
+
+  async function bajar(adjunto) {
+    setError('');
+    try {
+      const blob = await http.download(`/api/permisos/${detalle.idSolicitudPermiso}/adjuntos/${adjunto.idAdjunto}`);
+      downloadBlob(blob, adjunto.nombreOriginal || 'adjunto');
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sustentación</p>
+      <Alert>{error}</Alert>
+      <ul className="mt-2 space-y-2">
+        {adjuntos.map((a) => (
+          <li key={a.idAdjunto}>
+            <button
+              type="button"
+              onClick={() => bajar(a)}
+              className="flex w-full items-center gap-2 rounded-lg bg-surface px-3 py-2 text-left ring-1 ring-line hover:bg-white"
+            >
+              <Paperclip size={14} className="shrink-0 text-navy" />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-navy">{a.nombreOriginal}</span>
+                <span className="block text-[11px] text-muted">
+                  {a.nombrePaso ? `Paso ${a.numeroPaso} · ${a.nombrePaso}` : 'Archivo'}
+                  {' · '}{peso(a.tamanoBytes)}
+                </span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function asignadoDe(paso, etiqueta) {
@@ -140,6 +185,11 @@ function AprobacionesTimeline({ pasos = [] }) {
                 </p>
               </div>
             )}
+            {p.requiereAdjunto && (
+              <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-navy">
+                <Paperclip size={11} /> Esta actividad exigió sustento del solicitante
+              </p>
+            )}
           </li>
         );
       })}
@@ -204,6 +254,7 @@ export function SolicitudVista({
                   <p className="mt-1.5 text-sm leading-relaxed text-slate-700">{detalle.motivo}</p>
                 </div>
               )}
+              {tipoSolicitud === 'PERMISO' && <Sustentos detalle={detalle} />}
             </div>
             {extra}
           </section>

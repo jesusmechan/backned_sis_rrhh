@@ -282,6 +282,22 @@ export function FlujoConfig() {
                       </Field>
                     )}
                   </div>
+                  {form.tipoOrigen === 'PERMISO' && (
+                    <label className="mt-3 flex items-start gap-2 text-sm text-navy">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={p.requiereAdjunto === true}
+                        onChange={(e) => setPaso(i, 'requiereAdjunto', e.target.checked)}
+                      />
+                      <span>
+                        Requiere adjunto
+                        <span className="mt-0.5 block text-xs font-normal text-muted">
+                          El solicitante deberá subir el sustento de esta actividad al registrar el permiso.
+                        </span>
+                      </span>
+                    </label>
+                  )}
                 </div>
               ))}
             </div>

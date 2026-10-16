@@ -29,7 +29,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 5MB
+      max-request-size: 20MB
 
 springdoc:
   swagger-ui:
@@ -56,3 +56,8 @@ app:
     enabled: ${IDEMPOTENCY_ENABLED:true}
     # Ventana para reutilizar la misma respuesta ante reintentos con Idempotency-Key.
     ttl-hours: ${IDEMPOTENCY_TTL_HOURS:24}
+  # tipo=local guarda en disco. Un adaptador S3 futuro implementa el mismo puerto
+  # y se activa con app.almacen.tipo=s3, usando la clave lógica como object key.
+  almacen:
+    tipo: ${ALMACEN_TIPO:local}
+    directorio: ${ALMACEN_DIRECTORIO:data/adjuntos}

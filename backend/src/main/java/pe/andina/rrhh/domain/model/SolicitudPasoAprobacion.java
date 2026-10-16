@@ -80,6 +80,9 @@ public class SolicitudPasoAprobacion {
     @Column(length = 400)
     private String comentario;
 
+    @Column(name = "requiere_adjunto", nullable = false)
+    private Boolean requiereAdjunto = false;
+
     public Integer getIdPasoSolicitud() { return idPasoSolicitud; }
     public void setIdPasoSolicitud(Integer idPasoSolicitud) { this.idPasoSolicitud = idPasoSolicitud; }
     public SolicitudPermiso getSolicitudPermiso() { return solicitudPermiso; }
@@ -110,4 +113,6 @@ public class SolicitudPasoAprobacion {
     public void setFechaDecision(OffsetDateTime fechaDecision) { this.fechaDecision = fechaDecision; }
     public String getComentario() { return comentario; }
     public void setComentario(String comentario) { this.comentario = comentario; }
+    public Boolean getRequiereAdjunto() { return requiereAdjunto; }
+    public void setRequiereAdjunto(Boolean requiereAdjunto) { this.requiereAdjunto = requiereAdjunto; }
 }

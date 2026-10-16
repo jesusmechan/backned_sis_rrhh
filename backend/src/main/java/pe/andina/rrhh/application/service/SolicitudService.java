@@ -7,7 +7,12 @@ import org.springframework.stereotype.Service;
 import pe.andina.rrhh.application.port.in.NotificacionUseCase;
 import pe.andina.rrhh.application.port.in.SolicitudUseCase;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pe.andina.rrhh.domain.exception.DomainException;
+import pe.andina.rrhh.domain.model.AdjuntoSolicitud;
+import pe.andina.rrhh.domain.model.ConfiguracionAprobacion;
+import pe.andina.rrhh.domain.model.ConfiguracionAprobacionDetalle;
 import pe.andina.rrhh.domain.model.Empleado;
 import pe.andina.rrhh.domain.model.SolicitudHoraExtra;
 import pe.andina.rrhh.domain.model.SolicitudPasoAprobacion;
@@ -15,6 +20,9 @@ import pe.andina.rrhh.domain.model.SolicitudPermiso;
 import pe.andina.rrhh.domain.model.Usuario;
 import pe.andina.rrhh.domain.model.enums.EstadoPasoAprobacion;
 import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
+import pe.andina.rrhh.domain.model.enums.TipoOrigenFlujo;
+import pe.andina.rrhh.application.dto.AppDtos.AdjuntoEntrada;
+import pe.andina.rrhh.application.dto.AppDtos.ArchivoDescarga;
 import pe.andina.rrhh.application.dto.AppDtos.BandejaItem;
 import pe.andina.rrhh.application.dto.AppDtos.DecisionRequest;
 import pe.andina.rrhh.application.dto.AppDtos.HistorialResponse;
@@ -23,6 +31,12 @@ import pe.andina.rrhh.application.dto.AppDtos.HoraExtraResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PasoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoResponse;
+import pe.andina.rrhh.application.dto.AppDtos.RequisitoAdjuntoPaso;
+import pe.andina.rrhh.application.dto.AppDtos.RequisitosAdjuntoResponse;
+import pe.andina.rrhh.application.port.out.AdjuntoSolicitudPort;
+import pe.andina.rrhh.application.port.out.AlmacenArchivosPort;
+import pe.andina.rrhh.application.port.out.ConfiguracionAprobacionDetallePort;
+import pe.andina.rrhh.application.port.out.ConfiguracionAprobacionPort;
 import pe.andina.rrhh.application.port.out.HistorialSolicitudPort;
 import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.port.out.SolicitudHoraExtraPort;
@@ -35,13 +49,25 @@ import pe.andina.rrhh.domain.service.PermisoReglas;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 @Service
 public class SolicitudService implements SolicitudUseCase {
+
+    private static final int MAX_ARCHIVOS_POR_ACTIVIDAD = 3;
+    private static final long MAX_BYTES = 5L * 1024 * 1024;
+    private static final Map<String, String> TIPOS_PERMITIDOS = Map.of(
+            "pdf", "application/pdf",
+            "png", "image/png",
+            "jpg", "image/jpeg",
+            "jpeg", "image/jpeg",
+            "webp", "image/webp"
+    );
 
     private final SolicitudPermisoPort permisoRepository;
     private final SolicitudHoraExtraPort horaExtraRepository;
@@ -57,6 +83,10 @@ public class SolicitudService implements SolicitudUseCase {
 
     private final CurrentUserPort currentUser;
     private final ParametroPort parametros;
+    private final ConfiguracionAprobacionPort flujoRepository;
+    private final ConfiguracionAprobacionDetallePort detalleRepository;
+    private final AdjuntoSolicitudPort adjuntoRepository;
+    private final AlmacenArchivosPort almacen;
 
     public SolicitudService(SolicitudPermisoPort permisoRepository,
                             SolicitudHoraExtraPort horaExtraRepository,
@@ -70,8 +100,16 @@ public class SolicitudService implements SolicitudUseCase {
                             AuditoriaUseCase auditoriaService,
                             NotificacionUseCase notificacionService,
                             CurrentUserPort currentUser,
-                            ParametroPort parametros) {
+                            ParametroPort parametros,
+                            ConfiguracionAprobacionPort flujoRepository,
+                            ConfiguracionAprobacionDetallePort detalleRepository,
+                            AdjuntoSolicitudPort adjuntoRepository,
+                            AlmacenArchivosPort almacen) {
         this.parametros = parametros;
+        this.flujoRepository = flujoRepository;
+        this.detalleRepository = detalleRepository;
+        this.adjuntoRepository = adjuntoRepository;
+        this.almacen = almacen;
         this.permisoRepository = permisoRepository;
         this.horaExtraRepository = horaExtraRepository;
         this.pasoRepository = pasoRepository;
@@ -86,12 +124,31 @@ public class SolicitudService implements SolicitudUseCase {
         this.currentUser = currentUser;
     }
 
+    @Transactional(readOnly = true)
+    public RequisitosAdjuntoResponse requisitosAdjunto(Integer idTipoPermiso) {
+        if (idTipoPermiso == null) {
+            throw DomainException.badRequest("Seleccione el tipo de permiso");
+        }
+        tipoPermisoRepository.findById(idTipoPermiso)
+                .orElseThrow(() -> DomainException.badRequest("Tipo de permiso no existe"));
+        ConfiguracionAprobacion flujo = resolverFlujoPermiso(idTipoPermiso);
+        List<RequisitoAdjuntoPaso> pasos = actividades(flujo).stream()
+                .map(d -> new RequisitoAdjuntoPaso(
+                        d.getNumeroPaso(),
+                        d.getNombrePaso(),
+                        Boolean.TRUE.equals(d.getRequiereAdjunto())))
+                .toList();
+        return new RequisitosAdjuntoResponse(flujo.getNombre(), pasos);
+    }
+
     @Transactional
-    public PermisoResponse crearPermiso(PermisoRequest request) {
+    public PermisoResponse crearPermiso(PermisoRequest request, List<AdjuntoEntrada> adjuntos) {
+        List<AdjuntoEntrada> archivos = adjuntos == null ? List.of() : adjuntos;
         Empleado empleado = empleadoScope.resolverSolicitante(request.idEmpleado());
         var tipo = tipoPermisoRepository.findById(request.idTipoPermiso())
                 .orElseThrow(() -> DomainException.badRequest("Tipo de permiso no existe"));
         permisoReglas.validarAlCrear(empleado, tipo, request);
+        validarAdjuntos(actividades(resolverFlujoPermiso(request.idTipoPermiso())), archivos);
         SolicitudPermiso s = new SolicitudPermiso();
         s.setEmpleado(empleado);
         s.setTipoPermiso(tipo);
@@ -103,8 +160,11 @@ public class SolicitudService implements SolicitudUseCase {
         s.setEstado(EstadoSolicitud.PENDIENTE);
         permisoRepository.saveAndFlush(s);
         entityManager.refresh(s);
+        List<SolicitudPasoAprobacion> pasos = pasoRepository
+                .findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso());
+        guardarAdjuntos(s, pasos, archivos);
         auditoriaService.registrar(currentUser.usuario(), "REGISTRAR", "PERMISO", s.getIdSolicitudPermiso(), s.getMotivo());
-        notificarPasoEnCurso(pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
+        notificarPasoEnCurso(pasos);
         return toPermiso(s);
     }
 
@@ -387,8 +447,149 @@ public class SolicitudService implements SolicitudUseCase {
                 paso.getSolicitudHoraExtra().getIdSolicitudHoraExtra());
     }
 
+    @Transactional(readOnly = true)
+    public ArchivoDescarga descargarAdjunto(Integer idSolicitud, Integer idAdjunto) {
+        obtenerPermiso(idSolicitud);
+        AdjuntoSolicitud adjunto = adjuntoRepository
+                .findByIdAdjuntoAndSolicitudPermiso_IdSolicitudPermiso(idAdjunto, idSolicitud)
+                .orElseThrow(() -> DomainException.notFound("Archivo no encontrado"));
+        return new ArchivoDescarga(adjunto.getNombreOriginal(), adjunto.getTipoContenido(), almacen.leer(adjunto.getClaveAlmacen()));
+    }
+
     private PermisoResponse toPermiso(SolicitudPermiso s) {
-        return DtoMapper.permiso(s, pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
+        return DtoMapper.permiso(
+                s,
+                pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()),
+                adjuntoRepository.findBySolicitudPermisoId(s.getIdSolicitudPermiso()));
+    }
+
+    private ConfiguracionAprobacion resolverFlujoPermiso(Integer idTipoPermiso) {
+        return flujoRepository.findActivaPorTipoPermiso(TipoOrigenFlujo.PERMISO, idTipoPermiso)
+                .or(() -> flujoRepository.findActivaGenerica(TipoOrigenFlujo.PERMISO))
+                .orElseThrow(() -> DomainException.badRequest("No existe un flujo de aprobación activo para este permiso"));
+    }
+
+    private List<ConfiguracionAprobacionDetalle> actividades(ConfiguracionAprobacion flujo) {
+        return detalleRepository.findByConfiguracion_IdConfiguracionOrderByNumeroPasoAsc(flujo.getIdConfiguracion())
+                .stream()
+                .filter(d -> Boolean.TRUE.equals(d.getActivo()))
+                .toList();
+    }
+
+    private void validarAdjuntos(List<ConfiguracionAprobacionDetalle> actividades, List<AdjuntoEntrada> archivos) {
+        Map<Integer, ConfiguracionAprobacionDetalle> porNumero = new HashMap<>();
+        for (ConfiguracionAprobacionDetalle actividad : actividades) {
+            porNumero.put(actividad.getNumeroPaso(), actividad);
+        }
+        Map<Integer, Integer> cantidades = new HashMap<>();
+        for (AdjuntoEntrada archivo : archivos) {
+            ConfiguracionAprobacionDetalle actividad = porNumero.get(archivo.numeroPaso());
+            if (actividad == null || !Boolean.TRUE.equals(actividad.getRequiereAdjunto())) {
+                throw DomainException.badRequest("El archivo no corresponde a una actividad que exija sustento");
+            }
+            validarArchivo(archivo, actividad.getNombrePaso());
+            cantidades.merge(archivo.numeroPaso(), 1, Integer::sum);
+        }
+        for (ConfiguracionAprobacionDetalle actividad : actividades) {
+            if (!Boolean.TRUE.equals(actividad.getRequiereAdjunto())) {
+                continue;
+            }
+            int cantidad = cantidades.getOrDefault(actividad.getNumeroPaso(), 0);
+            if (cantidad == 0) {
+                throw DomainException.badRequest("La actividad \"" + actividad.getNombrePaso() + "\" requiere un archivo de sustentación");
+            }
+            if (cantidad > MAX_ARCHIVOS_POR_ACTIVIDAD) {
+                throw DomainException.badRequest("La actividad \"" + actividad.getNombrePaso() + "\" admite como máximo "
+                        + MAX_ARCHIVOS_POR_ACTIVIDAD + " archivos");
+            }
+        }
+    }
+
+    private void validarArchivo(AdjuntoEntrada archivo, String actividad) {
+        byte[] contenido = archivo.contenido();
+        if (contenido == null || contenido.length == 0) {
+            throw DomainException.badRequest("El archivo de \"" + actividad + "\" está vacío");
+        }
+        if (contenido.length > MAX_BYTES) {
+            throw DomainException.badRequest("El archivo de \"" + actividad + "\" supera los 5 MB");
+        }
+        String extension = extension(archivo.nombreOriginal());
+        String esperado = TIPOS_PERMITIDOS.get(extension);
+        if (esperado == null) {
+            throw DomainException.badRequest("La actividad \"" + actividad + "\" solo admite PDF, PNG, JPG o WEBP");
+        }
+        String declarado = archivo.tipoContenido() == null ? "" : archivo.tipoContenido().toLowerCase(Locale.ROOT).trim();
+        int separador = declarado.indexOf(';');
+        if (separador >= 0) {
+            declarado = declarado.substring(0, separador).trim();
+        }
+        if (!declarado.isBlank()
+                && !declarado.equals("application/octet-stream")
+                && !declarado.equals(esperado)
+                && !(extension.equals("jpg") && declarado.equals("image/jpg"))) {
+            throw DomainException.badRequest("El tipo del archivo de \"" + actividad + "\" no coincide con su extensión");
+        }
+    }
+
+    private void guardarAdjuntos(SolicitudPermiso solicitud, List<SolicitudPasoAprobacion> pasos, List<AdjuntoEntrada> archivos) {
+        if (archivos.isEmpty()) {
+            return;
+        }
+        Map<Integer, SolicitudPasoAprobacion> porNumero = new HashMap<>();
+        for (SolicitudPasoAprobacion paso : pasos) {
+            porNumero.put(paso.getNumeroPaso(), paso);
+        }
+        List<String> claves = new ArrayList<>();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                        claves.forEach(almacen::eliminar);
+                    }
+                }
+            });
+        }
+        for (AdjuntoEntrada archivo : archivos) {
+            SolicitudPasoAprobacion paso = porNumero.get(archivo.numeroPaso());
+            if (paso == null) {
+                throw DomainException.badRequest("No se encontró la actividad del sustento");
+            }
+            String extension = extension(archivo.nombreOriginal());
+            String clave = almacen.guardar("permisos/" + solicitud.getIdSolicitudPermiso(), archivo.nombreOriginal(), archivo.contenido());
+            claves.add(clave);
+            AdjuntoSolicitud adjunto = new AdjuntoSolicitud();
+            adjunto.setSolicitudPermiso(solicitud);
+            adjunto.setPaso(paso);
+            adjunto.setNombreOriginal(nombreVisible(archivo.nombreOriginal()));
+            adjunto.setTipoContenido(TIPOS_PERMITIDOS.get(extension));
+            adjunto.setTamanoBytes((long) archivo.contenido().length);
+            adjunto.setClaveAlmacen(clave);
+            adjuntoRepository.save(adjunto);
+        }
+    }
+
+    private static String extension(String nombre) {
+        if (nombre == null) {
+            return "";
+        }
+        int punto = nombre.lastIndexOf('.');
+        if (punto < 0 || punto == nombre.length() - 1) {
+            return "";
+        }
+        return nombre.substring(punto + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private static String nombreVisible(String nombre) {
+        String base = nombre == null ? "archivo" : nombre.trim();
+        int slash = Math.max(base.lastIndexOf('/'), base.lastIndexOf('\\'));
+        if (slash >= 0) {
+            base = base.substring(slash + 1);
+        }
+        if (base.isBlank()) {
+            return "archivo";
+        }
+        return base.length() > 255 ? base.substring(base.length() - 255) : base;
     }
 
     private HoraExtraResponse toHoraExtra(SolicitudHoraExtra s) {

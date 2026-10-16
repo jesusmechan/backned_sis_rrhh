@@ -9,6 +9,7 @@ import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.ConfiguracionAprobacion;
 import pe.andina.rrhh.domain.model.ConfiguracionAprobacionDetalle;
 import pe.andina.rrhh.domain.model.enums.TipoAprobador;
+import pe.andina.rrhh.domain.model.enums.TipoOrigenFlujo;
 import pe.andina.rrhh.application.dto.AppDtos.FlujoPasoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.FlujoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.FlujoResponse;
@@ -107,6 +108,10 @@ public class FlujoService implements FlujoUseCase {
             d.setNombrePaso(p.nombrePaso());
             d.setTipoAprobador(p.tipoAprobador());
             d.setEsObligatorio(p.esObligatorio() == null || p.esObligatorio());
+            if (Boolean.TRUE.equals(p.requiereAdjunto()) && c.getTipoOrigen() != TipoOrigenFlujo.PERMISO) {
+                throw DomainException.badRequest("El adjunto solo se configura en flujos de permiso");
+            }
+            d.setRequiereAdjunto(c.getTipoOrigen() == TipoOrigenFlujo.PERMISO && Boolean.TRUE.equals(p.requiereAdjunto()));
             d.setActivo(true);
             if (p.tipoAprobador() == TipoAprobador.ROL) {
                 if (p.idRol() == null) {

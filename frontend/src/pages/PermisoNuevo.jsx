@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { http, pagePath, SELECT_SIZE, toTime } from '../api/client';
+import { api, http, pagePath, SELECT_SIZE, toTime } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useConfig } from '../auth/ConfigContext';
 import { Alert, BackLink, Button, DatePicker, Field, TimePicker } from '../components/ui';
+import { Dropzone } from '../components/Dropzone';
 import { useDuplicarPrefill } from '../lib/useDuplicarPrefill';
 import { text } from '../lib/input';
 
 const empty = {
   idEmpleado: '', idTipoPermiso: '', fechaInicio: '', fechaFin: '', horaInicio: '', horaFin: '', motivo: ''
 };
+
+const MAX_ARCHIVOS = 3;
+const MAX_BYTES = 5 * 1024 * 1024;
+const EXTENSIONES = ['pdf', 'png', 'jpg', 'jpeg', 'webp'];
+
+function extensionDe(nombre) {
+  const i = String(nombre || '').lastIndexOf('.');
+  return i < 0 ? '' : nombre.slice(i + 1).toLowerCase();
+}
 
 export function PermisoNuevo() {
   const navigate = useNavigate();
@@ -22,6 +32,8 @@ export function PermisoNuevo() {
   const [empleados, setEmpleados] = useState([]);
   const [tipos, setTipos] = useState([]);
   const [saldo, setSaldo] = useState(null);
+  const [requisitos, setRequisitos] = useState(null);
+  const [archivos, setArchivos] = useState({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const prefillVacaciones = Boolean(location.state?.vacaciones);
@@ -46,9 +58,23 @@ export function PermisoNuevo() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  useEffect(() => {
+    setArchivos({});
+    if (!form.idTipoPermiso) {
+      setRequisitos(null);
+      return;
+    }
+    let cancelled = false;
+    http.get(`/api/permisos/requisitos-adjunto?idTipoPermiso=${form.idTipoPermiso}`)
+      .then((data) => { if (!cancelled) setRequisitos(data); })
+      .catch((e) => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [form.idTipoPermiso]);
+
   const tipoSel = tipos.find((t) => String(t.id) === String(form.idTipoPermiso));
   const esVacaciones = Boolean(tipoSel?.esVacaciones);
   const idEmpleadoSaldo = form.idEmpleado || usuario?.idEmpleado;
+  const actividadesConAdjunto = (requisitos?.pasos || []).filter((p) => p.requiereAdjunto);
 
   useEffect(() => {
     if (!esVacaciones || !idEmpleadoSaldo) {
@@ -79,17 +105,41 @@ export function PermisoNuevo() {
       setError(`El motivo debe tener al menos ${motivoMin} caracteres.`);
       return;
     }
+    for (const paso of actividadesConAdjunto) {
+      const files = archivos[paso.numeroPaso] || [];
+      if (!files.length) {
+        setError(`Adjunte el sustento de "${paso.nombrePaso}".`);
+        return;
+      }
+      if (files.length > MAX_ARCHIVOS) {
+        setError(`"${paso.nombrePaso}" admite como máximo ${MAX_ARCHIVOS} archivos.`);
+        return;
+      }
+      for (const file of files) {
+        if (!EXTENSIONES.includes(extensionDe(file.name))) {
+          setError(`"${file.name}" no es PDF, PNG, JPG ni WEBP.`);
+          return;
+        }
+        if (file.size > MAX_BYTES) {
+          setError(`"${file.name}" supera los 5 MB.`);
+          return;
+        }
+      }
+    }
+    const payload = {
+      idEmpleado: form.idEmpleado ? Number(form.idEmpleado) : usuario.idEmpleado,
+      idTipoPermiso: Number(form.idTipoPermiso),
+      fechaInicio: form.fechaInicio,
+      fechaFin: form.fechaFin,
+      horaInicio: toTime(form.horaInicio),
+      horaFin: toTime(form.horaFin),
+      motivo: form.motivo.trim()
+    };
     setSaving(true);
     try {
-      const saved = await http.post('/api/permisos', {
-        idEmpleado: form.idEmpleado ? Number(form.idEmpleado) : usuario.idEmpleado,
-        idTipoPermiso: Number(form.idTipoPermiso),
-        fechaInicio: form.fechaInicio,
-        fechaFin: form.fechaFin,
-        horaInicio: toTime(form.horaInicio),
-        horaFin: toTime(form.horaFin),
-        motivo: form.motivo.trim()
-      });
+      const saved = actividadesConAdjunto.length
+        ? await enviarConAdjuntos(payload, actividadesConAdjunto, archivos)
+        : await http.post('/api/permisos', payload);
       navigate(`/permisos/${saved.idSolicitudPermiso}`, {
         replace: true,
         state: { ok: 'Permiso registrado. El flujo de aprobación ya está en curso.' }
@@ -169,6 +219,50 @@ export function PermisoNuevo() {
         </div>
         <p className="mt-4 text-xs text-muted">Las horas son opcionales. Si las indica, deben ir las dos y la de fin debe ser posterior a la de inicio. Dejarlas vacías registra el día completo.</p>
       </section>
+
+      {form.idTipoPermiso && (
+        <section className="mt-4 rounded-xl border border-line bg-white p-5">
+          <p className="text-sm font-semibold text-navy">Sustentación</p>
+          {actividadesConAdjunto.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">
+              {requisitos ? `El flujo ${requisitos.flujo || ''} no exige archivos.` : 'Consultando el flujo…'}
+            </p>
+          ) : (
+            <div className="mt-3 space-y-4">
+              <p className="text-xs text-muted">
+                Adjunte al menos un archivo por cada actividad que exige sustento.
+              </p>
+              {actividadesConAdjunto.map((paso) => (
+                <div key={paso.numeroPaso} className="rounded-lg border border-line bg-slate-50 p-3">
+                  <p className="mb-2 text-sm font-medium text-navy">Paso {paso.numeroPaso} · {paso.nombrePaso}</p>
+                  <Dropzone
+                    files={archivos[paso.numeroPaso] || []}
+                    onChange={(lista) => setArchivos((prev) => ({ ...prev, [paso.numeroPaso]: lista }))}
+                    extensiones={EXTENSIONES}
+                    maxArchivos={MAX_ARCHIVOS}
+                    maxBytes={MAX_BYTES}
+                    label="Arrastre aquí el sustento"
+                    hint={`PDF, PNG, JPG o WEBP · hasta 5 MB · máximo ${MAX_ARCHIVOS} archivos`}
+                    disabled={saving}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </form>
   );
+}
+
+async function enviarConAdjuntos(payload, actividades, archivos) {
+  const data = new FormData();
+  data.append('datos', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  for (const paso of actividades) {
+    for (const file of archivos[paso.numeroPaso] || []) {
+      data.append('archivos', file);
+      data.append('numeroPaso', String(paso.numeroPaso));
+    }
+  }
+  return api('/api/permisos', { method: 'POST', body: data });
 }

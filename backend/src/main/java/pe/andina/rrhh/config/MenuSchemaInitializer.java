@@ -73,6 +73,7 @@ public class MenuSchemaInitializer implements ApplicationRunner {
 
         // Contiene bloques $$ que ResourceDatabasePopulator no sabe partir: se envía entero.
         jdbcTemplate.execute(leer("db/06_configuracion_dinamica.sql"));
+        jdbcTemplate.execute(leer("db/07_adjuntos_flujo.sql"));
     }
 
     private static String leer(String ruta) {

@@ -80,7 +80,7 @@ public class AprobacionController {
                 .pagina(page, size);
     }
 
-    private static boolean enRango(BandejaItem item, LocalDate desde, LocalDate hasta) {
+    private boolean enRango(BandejaItem item, LocalDate desde, LocalDate hasta) {
         if (item.fechaInicio() == null) {
             return false;
         }

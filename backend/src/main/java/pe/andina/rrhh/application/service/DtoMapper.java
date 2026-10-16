@@ -1,5 +1,6 @@
 package pe.andina.rrhh.application.service;
 
+import pe.andina.rrhh.domain.model.AdjuntoSolicitud;
 import pe.andina.rrhh.domain.model.Auditoria;
 import pe.andina.rrhh.domain.model.ConfiguracionAprobacion;
 import pe.andina.rrhh.domain.model.ConfiguracionAprobacionDetalle;
@@ -10,6 +11,7 @@ import pe.andina.rrhh.domain.model.SolicitudHoraExtra;
 import pe.andina.rrhh.domain.model.SolicitudPasoAprobacion;
 import pe.andina.rrhh.domain.model.SolicitudPermiso;
 import pe.andina.rrhh.domain.model.Usuario;
+import pe.andina.rrhh.application.dto.AppDtos.AdjuntoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.AuditoriaResponse;
 import pe.andina.rrhh.application.dto.AppDtos.EmpleadoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.FlujoPasoRequest;
@@ -58,11 +60,23 @@ public final class DtoMapper {
                 p.getUsuarioAsignado() != null ? p.getUsuarioAsignado().getNombreUsuario() : null,
                 p.getEstado(),
                 p.getUsuarioDecision() != null ? p.getUsuarioDecision().getNombreUsuario() : null,
-                p.getFechaInicio(), p.getFechaDecision(), p.getComentario()
+                p.getFechaInicio(), p.getFechaDecision(), p.getComentario(),
+                Boolean.TRUE.equals(p.getRequiereAdjunto())
         );
     }
 
-    public static PermisoResponse permiso(SolicitudPermiso s, List<SolicitudPasoAprobacion> pasos) {
+    public static AdjuntoResponse adjunto(AdjuntoSolicitud a) {
+        return new AdjuntoResponse(
+                a.getIdAdjunto(),
+                a.getPaso() != null ? a.getPaso().getNumeroPaso() : null,
+                a.getPaso() != null ? a.getPaso().getNombrePaso() : null,
+                a.getNombreOriginal(),
+                a.getTipoContenido(),
+                a.getTamanoBytes() == null ? 0 : a.getTamanoBytes()
+        );
+    }
+
+    public static PermisoResponse permiso(SolicitudPermiso s, List<SolicitudPasoAprobacion> pasos, List<AdjuntoSolicitud> adjuntos) {
         return new PermisoResponse(
                 s.getIdSolicitudPermiso(),
                 s.getEmpleado().getIdEmpleado(), s.getEmpleado().nombreCompleto(),
@@ -70,7 +84,8 @@ public final class DtoMapper {
                 s.getConfiguracion() != null ? s.getConfiguracion().getNombre() : null,
                 s.getFechaInicio(), s.getFechaFin(), s.getHoraInicio(), s.getHoraFin(),
                 s.getMotivo(), s.getEstado(), s.getFechaCreacion(),
-                pasos.stream().map(DtoMapper::paso).toList()
+                pasos.stream().map(DtoMapper::paso).toList(),
+                (adjuntos == null ? List.<AdjuntoSolicitud>of() : adjuntos).stream().map(DtoMapper::adjunto).toList()
         );
     }
 
@@ -103,6 +118,7 @@ public final class DtoMapper {
                         p.getRol() != null ? p.getRol().getIdRol() : null,
                         p.getUsuario() != null ? p.getUsuario().getIdUsuario() : null,
                         p.getEsObligatorio(),
+                        Boolean.TRUE.equals(p.getRequiereAdjunto()),
                         p.getRol() != null ? p.getRol().getNombre() : null,
                         p.getUsuario() != null ? p.getUsuario().getNombreUsuario() : null
                 )).toList()

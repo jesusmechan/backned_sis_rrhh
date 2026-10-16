@@ -1,6 +1,8 @@
 package pe.andina.rrhh.application.port.in;
 
 import java.util.List;
+import pe.andina.rrhh.application.dto.AppDtos.AdjuntoEntrada;
+import pe.andina.rrhh.application.dto.AppDtos.ArchivoDescarga;
 import pe.andina.rrhh.application.dto.AppDtos.BandejaItem;
 import pe.andina.rrhh.application.dto.AppDtos.DecisionRequest;
 import pe.andina.rrhh.application.dto.AppDtos.HistorialResponse;
@@ -9,6 +11,7 @@ import pe.andina.rrhh.application.dto.AppDtos.HoraExtraResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PasoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoResponse;
+import pe.andina.rrhh.application.dto.AppDtos.RequisitosAdjuntoResponse;
 
 /**
  * Trámites de permisos y horas extras y su circuito de aprobación.
@@ -24,11 +27,23 @@ public interface SolicitudUseCase {
      * Registra un permiso del usuario actual (o del colaborador indicado, si es ADMIN o RRHH).
      *
      * @param request tipo, fechas, horas opcionales y motivo
+     * @param adjuntos sustentos del solicitante, uno o más por actividad que lo exija
      * @return la solicitud creada en estado {@code PENDIENTE}
      * @throws pe.andina.rrhh.domain.exception.DomainException si las horas son inconsistentes,
-     *         se cruza con otro permiso pendiente o aprobado, o no hay saldo de vacaciones
+     *         se cruza con otro permiso pendiente o aprobado, no hay saldo de vacaciones
+     *         o falta el archivo de una actividad que lo exige
      */
-    PermisoResponse crearPermiso(PermisoRequest request);
+    PermisoResponse crearPermiso(PermisoRequest request, List<AdjuntoEntrada> adjuntos);
+
+    /**
+     * Actividades del flujo que se aplicará al tipo de permiso, indicando cuáles exigen archivo.
+     */
+    RequisitosAdjuntoResponse requisitosAdjunto(Integer idTipoPermiso);
+
+    /**
+     * Descarga un sustento de una solicitud que el usuario puede consultar.
+     */
+    ArchivoDescarga descargarAdjunto(Integer idSolicitud, Integer idAdjunto);
 
     /**
      * Registra horas extras respetando los topes diario y semanal de {@code parametro_sistema}.

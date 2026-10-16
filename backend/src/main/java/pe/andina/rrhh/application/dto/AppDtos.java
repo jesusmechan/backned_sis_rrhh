@@ -269,7 +269,8 @@ public final class AppDtos {
             String motivo,
             EstadoSolicitud estado,
             OffsetDateTime fechaCreacion,
-            List<PasoResponse> pasos
+            List<PasoResponse> pasos,
+            List<AdjuntoResponse> adjuntos
     ) {}
 
     public record HoraExtraRequest(
@@ -310,7 +311,41 @@ public final class AppDtos {
             String usuarioDecision,
             OffsetDateTime fechaInicio,
             OffsetDateTime fechaDecision,
-            String comentario
+            String comentario,
+            boolean requiereAdjunto
+    ) {}
+
+    public record AdjuntoEntrada(
+            int numeroPaso,
+            String nombreOriginal,
+            String tipoContenido,
+            byte[] contenido
+    ) {}
+
+    public record AdjuntoResponse(
+            Integer idAdjunto,
+            Integer numeroPaso,
+            String nombrePaso,
+            String nombreOriginal,
+            String tipoContenido,
+            long tamanoBytes
+    ) {}
+
+    public record RequisitoAdjuntoPaso(
+            Integer numeroPaso,
+            String nombrePaso,
+            boolean requiereAdjunto
+    ) {}
+
+    public record RequisitosAdjuntoResponse(
+            String flujo,
+            List<RequisitoAdjuntoPaso> pasos
+    ) {}
+
+    public record ArchivoDescarga(
+            String nombre,
+            String tipoContenido,
+            byte[] contenido
     ) {}
 
     public record DecisionRequest(
@@ -376,6 +411,7 @@ public final class AppDtos {
             Integer idRol,
             Integer idUsuario,
             Boolean esObligatorio,
+            Boolean requiereAdjunto,
             String rol,
             String usuario
     ) {}

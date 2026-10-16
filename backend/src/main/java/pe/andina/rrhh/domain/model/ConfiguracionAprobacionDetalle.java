@@ -50,6 +50,9 @@ public class ConfiguracionAprobacionDetalle {
     @Column(name = "es_obligatorio", nullable = false)
     private Boolean esObligatorio = true;
 
+    @Column(name = "requiere_adjunto", nullable = false)
+    private Boolean requiereAdjunto = false;
+
     @Column(nullable = false)
     private Boolean activo = true;
 
@@ -69,6 +72,8 @@ public class ConfiguracionAprobacionDetalle {
     public void setUsuario(Usuario usuario) { this.usuario = usuario; }
     public Boolean getEsObligatorio() { return esObligatorio; }
     public void setEsObligatorio(Boolean esObligatorio) { this.esObligatorio = esObligatorio; }
+    public Boolean getRequiereAdjunto() { return requiereAdjunto; }
+    public void setRequiereAdjunto(Boolean requiereAdjunto) { this.requiereAdjunto = requiereAdjunto; }
     public Boolean getActivo() { return activo; }
     public void setActivo(Boolean activo) { this.activo = activo; }
 }

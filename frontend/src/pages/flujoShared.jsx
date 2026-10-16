@@ -1,4 +1,4 @@
-import { User, UserCog, Users } from 'lucide-react';
+import { Paperclip, User, UserCog, Users } from 'lucide-react';
 import { useConfig } from '../auth/ConfigContext';
 import { Badge } from '../components/ui';
 import { fmtShortDateTime } from '../lib/format';
@@ -20,7 +20,8 @@ export function emptyPaso(n = 1) {
     tipoAprobador: 'JEFE_INMEDIATO',
     idRol: '',
     idUsuario: '',
-    esObligatorio: true
+    esObligatorio: true,
+    requiereAdjunto: false
   };
 }
 
@@ -51,7 +52,8 @@ export function toForm(row) {
       tipoAprobador: p.tipoAprobador,
       idRol: p.idRol || '',
       idUsuario: p.idUsuario || '',
-      esObligatorio: p.esObligatorio !== false
+      esObligatorio: p.esObligatorio !== false,
+      requiereAdjunto: p.requiereAdjunto === true
     }))
   };
 }
@@ -132,6 +134,11 @@ function PasoBox({ paso, index, roles, usuarios }) {
             {etiqueta('TIPO_APROBADOR', paso.tipoAprobador)}
           </p>
           <p className="truncate text-xs text-slate-500">{asignado(paso, roles, usuarios)}</p>
+          {paso.requiereAdjunto && (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-navy">
+              <Paperclip size={11} /> Sustento obligatorio
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -191,6 +198,7 @@ export function FlujogramaCompact({ pasos, roles, usuarios }) {
                 </span>
                 <Icon size={12} className="text-slate-400" />
                 <span className="max-w-[9rem] truncate text-[11px] font-medium text-navy">{p.nombrePaso || 'Sin nombre'}</span>
+                {p.requiereAdjunto && <Paperclip size={11} className="text-navy" />}
               </div>
               <p className="mt-0.5 max-w-[10rem] truncate pl-7 text-[10px] text-muted">{quien}</p>
             </div>
@@ -245,7 +253,8 @@ export function toPayload(form) {
       tipoAprobador: p.tipoAprobador,
       idRol: p.tipoAprobador === 'ROL' && p.idRol ? Number(p.idRol) : null,
       idUsuario: p.tipoAprobador === 'USUARIO' && p.idUsuario ? Number(p.idUsuario) : null,
-      esObligatorio: p.esObligatorio !== false
+      esObligatorio: p.esObligatorio !== false,
+      requiereAdjunto: form.tipoOrigen === 'PERMISO' && p.requiereAdjunto === true
     }))
   };
 }
