@@ -1,5 +1,8 @@
 package pe.andina.rrhh.application.service;
 
+import com.google.common.base.Splitter;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.springframework.stereotype.Service;
 import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.port.out.ParametroSistemaPort;
@@ -13,10 +16,9 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.EnumSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ParametroSistemaService implements ParametroPort {
@@ -26,7 +28,10 @@ public class ParametroSistemaService implements ParametroPort {
 
     private final ParametroSistemaPort parametroRepository;
     private final ParametroVigenciaPort vigenciaRepository;
-    private final Map<String, Optional<String>> cache = new ConcurrentHashMap<>();
+    private final Cache<String, Optional<String>> cache = CacheBuilder.newBuilder()
+            .maximumSize(256)
+            .expireAfterWrite(10, TimeUnit.MINUTES)
+            .build();
 
     public ParametroSistemaService(ParametroSistemaPort parametroRepository,
                                    ParametroVigenciaPort vigenciaRepository) {
@@ -59,12 +64,16 @@ public class ParametroSistemaService implements ParametroPort {
 
     @Override
     public String texto(String clave) {
-        return cache.computeIfAbsent(clave, k -> parametroRepository.findById(k)
-                        .map(ParametroSistema::getValor)
-                        .map(String::trim)
-                        .filter(v -> !v.isEmpty()))
-                .orElseThrow(() -> DomainException.badRequest(
-                        "Falta configurar el parámetro «" + clave + "» en Maestros › Parámetros"));
+        Optional<String> cached = cache.getIfPresent(clave);
+        if (cached == null) {
+            cached = parametroRepository.findById(clave)
+                    .map(ParametroSistema::getValor)
+                    .map(String::trim)
+                    .filter(v -> !v.isEmpty());
+            cache.put(clave, cached);
+        }
+        return cached.orElseThrow(() -> DomainException.badRequest(
+                "Falta configurar el parámetro «" + clave + "» en Maestros › Parámetros"));
     }
 
     @Override
@@ -79,9 +88,9 @@ public class ParametroSistemaService implements ParametroPort {
     @Override
     public Set<DayOfWeek> diasLaborables() {
         Set<DayOfWeek> dias = EnumSet.noneOf(DayOfWeek.class);
-        for (String parte : texto(DIAS_LABORABLES).split(",")) {
+        for (String parte : Splitter.on(',').trimResults().omitEmptyStrings().split(texto(DIAS_LABORABLES))) {
             try {
-                dias.add(DayOfWeek.of(Integer.parseInt(parte.trim())));
+                dias.add(DayOfWeek.of(Integer.parseInt(parte)));
             } catch (RuntimeException e) {
                 throw invalido(DIAS_LABORABLES, "debe listar días del 1 (lunes) al 7 (domingo) separados por coma");
             }
@@ -91,7 +100,7 @@ public class ParametroSistemaService implements ParametroPort {
 
     @Override
     public void invalidar() {
-        cache.clear();
+        cache.invalidateAll();
     }
 
     private BigDecimal aDecimal(String clave, String valor) {

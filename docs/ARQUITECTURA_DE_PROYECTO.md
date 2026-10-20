@@ -101,6 +101,7 @@ flowchart TB
   subgraph salida [Adaptadores de salida]
     JPA["adapter.out.persistence\nRepositorios JPA"]
     PDF["adapter.out.pdf\nBoletas"]
+    XLS["adapter.out.excel\nApache POI"]
     WS["adapter.out.ws\nSTOMP notificaciones"]
   end
 
@@ -116,6 +117,7 @@ flowchart TB
   REGLAS --> EX
   OUT --> JPA
   OUT --> PDF
+  OUT --> XLS
   OUT --> WS
   SEC -.->|"JwtService implementa TokenPort\nSpringCurrentUserAdapter implementa CurrentUserPort"| OUT
 ```
@@ -180,6 +182,7 @@ El caso de uso **pide un puerto** (`permisoRepository.save(...)`). No sabe si de
 |---|---|---|
 | `adapter/out/persistence` | PostgreSQL vía Spring Data | Cada `*Repository` **extiende** `JpaRepository` **y** el `*Port`. |
 | `adapter/out/pdf` | OpenPDF | `BoletaPdfService` implementa `BoletaPdfPort`. |
+| `adapter/out/excel` | Apache POI | `PoiExcelAdapter` implementa `ExcelPort` (carga masiva y reportes .xlsx). |
 | `adapter/out/ws` | Broker STOMP en memoria | Empuja notificaciones a `/user/queue/notificaciones`. |
 | `config/` | Adaptadores | CORS, cadena JWT, Swagger, `MenuSchemaInitializer`. |
 | `resources/db/schema.sql` | Base ya instalada | Parche idempotente al arrancar (roles, menú, cuentas de demo). |

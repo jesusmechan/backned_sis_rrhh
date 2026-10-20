@@ -6,6 +6,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -17,6 +19,8 @@ import pe.andina.rrhh.config.RateLimitProperties;
  * Login/refresh usan un cupo más estricto (mitiga fuerza bruta).
  */
 public class RateLimitFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
     private final RateLimitProperties properties;
     private final RateLimitService rateLimitService;
@@ -51,6 +55,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader("X-RateLimit-Remaining", String.valueOf(decision.remaining()));
 
         if (!decision.allowed()) {
+            log.warn("Rate limit excedido path={} auth={} cliente={}", path, auth, clientKey);
             response.setHeader("Retry-After", String.valueOf(decision.retryAfterSeconds()));
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);

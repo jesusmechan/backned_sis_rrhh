@@ -9,10 +9,8 @@ import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import pe.andina.rrhh.application.port.in.ReporteUseCase;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +23,7 @@ import pe.andina.rrhh.application.dto.AppDtos.HoraExtraResponse;
 import pe.andina.rrhh.application.dto.AppDtos.MarcacionResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.UsuarioResponse;
+import pe.andina.rrhh.application.port.out.ExcelPort;
 import pe.andina.rrhh.application.port.out.ReporteGeneradoPort;
 
 import java.io.ByteArrayOutputStream;
@@ -33,11 +32,14 @@ import java.util.List;
 @Service
 public class ReporteService implements ReporteUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(ReporteService.class);
+
     private final EmpleadoUseCase empleadoService;
     private final UsuarioUseCase usuarioService;
     private final SolicitudUseCase solicitudService;
     private final AsistenciaUseCase asistenciaService;
     private final ReporteGeneradoPort reporteRepository;
+    private final ExcelPort excelPort;
 
     private final CurrentUserPort currentUser;
 
@@ -46,12 +48,14 @@ public class ReporteService implements ReporteUseCase {
                           SolicitudUseCase solicitudService,
                           AsistenciaUseCase asistenciaService,
                           ReporteGeneradoPort reporteRepository,
+                          ExcelPort excelPort,
                            CurrentUserPort currentUser) {
         this.empleadoService = empleadoService;
         this.usuarioService = usuarioService;
         this.solicitudService = solicitudService;
         this.asistenciaService = asistenciaService;
         this.reporteRepository = reporteRepository;
+        this.excelPort = excelPort;
         this.currentUser = currentUser;
     }
 
@@ -81,7 +85,8 @@ public class ReporteService implements ReporteUseCase {
     public byte[] exportar(TipoReporte tipo, FormatoReporte formato) {
         registrar(tipo, formato);
         List<String[]> rows = filas(tipo);
-        return formato == FormatoReporte.PDF ? toPdf(tipo.name(), rows) : toExcel(tipo.name(), rows);
+        log.info("Exportando reporte tipo={} formato={} filas={}", tipo, formato, rows.size());
+        return formato == FormatoReporte.PDF ? toPdf(tipo.name(), rows) : excelPort.escribir(tipo.name(), rows);
     }
 
     private void registrar(TipoReporte tipo, FormatoReporte formato) {
@@ -139,23 +144,6 @@ public class ReporteService implements ReporteUseCase {
                 yield data;
             }
         };
-    }
-
-    private byte[] toExcel(String sheetName, List<String[]> rows) {
-        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = wb.createSheet(sheetName);
-            for (int i = 0; i < rows.size(); i++) {
-                Row row = sheet.createRow(i);
-                String[] cols = rows.get(i);
-                for (int c = 0; c < cols.length; c++) {
-                    row.createCell(c).setCellValue(cols[c]);
-                }
-            }
-            wb.write(out);
-            return out.toByteArray();
-        } catch (Exception ex) {
-            throw DomainException.badRequest("No se pudo generar el Excel");
-        }
     }
 
     private byte[] toPdf(String titulo, List<String[]> rows) {

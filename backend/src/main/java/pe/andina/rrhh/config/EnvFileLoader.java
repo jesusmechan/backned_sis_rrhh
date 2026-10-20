@@ -5,8 +5,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class EnvFileLoader {
+
+    private static final Logger log = LoggerFactory.getLogger(EnvFileLoader.class);
 
     private EnvFileLoader() {
     }
@@ -14,7 +18,7 @@ public final class EnvFileLoader {
     public static void load() {
         Path envFile = resolveEnvFile();
         if (envFile == null) {
-            System.err.println("No se encontró archivo .env en el directorio de trabajo: " + System.getProperty("user.dir"));
+            log.warn("No se encontró archivo .env en el directorio de trabajo: {}", System.getProperty("user.dir"));
             return;
         }
         try {
@@ -32,7 +36,7 @@ public final class EnvFileLoader {
                 String value = unquote(line.substring(separator + 1).trim());
                 System.setProperty(key, value);
             }
-            System.out.println("Variables cargadas desde " + envFile.toAbsolutePath());
+            log.info("Variables cargadas desde {}", envFile.toAbsolutePath());
         } catch (IOException ex) {
             throw new IllegalStateException("No se pudo leer el archivo .env: " + envFile, ex);
         }

@@ -31,6 +31,13 @@ spring:
       max-file-size: 5MB
       max-request-size: 5MB
 
+logging:
+  level:
+    root: INFO
+    pe.andina.rrhh: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

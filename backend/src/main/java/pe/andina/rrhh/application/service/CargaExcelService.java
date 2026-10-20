@@ -2,11 +2,10 @@ package pe.andina.rrhh.application.service;
 import pe.andina.rrhh.application.port.out.CurrentUserPort;
 import pe.andina.rrhh.application.port.in.EmpleadoUseCase;
 
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import pe.andina.rrhh.application.port.in.CargaExcelUseCase;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,19 +27,28 @@ import pe.andina.rrhh.application.port.out.CargaMasivaDetallePort;
 import pe.andina.rrhh.application.port.out.CargaMasivaPort;
 import pe.andina.rrhh.application.port.out.CargoPort;
 import pe.andina.rrhh.application.port.out.EmpleadoPort;
+import pe.andina.rrhh.application.port.out.ExcelPort;
 import pe.andina.rrhh.application.port.out.HorarioLaboralPort;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class CargaExcelService implements CargaExcelUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(CargaExcelService.class);
+
+    private static final ImmutableList<String> COLUMNAS = ImmutableList.of(
+            "codigo_empleado", "tipo_documento", "numero_documento", "nombres", "apellido_paterno",
+            "apellido_materno", "fecha_nacimiento", "sexo", "correo_institucional", "telefono",
+            "fecha_ingreso", "area", "cargo", "horario", "tipo_contrato", "estado"
+    );
 
     private final EmpleadoUseCase empleadoService;
     private final EmpleadoPort empleadoRepository;
@@ -50,6 +58,7 @@ public class CargaExcelService implements CargaExcelUseCase {
     private final CargaMasivaPort cargaRepository;
     private final CargaMasivaDetallePort detalleRepository;
     private final Validator validator;
+    private final ExcelPort excelPort;
 
     private final CurrentUserPort currentUser;
 
@@ -61,6 +70,7 @@ public class CargaExcelService implements CargaExcelUseCase {
                              CargaMasivaPort cargaRepository,
                              CargaMasivaDetallePort detalleRepository,
                              Validator validator,
+                             ExcelPort excelPort,
                            CurrentUserPort currentUser) {
         this.empleadoService = empleadoService;
         this.empleadoRepository = empleadoRepository;
@@ -70,26 +80,13 @@ public class CargaExcelService implements CargaExcelUseCase {
         this.cargaRepository = cargaRepository;
         this.detalleRepository = detalleRepository;
         this.validator = validator;
+        this.excelPort = excelPort;
         this.currentUser = currentUser;
     }
 
     public byte[] plantilla() {
-        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = wb.createSheet("trabajadores");
-            Row header = sheet.createRow(0);
-            String[] cols = {
-                    "codigo_empleado", "tipo_documento", "numero_documento", "nombres", "apellido_paterno",
-                    "apellido_materno", "fecha_nacimiento", "sexo", "correo_institucional", "telefono",
-                    "fecha_ingreso", "area", "cargo", "horario", "tipo_contrato", "estado"
-            };
-            for (int i = 0; i < cols.length; i++) {
-                header.createCell(i).setCellValue(cols[i]);
-            }
-            wb.write(out);
-            return out.toByteArray();
-        } catch (Exception ex) {
-            throw DomainException.badRequest("No se pudo generar la plantilla");
-        }
+        log.info("Generando plantilla Excel de trabajadores");
+        return excelPort.escribir("trabajadores", ImmutableList.of(COLUMNAS.toArray(String[]::new)));
     }
 
     @Transactional
@@ -102,42 +99,45 @@ public class CargaExcelService implements CargaExcelUseCase {
         carga.setNombreArchivo(file.getOriginalFilename());
         carga.setEstado(EstadoCarga.PROCESANDO);
         cargaRepository.save(carga);
+        log.info("Carga Excel iniciada archivo={} idCarga={}", file.getOriginalFilename(), carga.getIdCarga());
 
-        DataFormatter fmt = new DataFormatter();
         int ok = 0;
         int fail = 0;
         int total = 0;
         List<CargaFilaResponse> filas = new ArrayList<>();
-        try (InputStream in = file.getInputStream(); Workbook wb = new XSSFWorkbook(in)) {
-            Sheet sheet = wb.getSheetAt(0);
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) {
+        try (InputStream in = file.getInputStream()) {
+            List<String[]> filasExcel = excelPort.leer(in);
+            for (int i = 1; i < filasExcel.size(); i++) {
+                String[] row = filasExcel.get(i);
+                if (filaVacia(row)) {
                     continue;
                 }
                 total++;
+                int numeroFila = i + 1;
                 try {
-                    EmpleadoRequest request = mapRow(row, fmt);
+                    EmpleadoRequest request = mapRow(row);
                     validar(request);
                     boolean existe = empleadoRepository.findByCodigoEmpleado(request.codigoEmpleado()).isPresent();
                     if (existe) {
                         Integer id = empleadoRepository.findByCodigoEmpleado(request.codigoEmpleado()).orElseThrow().getIdEmpleado();
                         empleadoService.actualizar(id, request);
-                        registrarDetalle(carga, i + 1, ResultadoFilaCarga.ACTUALIZADO, "Actualizado", filas);
+                        registrarDetalle(carga, numeroFila, ResultadoFilaCarga.ACTUALIZADO, "Actualizado", filas);
                     } else {
                         empleadoService.crear(request);
-                        registrarDetalle(carga, i + 1, ResultadoFilaCarga.INSERTADO, "Registrado", filas);
+                        registrarDetalle(carga, numeroFila, ResultadoFilaCarga.INSERTADO, "Registrado", filas);
                     }
                     ok++;
                 } catch (Exception ex) {
                     fail++;
-                    registrarDetalle(carga, i + 1, ResultadoFilaCarga.ERROR, ex.getMessage(), filas);
+                    log.warn("Error en fila {} de {}: {}", numeroFila, file.getOriginalFilename(), ex.getMessage());
+                    registrarDetalle(carga, numeroFila, ResultadoFilaCarga.ERROR, ex.getMessage(), filas);
                 }
             }
         } catch (Exception ex) {
             carga.setEstado(EstadoCarga.FALLIDA);
             carga.setMensaje(ex.getMessage());
             carga.setFechaFin(OffsetDateTime.now());
+            log.error("No se pudo procesar la carga Excel idCarga={}", carga.getIdCarga(), ex);
             throw DomainException.badRequest("No se pudo leer el Excel: " + ex.getMessage());
         }
         carga.setTotalFilas(total);
@@ -145,6 +145,7 @@ public class CargaExcelService implements CargaExcelUseCase {
         carga.setFilasFallidas(fail);
         carga.setFechaFin(OffsetDateTime.now());
         carga.setEstado(fail == 0 ? EstadoCarga.COMPLETADA : EstadoCarga.COMPLETADA_CON_ERRORES);
+        log.info("Carga Excel finalizada idCarga={} total={} ok={} fail={}", carga.getIdCarga(), total, ok, fail);
         return new CargaResponse(carga.getIdCarga(), carga.getNombreArchivo(), total, ok, fail,
                 carga.getEstado().name(), carga.getMensaje(), filas);
     }
@@ -160,10 +161,10 @@ public class CargaExcelService implements CargaExcelUseCase {
         filas.add(new CargaFilaResponse(fila, resultado.name(), mensaje));
     }
 
-    private EmpleadoRequest mapRow(Row row, DataFormatter fmt) {
-        String areaNombre = cell(row, 11, fmt);
-        String cargoNombre = cell(row, 12, fmt);
-        String horarioNombre = cell(row, 13, fmt);
+    private EmpleadoRequest mapRow(String[] row) {
+        String areaNombre = cell(row, 11);
+        String cargoNombre = cell(row, 12);
+        String horarioNombre = cell(row, 13);
         Integer idArea = areaRepository.findAll().stream()
                 .filter(a -> a.getNombre().equalsIgnoreCase(areaNombre)).findFirst()
                 .orElseThrow(() -> DomainException.badRequest("Área no existe: " + areaNombre)).getIdArea();
@@ -174,30 +175,30 @@ public class CargaExcelService implements CargaExcelUseCase {
                 .filter(h -> h.getNombre().equalsIgnoreCase(horarioNombre)).findFirst()
                 .orElseThrow(() -> DomainException.badRequest("Horario no existe: " + horarioNombre)).getIdHorario();
         return new EmpleadoRequest(
-                cell(row, 0, fmt).toUpperCase(),
-                enumOVacio(cell(row, 1, fmt), TipoDocumento.class, "tipo_documento"),
-                cell(row, 2, fmt).toUpperCase().replaceAll("[^A-Z0-9]", ""),
-                cell(row, 3, fmt),
-                cell(row, 4, fmt),
-                cell(row, 5, fmt),
-                parseDate(cell(row, 6, fmt)),
-                enumOVacio(cell(row, 7, fmt), SexoEmpleado.class, "sexo"),
-                cell(row, 8, fmt).toLowerCase(),
+                cell(row, 0).toUpperCase(),
+                enumOVacio(cell(row, 1), TipoDocumento.class, "tipo_documento"),
+                cell(row, 2).toUpperCase().replaceAll("[^A-Z0-9]", ""),
+                cell(row, 3),
+                cell(row, 4),
+                cell(row, 5),
+                parseDate(cell(row, 6)),
+                enumOVacio(cell(row, 7), SexoEmpleado.class, "sexo"),
+                cell(row, 8).toLowerCase(),
                 null,
-                cell(row, 9, fmt).replaceAll("\\D", ""),
+                cell(row, 9).replaceAll("\\D", ""),
                 null,
-                parseDate(cell(row, 10, fmt)),
+                parseDate(cell(row, 10)),
                 null,
                 idArea, idCargo, idHorario,
-                enumOVacio(cell(row, 14, fmt), TipoContrato.class, "tipo_contrato"),
-                enumOVacio(cell(row, 15, fmt), EstadoEmpleado.class, "estado"),
+                enumOVacio(cell(row, 14), TipoContrato.class, "tipo_contrato"),
+                enumOVacio(cell(row, 15), EstadoEmpleado.class, "estado"),
                 null
         );
     }
 
     /** Celda vacía: el servicio aplica el valor por defecto del catálogo. */
     private <E extends Enum<E>> E enumOVacio(String value, Class<E> clase, String columna) {
-        if (value == null || value.isBlank()) {
+        if (Strings.isNullOrEmpty(value) || value.isBlank()) {
             return null;
         }
         try {
@@ -215,12 +216,19 @@ public class CargaExcelService implements CargaExcelUseCase {
         }
     }
 
-    private String cell(Row row, int idx, DataFormatter fmt) {
-        return row.getCell(idx) == null ? "" : fmt.formatCellValue(row.getCell(idx)).trim();
+    private static boolean filaVacia(String[] row) {
+        return Arrays.stream(row).allMatch(Strings::isNullOrEmpty);
+    }
+
+    private static String cell(String[] row, int idx) {
+        if (row == null || idx >= row.length) {
+            return "";
+        }
+        return Strings.nullToEmpty(row[idx]).trim();
     }
 
     private LocalDate parseDate(String value) {
-        if (value == null || value.isBlank()) {
+        if (Strings.isNullOrEmpty(value) || value.isBlank()) {
             return null;
         }
         return LocalDate.parse(value);

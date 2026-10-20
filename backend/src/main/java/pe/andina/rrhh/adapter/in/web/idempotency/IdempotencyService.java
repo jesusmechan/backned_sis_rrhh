@@ -1,9 +1,7 @@
 package pe.andina.rrhh.adapter.in.web.idempotency;
 
+import com.google.common.hash.Hashing;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -100,12 +98,7 @@ public class IdempotencyService {
     }
 
     private static String sha256(byte[] data) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 no disponible", ex);
-        }
+        return Hashing.sha256().hashBytes(data).toString();
     }
 
     public enum State { IN_PROGRESS, COMPLETED }

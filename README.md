@@ -13,6 +13,8 @@ La consultora es una MYPE. El sistema cubre personal, contratos, asistencia, per
 | API | Java 21, Spring Boot 3.4.5, Spring Security, JPA |
 | Auth | JWT (access 15 min + refresh 7 días) |
 | Exportes | Excel (Apache POI) y PDF (OpenPDF) |
+| Logs | Logback + SLF4J (`backend/logs/rrhh-api.log`) |
+| Utilidades | Google Guava (caché, hashing SHA-256, colecciones) |
 | Frontend | React 19 + Vite (puerto 5173) |
 
 ## Estructura

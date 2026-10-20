@@ -2,6 +2,8 @@ package pe.andina.rrhh.application.service;
 import pe.andina.rrhh.application.port.in.AuditoriaUseCase;
 import pe.andina.rrhh.application.port.in.SesionUseCase;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import pe.andina.rrhh.application.port.in.AuthUseCase;
@@ -21,6 +23,8 @@ import java.util.UUID;
 
 @Service
 public class AuthService implements AuthUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UsuarioPort usuarioRepository;
     private final RefreshTokenPort refreshTokenRepository;
@@ -49,11 +53,16 @@ public class AuthService implements AuthUseCase {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         Usuario usuario = usuarioRepository.findByNombreUsuario(request.nombreUsuario())
-                .orElseThrow(() -> DomainException.unauthorized("Usuario o contraseña incorrectos"));
+                .orElseThrow(() -> {
+                    log.warn("Login rechazado usuario={}", request.nombreUsuario());
+                    return DomainException.unauthorized("Usuario o contraseña incorrectos");
+                });
         if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            log.warn("Login rechazado usuario inactivo={}", request.nombreUsuario());
             throw DomainException.unauthorized("El usuario está inactivo");
         }
         if (!passwordMatches(request.password(), usuario.getPasswordHash())) {
+            log.warn("Login rechazado usuario={}", request.nombreUsuario());
             throw DomainException.unauthorized("Usuario o contraseña incorrectos");
         }
         usuario.getRol().getCodigo();
@@ -62,6 +71,7 @@ public class AuthService implements AuthUseCase {
         }
         usuario.setUltimoAcceso(OffsetDateTime.now());
         auditoriaService.registrar(usuario, "LOGIN", "USUARIO", usuario.getIdUsuario(), null);
+        log.info("Login exitoso usuario={} rol={}", usuario.getNombreUsuario(), usuario.getRol().getCodigo());
         return emitirTokens(usuario);
     }
 
