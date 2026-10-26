@@ -43,6 +43,26 @@ async function parseError(response) {
 let refreshPromise = null;
 const inflightGet = new Map();
 
+function newRequestId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function traceApi(requestId, method, path, status, startedAt) {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+  const ms = Math.round(performance.now() - startedAt);
+  const line = `[${requestId}] ${method} ${path} -> ${status} ${ms}ms`;
+  if (status >= 400) {
+    console.warn(line);
+  } else {
+    console.debug(line);
+  }
+}
+
 async function refreshAccess() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
@@ -50,7 +70,10 @@ async function refreshAccess() {
   }
   const response = await fetch('/api/auth/refresh', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Request-Id': newRequestId()
+    },
     body: JSON.stringify({ refreshToken })
   });
   if (!response.ok) {
@@ -71,6 +94,10 @@ async function send(path, options = {}) {
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
+  const requestId = headers.get('X-Request-Id') || newRequestId();
+  headers.set('X-Request-Id', requestId);
+  const method = String(options.method || 'GET').toUpperCase();
+  const startedAt = performance.now();
 
   let response = await fetch(path, { ...options, headers });
   if (response.status === 401 && !path.startsWith('/api/auth/')) {
@@ -82,12 +109,14 @@ async function send(path, options = {}) {
       headers.set('Authorization', `Bearer ${nextToken}`);
       response = await fetch(path, { ...options, headers });
     } catch {
+      traceApi(requestId, method, path, 401, startedAt);
       clearSession();
       window.location.assign('/login');
       throw new Error('Debe iniciar sesión');
     }
   }
 
+  traceApi(requestId, method, path, response.status, startedAt);
   if (!response.ok) {
     throw new Error(await parseError(response));
   }

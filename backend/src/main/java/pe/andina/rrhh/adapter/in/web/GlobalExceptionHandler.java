@@ -30,18 +30,21 @@ public class GlobalExceptionHandler {
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
             case CONFLICT -> HttpStatus.CONFLICT;
         };
+        log.warn("Error de dominio status={} code={} message={}", status.value(), ex.getCode(), ex.getMessage());
         return ResponseEntity.status(status)
                 .body(ApiError.of(status.value(), status.getReasonPhrase(), ex.getMessage()));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException ex) {
+        log.warn("Credenciales inválidas");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiError.of(401, "Unauthorized", "Usuario o contraseña incorrectos"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleDenied(AccessDeniedException ex) {
+        log.warn("Acceso denegado: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiError.of(403, "Forbidden", "No tiene permisos para esta operación"));
     }
@@ -52,6 +55,7 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .map(err -> err.getDefaultMessage() != null ? err.getDefaultMessage() : "Datos inválidos")
                 .orElse("Datos inválidos");
+        log.warn("Validación fallida: {}", message);
         return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", message));
     }
 
@@ -61,11 +65,14 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .map(v -> v.getMessage() != null ? v.getMessage() : "Datos inválidos")
                 .orElse("Datos inválidos");
+        log.warn("Constraint inválida: {}", message);
         return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", message));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex) {
+        log.warn("Cuerpo de solicitud no legible: {}", ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage() : ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ApiError.of(400, "Bad Request", "El cuerpo de la solicitud no es válido"));
     }
@@ -90,10 +97,12 @@ public class GlobalExceptionHandler {
         String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         String lower = detail == null ? "" : detail.toLowerCase();
         if (lower.contains("ck_permiso_horas")) {
+            log.warn("Integridad: rango de horas inválido");
             return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
                     "La hora de fin debe ser posterior a la de inicio. Para un día completo, deje las horas vacías."));
         }
         if (lower.contains("ck_permiso_rango_fechas")) {
+            log.warn("Integridad: rango de fechas inválido");
             return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
                     "La fecha de fin no puede ser anterior a la de inicio."));
         }

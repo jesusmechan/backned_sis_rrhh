@@ -35,6 +35,7 @@ logging:
   level:
     root: INFO
     pe.andina.rrhh: INFO
+    pe.andina.rrhh.trace: INFO
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
 
