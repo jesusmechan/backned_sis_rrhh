@@ -4,9 +4,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
-import 'screens/login_screen.dart';
-import 'screens/shell_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/api_client.dart';
+import 'services/server_link.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -20,35 +20,25 @@ class AndinaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final api = ApiClient();
     return ChangeNotifierProvider(
-      create: (_) => AuthProvider(ApiClient())..bootstrap(),
-      child: MaterialApp(
-        title: 'Andina RR. HH.',
-        debugShowCheckedModeBanner: false,
-        theme: buildAppTheme(),
-        locale: const Locale('es'),
-        supportedLocales: const [Locale('es'), Locale('en')],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        home: const _Root(),
+      create: (_) => AuthProvider(api)..bootstrap(),
+      child: ServerLink(
+        api: api,
+        child: MaterialApp(
+          title: 'Andina RR. HH.',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          locale: const Locale('es'),
+          supportedLocales: const [Locale('es'), Locale('en')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const SplashScreen(),
+        ),
       ),
     );
-  }
-}
-
-class _Root extends StatelessWidget {
-  const _Root();
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    if (auth.booting) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    if (!auth.isAuth) return const LoginScreen();
-    return const ShellHost();
   }
 }

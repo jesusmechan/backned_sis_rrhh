@@ -34,15 +34,22 @@ class Usuario {
     return displayName.substring(0, displayName.length.clamp(0, 2)).toUpperCase();
   }
 
+  static int? _asInt(Object? v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString());
+  }
+
   factory Usuario.fromJson(Map<String, dynamic> json) {
     return Usuario(
-      idUsuario: json['idUsuario'] as int,
+      idUsuario: _asInt(json['idUsuario']) ?? 0,
       nombreUsuario: json['nombreUsuario'] as String? ?? '',
       correo: json['correo'] as String? ?? '',
       rol: json['rol'] as String? ?? '',
       perfil: json['perfil'] as String? ?? json['rol'] as String? ?? '',
-      idRol: json['idRol'] as int?,
-      idEmpleado: json['idEmpleado'] as int?,
+      idRol: _asInt(json['idRol']),
+      idEmpleado: _asInt(json['idEmpleado']),
       nombreCompleto: json['nombreCompleto'] as String?,
       permisos: (json['permisos'] as List<dynamic>?)
               ?.map((e) => e.toString())

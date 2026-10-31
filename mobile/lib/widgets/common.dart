@@ -22,11 +22,13 @@ String fechaHora(DateTime? d) =>
 void showMensaje(BuildContext context, String texto, {bool error = false}) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(texto),
-      backgroundColor: error ? AppColors.danger : AppColors.navy,
-      behavior: SnackBarBehavior.floating,
-    ));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(texto),
+        backgroundColor: error ? AppColors.danger : AppColors.navy,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 }
 
 Future<bool> confirmar(
@@ -42,9 +44,14 @@ Future<bool> confirmar(
       title: Text(titulo),
       content: Text(mensaje),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Volver')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Volver'),
+        ),
         FilledButton(
-          style: peligro ? FilledButton.styleFrom(backgroundColor: AppColors.danger) : null,
+          style: peligro
+              ? FilledButton.styleFrom(backgroundColor: AppColors.danger)
+              : null,
           onPressed: () => Navigator.pop(ctx, true),
           child: Text(aceptar),
         ),
@@ -55,7 +62,11 @@ Future<bool> confirmar(
 }
 
 class StatusChip extends StatelessWidget {
-  const StatusChip({super.key, required this.label, this.tone = ChipTone.neutral});
+  const StatusChip({
+    super.key,
+    required this.label,
+    this.tone = ChipTone.neutral,
+  });
 
   final String label;
   final ChipTone tone;
@@ -164,7 +175,12 @@ class ErrorBanner extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, color: AppColors.danger, size: 20),
           const SizedBox(width: 8),
-          Expanded(child: Text(message!, style: const TextStyle(color: AppColors.danger))),
+          Expanded(
+            child: Text(
+              message!,
+              style: const TextStyle(color: AppColors.danger),
+            ),
+          ),
           if (onRetry != null)
             TextButton(onPressed: onRetry, child: const Text('Reintentar')),
         ],
@@ -174,7 +190,12 @@ class ErrorBanner extends StatelessWidget {
 }
 
 class SectionCard extends StatelessWidget {
-  const SectionCard({super.key, required this.title, required this.child, this.trailing});
+  const SectionCard({
+    super.key,
+    required this.title,
+    required this.child,
+    this.trailing,
+  });
 
   final String title;
   final Widget child;
@@ -191,10 +212,15 @@ class SectionCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
             const SizedBox(height: 12),
@@ -224,7 +250,10 @@ class InfoRow extends StatelessWidget {
             child: Text(label, style: const TextStyle(color: AppColors.muted)),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -241,8 +270,10 @@ class CircuitoAprobacion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (pasos.isEmpty) {
-      return const Text('Sin pasos de aprobación registrados.',
-          style: TextStyle(color: AppColors.muted));
+      return const Text(
+        'Sin pasos de aprobación registrados.',
+        style: TextStyle(color: AppColors.muted),
+      );
     }
     return Column(
       children: [
@@ -265,11 +296,12 @@ class _PasoTile extends StatelessWidget {
     final (color, icon) = e.contains('APROB')
         ? (AppColors.ok, Icons.check_circle)
         : e.contains('RECHAZ')
-            ? (AppColors.danger, Icons.cancel)
-            : e.contains('PEND')
-                ? (AppColors.warn, Icons.schedule)
-                : (AppColors.muted, Icons.radio_button_unchecked);
-    final responsable = paso.usuarioDecision ?? paso.usuarioAsignado ?? paso.rol;
+        ? (AppColors.danger, Icons.cancel)
+        : e.contains('PEND')
+        ? (AppColors.warn, Icons.schedule)
+        : (AppColors.muted, Icons.radio_button_unchecked);
+    final responsable =
+        paso.usuarioDecision ?? paso.usuarioAsignado ?? paso.rol;
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -291,22 +323,34 @@ class _PasoTile extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text('${paso.numeroPaso}. ${paso.nombrePaso}',
-                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                        child: Text(
+                          '${paso.numeroPaso}. ${paso.nombrePaso}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                       StatusChip.fromEstado(paso.estado),
                     ],
                   ),
                   if (responsable != null && responsable.isNotEmpty)
-                    Text(responsable, style: const TextStyle(color: AppColors.muted)),
+                    Text(
+                      responsable,
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
                   if (paso.fechaDecision != null)
-                    Text(fechaHora(paso.fechaDecision),
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                    Text(
+                      fechaHora(paso.fechaDecision),
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
                   if (paso.comentario != null && paso.comentario!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text('“${paso.comentario}”',
-                          style: const TextStyle(fontStyle: FontStyle.italic)),
+                      child: Text(
+                        '“${paso.comentario}”',
+                        style: const TextStyle(fontStyle: FontStyle.italic),
+                      ),
                     ),
                 ],
               ),
@@ -326,7 +370,10 @@ class HistorialLista extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Text('Sin movimientos.', style: TextStyle(color: AppColors.muted));
+      return const Text(
+        'Sin movimientos.',
+        style: TextStyle(color: AppColors.muted),
+      );
     }
     return Column(
       children: [
@@ -345,11 +392,19 @@ class HistorialLista extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(estadoLabel(h.accion),
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
                       Text(
-                        [fechaHora(h.fechaHora), if (h.usuario != null) h.usuario!].join(' · '),
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        estadoLabel(h.accion),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        [
+                          fechaHora(h.fechaHora),
+                          if (h.usuario != null) h.usuario!,
+                        ].join(' · '),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                       if (h.comentario != null && h.comentario!.isNotEmpty)
                         Text(h.comentario!),

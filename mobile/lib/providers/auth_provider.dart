@@ -35,6 +35,7 @@ class AuthProvider extends ChangeNotifier {
     _booting = true;
     notifyListeners();
     try {
+      await _api.ensureReady();
       _usuario = await _api.getStoredUser();
       if (_usuario != null) {
         try {
@@ -56,6 +57,20 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
+      await _api.prepareConnection();
+      ApiException? unreachable;
+      for (var i = 0; i < 3; i++) {
+        try {
+          await _api.ping();
+          unreachable = null;
+          break;
+        } on ApiException catch (e) {
+          unreachable = e;
+          if (i < 2) await Future<void>.delayed(const Duration(milliseconds: 800));
+          else await _api.prepareConnection();
+        }
+      }
+      if (unreachable != null) throw unreachable;
       final data = await _api.post('/api/auth/login', body: {
         'nombreUsuario': nombreUsuario.trim().toLowerCase(),
         'password': password,
@@ -69,8 +84,13 @@ class AuthProvider extends ChangeNotifier {
       _usuario = user;
     } on ApiException catch (e) {
       _error = e.sinConexion
-          ? 'No se pudo conectar con el servidor (${_api.baseUrl}).'
+          ? 'No se pudo conectar con ${_api.baseUrlLabel}. '
+              'En la Mac ejecuta ./scripts/start-backend.sh, con USB usa '
+              '«adb reverse tcp:8080 tcp:8080», luego «Probar conexión» o «Servidor».'
           : e.message;
+      rethrow;
+    } catch (e) {
+      _error = 'No se pudo completar el ingreso. ${e.toString()}';
       rethrow;
     } finally {
       _busy = false;
@@ -113,16 +133,40 @@ class AuthProvider extends ChangeNotifier {
     required String hasta,
     int size = 50,
   }) async {
+    return marcacionesRangoTodasPaginas(
+      desde: desde,
+      hasta: hasta,
+      pageSize: size,
+      maxPages: 1,
+    );
+  }
+
+  /// Recorre páginas del API hasta traer todo el rango (historial completo).
+  Future<List<Marcacion>> marcacionesRangoTodasPaginas({
+    required String desde,
+    required String hasta,
+    int pageSize = 100,
+    int? maxPages,
+  }) async {
     final id = _usuario?.idEmpleado;
     if (id == null) return [];
-    final data = await _api.get('/api/asistencias', query: {
-      'desde': desde,
-      'hasta': hasta,
-      'page': '1',
-      'size': '$size',
-      'idEmpleado': '$id',
-    });
-    return _content(data).map(Marcacion.fromJson).toList();
+    final all = <Marcacion>[];
+    var page = 1;
+    while (true) {
+      final data = await _api.get('/api/asistencias', query: {
+        'desde': desde,
+        'hasta': hasta,
+        'page': '$page',
+        'size': '$pageSize',
+        'idEmpleado': '$id',
+      }) as Map<String, dynamic>;
+      all.addAll(_content(data).map(Marcacion.fromJson));
+      final totalPages = (data['totalPages'] as num?)?.toInt() ?? 1;
+      if (page >= totalPages) break;
+      if (maxPages != null && page >= maxPages) break;
+      page++;
+    }
+    return all;
   }
 
   /// La hora la pone el servidor: el reloj del celular puede estar adelantado o manipulado.

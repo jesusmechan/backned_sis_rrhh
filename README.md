@@ -59,6 +59,8 @@ Arquitectura hexagonal y comunicación entre carpetas: [docs/ARQUITECTURA_DE_PRO
 
 Detalle: [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md).
 
+Despliegue en la nube (Neon + Render + Cloudflare Pages, rama `jesus-pantoja`): [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ## 2. Backend
 
 ```bash

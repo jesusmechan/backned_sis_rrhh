@@ -1,11 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../config/api_config.dart';
 import '../models/solicitud.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/server_config.dart';
 
 class PerfilScreen extends StatelessWidget {
   const PerfilScreen({super.key});
@@ -76,6 +75,30 @@ class PerfilScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.dns_outlined, color: AppColors.info),
+              title: const Text('Servidor API'),
+              subtitle: Text(
+                context.watch<AuthProvider>().api.baseUrlLabel,
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final ok = await showServerConfigDialog(context);
+                if (ok && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Servidor: ${context.read<AuthProvider>().api.baseUrlLabel}',
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
           if (u.idEmpleado != null) ...[
             const SizedBox(height: 12),
             const _SaldoVacacionesCard(),
@@ -108,14 +131,6 @@ class PerfilScreen extends StatelessWidget {
             label: const Text('Cerrar sesión',
                 style: TextStyle(color: AppColors.danger)),
           ),
-          if (kDebugMode) ...[
-            const SizedBox(height: 16),
-            Text(
-              'API: ${ApiConfig.baseUrl}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: AppColors.muted),
-            ),
-          ],
         ],
       ),
     );

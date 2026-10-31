@@ -1,0 +1,14 @@
+# Utilidades solo locales (LaunchAgent / adb); no forman parte del despliegue.
+scripts/
+
+# Secretos
+.env
+.env.local
+*.env.local
+
+# SO / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

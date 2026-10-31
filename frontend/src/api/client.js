@@ -1,3 +1,5 @@
+import { apiUrl } from './baseUrl';
+
 const TOKEN_KEY = 'andina.access';
 const REFRESH_KEY = 'andina.refresh';
 const USER_KEY = 'andina.user';
@@ -68,7 +70,7 @@ async function refreshAccess() {
   if (!refreshToken) {
     throw new Error('Sesión expirada');
   }
-  const response = await fetch('/api/auth/refresh', {
+  const response = await fetch(apiUrl('/api/auth/refresh'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -99,7 +101,7 @@ async function send(path, options = {}) {
   const method = String(options.method || 'GET').toUpperCase();
   const startedAt = performance.now();
 
-  let response = await fetch(path, { ...options, headers });
+  let response = await fetch(apiUrl(path), { ...options, headers });
   if (response.status === 401 && !path.startsWith('/api/auth/')) {
     try {
       if (!refreshPromise) {
@@ -107,7 +109,7 @@ async function send(path, options = {}) {
       }
       const nextToken = await refreshPromise;
       headers.set('Authorization', `Bearer ${nextToken}`);
-      response = await fetch(path, { ...options, headers });
+      response = await fetch(apiUrl(path), { ...options, headers });
     } catch {
       traceApi(requestId, method, path, 401, startedAt);
       clearSession();

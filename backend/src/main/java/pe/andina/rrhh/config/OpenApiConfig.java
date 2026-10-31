@@ -6,6 +6,7 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,7 +16,7 @@ import java.util.List;
 public class OpenApiConfig {
 
     @Bean
-    public OpenAPI openAPI() {
+    public OpenAPI openAPI(@Value("${PUBLIC_API_URL:http://localhost:8080}") String publicApiUrl) {
         return new OpenAPI()
                 .info(new Info()
                         .title("RRHH Andina API")
@@ -27,7 +28,7 @@ public class OpenApiConfig {
                                 2. Copia el `accessToken`.
                                 3. Pulsa **Authorize** y pégalo (sin la palabra Bearer).
                                 """))
-                .servers(List.of(new Server().url("http://localhost:8080").description("Local")))
+                .servers(List.of(new Server().url(publicApiUrl).description("API pública")))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components().addSecuritySchemes("bearerAuth",
                         new SecurityScheme()
