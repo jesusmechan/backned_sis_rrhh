@@ -18,6 +18,7 @@ Thumbs.db
 !**/.env.example
 
 # --- Java / Maven (backend) ---
+# Metadatos Eclipse/JDT (generados al importar Maven en el IDE; no subir)
 .project
 .classpath
 .settings/
