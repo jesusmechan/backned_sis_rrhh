@@ -107,6 +107,14 @@ Si el editor falla por tamaño o tiempo, divide el script en bloques o usa **`ps
 
 **Importante:** la URL JDBC debe incluir **`?sslmode=require`**. No uses `localhost` ni el puerto 5432 de tu PC.
 
+**No pegues la URI tal cual de Neon en `DB_URL`.** Neon muestra `postgresql://usuario:contraseña@host/...`; el driver JDBC exige el prefijo **`jdbc:`** y, en Render, conviene **sin** usuario ni contraseña en la URL (van en `DB_USERNAME` y `DB_PASSWORD`):
+
+| Incorrecto en `DB_URL` | Correcto |
+|------------------------|----------|
+| `postgresql://...@ep-xxx.../rrhh_andina?sslmode=require` | `jdbc:postgresql://ep-xxx.../rrhh_andina?sslmode=require` |
+
+Desde una versión reciente del backend, si pegas `postgresql://...`, el arranque la convierte a JDBC; igualmente usa el formato de la tabla para evitar confusiones.
+
 ---
 
 ## Parte 2 — Backend en Render
@@ -301,6 +309,7 @@ Sin `VITE_API_BASE_URL`, el front en local usa el proxy de Vite (`/api` → `127
 - Revisa **Logs**: error de conexión a Neon → `DB_URL` / SSL / usuario.
 - Falta **`JWT_SECRET`** → el arranque falla.
 - **`DB_PASSWORD`** vacía → obligatoria en `application.yml`.
+- Log: **`Driver org.postgresql.Driver claims to not accept jdbcUrl`** o **`JDBC URL invalid port number`** → `DB_URL` mal formada. Usa solo host y base: `jdbc:postgresql://HOST/BD?sslmode=require` **sin** `usuario:contraseña@` en la URL; credenciales en `DB_USERNAME` / `DB_PASSWORD` (ver paso 1.4).
 
 ### Render: 502 o muy lento
 
