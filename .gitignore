@@ -1,5 +1,7 @@
 # Utilidades solo locales (LaunchAgent / adb); no forman parte del despliegue.
 scripts/
+.agents/
+skills-lock.json
 
 # Secretos
 .env
