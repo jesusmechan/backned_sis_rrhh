@@ -27,10 +27,25 @@
 | Cálculo de planilla Perú 2026 | `PlanillaCalculoPeruDinamicoTest` | Unitario (negocio crítico) |
 | Carga / export Excel | `PoiExcelAdapterTest` | Unitario (adaptador salida) |
 
+## Pruebas de integración (automatizadas)
+
+Levanta el contexto Spring + PostgreSQL `rrhh_andina_it` (seed `database/01_install.sql`). No usan mocks de puertos.
+
+| ID | Flujo | Clase |
+|---|---|---|
+| **CP-AUTH-IT-01** | Login válido emite tokens | `AuthIntegrationIT` |
+| **CP-AUTH-IT-02** | Password incorrecta → 401 | `AuthIntegrationIT` |
+| **CP-AUTH-IT-03** | Usuario inválido → 400 | `AuthIntegrationIT` |
+| **CP-AUTH-IT-04/05** | Refresh + rotación de token | `AuthIntegrationIT` |
+| **CP-AUTH-IT-06** | Logout revoca refresh | `AuthIntegrationIT` |
+| **CP-AUTH-IT-07/08** | `/api/sesion` sin/con JWT | `SesionIntegrationIT` |
+| **CP-AUTH-IT-09** | Config pública sin auth | `SesionIntegrationIT` |
+
 ## Ejecución
 
 ```bash
-cd backend && mvn test
+cd backend && mvn test          # solo unitarias
+cd backend && mvn verify        # unitarias + integración (Failsafe)
 ```
 
 Informe de cobertura (JaCoCo): `backend/target/site/jacoco/index.html`
