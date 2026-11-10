@@ -2,13 +2,19 @@
   "java.configuration.runtimes": [
     {
       "name": "JavaSE-21",
-      "path": "C:\\Program Files\\Java\\jdk-21",
+      "path": "/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home",
       "default": true
     }
   ],
-  "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-21",
+  "java.jdt.ls.java.home": "/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home",
   "java.import.maven.enabled": true,
+  "java.import.maven.rootPatterns": [
+    "backend/pom.xml"
+  ],
+  "java.import.generatesMetadataFilesAtProjectRoot": true,
   "java.configuration.updateBuildConfiguration": "automatic",
+  "java.autobuild.enabled": true,
+  "java.test.editor.enableShortcuts": true,
   "java.import.exclusions": [
     "**/node_modules/**",
     "**/bower_components/**",
