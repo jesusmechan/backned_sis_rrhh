@@ -1,0 +1,24 @@
+# Perfil de pruebas de integración: BD dedicada, sin rate-limit ni idempotencia.
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/rrhh_andina_it
+    username: ${IT_DB_USERNAME:${DB_USERNAME:postgres}}
+    password: ${IT_DB_PASSWORD:${DB_PASSWORD:root}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:AndinaRRHH2026JwtSecretClaveSuperSeguraDeAlMenos64Caracteres!!}
+  rate-limit:
+    enabled: false
+  idempotency:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    pe.andina.rrhh: INFO
