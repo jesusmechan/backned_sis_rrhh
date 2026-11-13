@@ -59,7 +59,8 @@ app:
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     # Cupo por IP y minuto (ventana fija). Auth es más estricto (login/refresh).
-    api-per-minute: ${RATE_LIMIT_API:120}
+    # 300: el dashboard dispara muchas GETs en paralelo al iniciar sesión.
+    api-per-minute: ${RATE_LIMIT_API:300}
     auth-per-minute: ${RATE_LIMIT_AUTH:20}
   idempotency:
     enabled: ${IDEMPOTENCY_ENABLED:true}

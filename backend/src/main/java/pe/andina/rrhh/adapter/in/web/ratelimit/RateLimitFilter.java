@@ -39,7 +39,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (!properties.isEnabled()) {
             return true;
         }
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         String path = request.getRequestURI();
+        // Health / config pública (Render + cron-job) no deben consumir el cupo del dashboard.
+        if ("/api/configuracion/publica".equals(path)) {
+            return true;
+        }
         return path == null || !path.startsWith("/api/");
     }
 
