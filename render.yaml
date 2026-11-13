@@ -1,0 +1,22 @@
+# Render — rama jesus-pantoja, root backend/
+services:
+  - type: web
+    name: rrhh-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    branch: jesus-pantoja
+    healthCheckPath: /api/configuracion/publica
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_API_URL
+        sync: false

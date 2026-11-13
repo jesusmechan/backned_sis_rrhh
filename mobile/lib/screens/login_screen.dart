@@ -6,6 +6,7 @@ import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/server_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +23,81 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _showPass = false;
   String? _error;
+  String _apiUrl = ApiConfig.baseUrl;
+  bool _probing = false;
+  String? _probeOk;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadApiUrl());
+  }
+
+  Future<void> _loadApiUrl() async {
+    await context.read<AuthProvider>().api.ensureReady();
+    if (!mounted) return;
+    setState(() => _apiUrl = context.read<AuthProvider>().api.baseUrlLabel);
+  }
+
+  Future<void> _editServer() async {
+    final ok = await showServerConfigDialog(context);
+    if (!ok || !mounted) return;
+    setState(() {
+      _apiUrl = context.read<AuthProvider>().api.baseUrlLabel;
+      _probeOk = null;
+    });
+  }
+
+  Future<void> _testServer() async {
+    setState(() {
+      _probing = true;
+      _probeOk = null;
+      _error = null;
+    });
+    final api = context.read<AuthProvider>().api;
+    final msg = await probeServerMessage(api);
+    if (!mounted) return;
+    setState(() {
+      _probing = false;
+      _apiUrl = api.baseUrlLabel;
+      if (msg.startsWith('Conexión correcta')) {
+        _probeOk = msg;
+      } else {
+        _error = msg;
+      }
+    });
+  }
+
+  Future<void> _autoServer() async {
+    await ApiConfig.clearManualBaseUrl();
+    if (!mounted) return;
+    final api = context.read<AuthProvider>().api;
+    api.resetBaseUrl();
+    await api.ensureReady();
+    if (!mounted) return;
+    setState(() {
+      _apiUrl = api.baseUrlLabel;
+      _probeOk = null;
+      _error = null;
+    });
+    await _testServer();
+  }
+
+  /// USB + `adb reverse tcp:8080 tcp:8080` → el celular habla con la Mac en :8080.
+  Future<void> _useUsbLocalhost() async {
+    await ApiConfig.saveCustomBaseUrl('http://127.0.0.1:8080');
+    if (!mounted) return;
+    final api = context.read<AuthProvider>().api;
+    api.resetBaseUrl();
+    await api.ensureReady();
+    if (!mounted) return;
+    setState(() {
+      _apiUrl = api.baseUrlLabel;
+      _probeOk = null;
+      _error = null;
+    });
+    await _testServer();
+  }
 
   @override
   void dispose() {
@@ -146,12 +222,58 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: busy ? null : _submit,
                             child: Text(busy ? 'Ingresando…' : 'Ingresar'),
                           ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              const Icon(Icons.dns_outlined, size: 18, color: AppColors.muted),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Servidor: $_apiUrl',
+                                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: busy ? null : _editServer,
+                                child: const Text('Cambiar'),
+                              ),
+                              TextButton(
+                                onPressed: busy ? null : _useUsbLocalhost,
+                                child: const Text('USB'),
+                              ),
+                              TextButton(
+                                onPressed: busy ? null : _autoServer,
+                                child: const Text('Auto'),
+                              ),
+                            ],
+                          ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: (_probing || busy) ? null : _testServer,
+                              icon: _probing
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.wifi_tethering, size: 18),
+                              label: Text(_probing ? 'Probando…' : 'Probar conexión'),
+                            ),
+                          ),
+                          if (_probeOk != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                _probeOk!,
+                                style: const TextStyle(fontSize: 12, color: AppColors.ok),
+                              ),
+                            ),
                           if (kDebugMode) ...[
-                            const SizedBox(height: 14),
-                            Text(
-                              'Desarrollo · API ${ApiConfig.baseUrl}\n'
+                            const SizedBox(height: 6),
+                            const Text(
                               'Usuario de prueba: juan.espinoza / Andina2026',
-                              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                              style: TextStyle(fontSize: 12, color: AppColors.muted),
                             ),
                           ],
                         ],

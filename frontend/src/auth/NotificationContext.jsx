@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { getAccessToken, http } from '../api/client';
+import { wsUrl } from '../api/baseUrl';
 import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext(null);
@@ -52,7 +53,7 @@ export function NotificationProvider({ children }) {
     if (!token) return undefined;
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(`/ws?access_token=${encodeURIComponent(token)}`),
+      webSocketFactory: () => new SockJS(`${wsUrl('/ws')}?access_token=${encodeURIComponent(token)}`),
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 4000,
       heartbeatIncoming: 10000,

@@ -21,9 +21,32 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl}) : baseUrl = baseUrl ?? ApiConfig.baseUrl;
+  ApiClient({String? baseUrl}) : _baseUrlOverride = baseUrl;
 
-  final String baseUrl;
+  final String? _baseUrlOverride;
+  String? _baseUrl;
+
+  Future<String> get baseUrl async {
+    if (_baseUrlOverride != null) return _baseUrlOverride!;
+    _baseUrl ??= await ApiConfig.resolveBaseUrl();
+    return _baseUrl!;
+  }
+
+  String get baseUrlLabel => _baseUrl ?? _baseUrlOverride ?? ApiConfig.baseUrl;
+
+  Future<void> prepareConnection() async {
+    resetBaseUrl();
+    _baseUrl = await ApiConfig.redetectBaseUrl();
+  }
+
+  Future<void> ensureReady() async {
+    await baseUrl;
+  }
+
+  void resetBaseUrl() {
+    _baseUrl = null;
+    ApiConfig.resetResolved();
+  }
 
   static const _accessKey = 'andina.access';
   static const _refreshKey = 'andina.refresh';
@@ -33,7 +56,6 @@ class ApiClient {
 
   Future<String?>? _refreshing;
 
-  /// Se invoca cuando el refresh token ya no sirve y la sesión se cerró.
   void Function()? onSessionExpired;
 
   Future<String?> getAccessToken() async {
@@ -76,13 +98,13 @@ class ApiClient {
     await prefs.remove(_userKey);
   }
 
-  /// Clave para que el API ignore un reintento de la misma operación.
   static String newIdempotencyKey() =>
       List.generate(16, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
 
-  Uri _uri(String path, [Map<String, String>? query]) {
+  Future<Uri> _uri(String path, [Map<String, String>? query]) async {
     final normalized = path.startsWith('/') ? path : '/$path';
-    return Uri.parse('$baseUrl$normalized').replace(queryParameters: query);
+    final root = await baseUrl;
+    return Uri.parse('$root$normalized').replace(queryParameters: query);
   }
 
   Future<dynamic> get(String path, {Map<String, String>? query}) =>
@@ -91,15 +113,20 @@ class ApiClient {
   Future<dynamic> post(String path, {Object? body, String? idempotencyKey}) =>
       _send('POST', path, body: body, idempotencyKey: idempotencyKey);
 
-  Future<dynamic> put(String path, {Object? body}) =>
-      _send('PUT', path, body: body);
+  Future<void> ping() async {
+    final uri = await _uri('/api/configuracion/publica');
+    final response = await http
+        .get(uri, headers: {'Accept': 'application/json'})
+        .timeout(ApiConfig.timeout);
+    if (response.statusCode >= 500) {
+      throw ApiException(
+        'El servidor respondió con error ${response.statusCode}.',
+        statusCode: response.statusCode,
+      );
+    }
+    await ApiConfig.markReachable(await baseUrl);
+  }
 
-  Future<dynamic> patch(String path) => _send('PATCH', path);
-
-  Future<dynamic> delete(String path) => _send('DELETE', path);
-
-  /// Varias peticiones pueden recibir 401 a la vez; todas esperan el mismo refresh
-  /// porque el API revoca el refresh token al usarlo.
   Future<String?> _refreshAccess() {
     return _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
   }
@@ -111,7 +138,7 @@ class ApiClient {
     try {
       response = await http
           .post(
-            _uri('/api/auth/refresh'),
+            await _uri('/api/auth/refresh'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'refreshToken': refresh}),
           )
@@ -133,12 +160,22 @@ class ApiClient {
       refreshToken: data['refreshToken'] as String,
       usuario: usuario,
     );
+    await ApiConfig.markReachable(await baseUrl);
     return data['accessToken'] as String;
   }
 
   ApiException _sinConexion() => ApiException(
-        'No hay conexión con el servidor. Revisa tu red e inténtalo de nuevo.',
+        'No hay conexión con el servidor ($baseUrlLabel). '
+        'Comprueba que el backend esté activo (:8080) y configura la IP de tu PC en '
+        'Perfil → Servidor API o en login (Detectar auto / Guardar URL).',
       );
+
+  Future<bool> _redetectAndRetry() async {
+    if (_baseUrlOverride != null) return false;
+    resetBaseUrl();
+    _baseUrl = await ApiConfig.redetectBaseUrl();
+    return await ApiConfig.isReachable(_baseUrl!);
+  }
 
   Future<dynamic> _send(
     String method,
@@ -146,7 +183,8 @@ class ApiClient {
     Object? body,
     Map<String, String>? query,
     String? idempotencyKey,
-    bool retried = false,
+    bool retriedAuth = false,
+    bool retriedNetwork = false,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) headers['Content-Type'] = 'application/json';
@@ -154,42 +192,65 @@ class ApiClient {
     final token = await getAccessToken();
     if (token != null) headers['Authorization'] = 'Bearer $token';
 
-    final uri = _uri(path, query);
+    final uri = await _uri(path, query);
     final encoded = body == null ? null : jsonEncode(body);
 
-    final http.Response response;
+    http.Response response;
     try {
       final Future<http.Response> request = switch (method) {
         'GET' => http.get(uri, headers: headers),
         'POST' => http.post(uri, headers: headers, body: encoded),
-        'PUT' => http.put(uri, headers: headers, body: encoded),
-        'PATCH' => http.patch(uri, headers: headers),
-        'DELETE' => http.delete(uri, headers: headers),
         _ => throw ApiException('Método no soportado: $method'),
       };
       response = await request.timeout(ApiConfig.timeout);
     } on TimeoutException {
+      if (!retriedNetwork && await _redetectAndRetry()) {
+        return _send(method, path,
+            body: body,
+            query: query,
+            idempotencyKey: idempotencyKey,
+            retriedAuth: retriedAuth,
+            retriedNetwork: true);
+      }
       throw _sinConexion();
     } on http.ClientException {
+      if (!retriedNetwork && await _redetectAndRetry()) {
+        return _send(method, path,
+            body: body,
+            query: query,
+            idempotencyKey: idempotencyKey,
+            retriedAuth: retriedAuth,
+            retriedNetwork: true);
+      }
       throw _sinConexion();
     }
 
-    if (response.statusCode == 401 && !path.startsWith('/api/auth/') && !retried) {
+    if (response.statusCode == 401 && !path.startsWith('/api/auth/') && !retriedAuth) {
       final next = await _refreshAccess();
       if (next != null) {
         return _send(method, path,
-            body: body, query: query, idempotencyKey: idempotencyKey, retried: true);
+            body: body,
+            query: query,
+            idempotencyKey: idempotencyKey,
+            retriedAuth: true,
+            retriedNetwork: retriedNetwork);
       }
       throw ApiException('Su sesión expiró. Vuelva a ingresar.', statusCode: 401);
     }
 
-    if (response.statusCode == 204 || response.bodyBytes.isEmpty) return null;
+    if (response.statusCode == 204 || response.bodyBytes.isEmpty) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        await ApiConfig.markReachable(await baseUrl);
+      }
+      return null;
+    }
 
     final text = utf8.decode(response.bodyBytes);
     if (response.statusCode >= 400) {
       throw ApiException(_parseError(response.statusCode, text), statusCode: response.statusCode);
     }
 
+    await ApiConfig.markReachable(await baseUrl);
     final contentType = response.headers['content-type'] ?? '';
     if (contentType.contains('application/json')) return jsonDecode(text);
     return text;
@@ -205,7 +266,8 @@ class ApiClient {
     return switch (status) {
       403 => 'No tiene permiso para esta acción.',
       404 => 'No se encontró el registro.',
-      >= 500 => 'El servidor tuvo un problema. Inténtelo en unos minutos.',
+      429 => 'Demasiados intentos. Espere un minuto e inténtelo de nuevo.',
+      >= 500 => 'El servidor tuvo un problema. Comprueba que el backend siga en ejecución.',
       _ => 'Error $status',
     };
   }

@@ -24,8 +24,8 @@ class Marcacion {
 
   factory Marcacion.fromJson(Map<String, dynamic> json) {
     return Marcacion(
-      idMarcacion: json['idMarcacion'] as int,
-      idEmpleado: json['idEmpleado'] as int,
+      idMarcacion: (json['idMarcacion'] as num).toInt(),
+      idEmpleado: (json['idEmpleado'] as num).toInt(),
       empleado: json['empleado'] as String? ?? '',
       tipo: json['tipo'] as String? ?? '',
       fechaHora: DateTime.parse(json['fechaHora'] as String),
