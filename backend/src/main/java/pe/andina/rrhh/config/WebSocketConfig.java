@@ -35,11 +35,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // WebSocket nativo (wss) — preferido en producción (Cloudflare Pages → Render).
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*")
+                .addInterceptors(handshakeInterceptor)
+                .setHandshakeHandler(handshakeHandler);
+
+        // SockJS como fallback (dev / proxies que bloquean Upgrade).
+        // Sin cookie de sesión: Pages y Render son orígenes distintos.
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
                 .addInterceptors(handshakeInterceptor)
                 .setHandshakeHandler(handshakeHandler)
-                .withSockJS();
+                .withSockJS()
+                .setSessionCookieNeeded(false);
     }
 
     @Override

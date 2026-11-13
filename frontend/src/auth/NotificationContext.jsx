@@ -2,8 +2,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { getAccessToken, http } from '../api/client';
-import { wsUrl } from '../api/baseUrl';
+import { apiBaseUrl, wsUrl } from '../api/baseUrl';
 import { useAuth } from './AuthContext';
+
+/** Producción: WebSocket nativo (wss). Local: SockJS vía proxy Vite. */
+function createWs(token) {
+  const withToken = `${wsUrl('/ws')}?access_token=${encodeURIComponent(token)}`;
+  if (apiBaseUrl) {
+    const wss = withToken.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');
+    return new WebSocket(wss);
+  }
+  return new SockJS(withToken);
+}
 
 const NotificationContext = createContext(null);
 
@@ -53,7 +63,7 @@ export function NotificationProvider({ children }) {
     if (!token) return undefined;
 
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${wsUrl('/ws')}?access_token=${encodeURIComponent(token)}`),
+      webSocketFactory: () => createWs(token),
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 4000,
       heartbeatIncoming: 10000,
@@ -77,7 +87,7 @@ export function NotificationProvider({ children }) {
     client.activate();
     clientRef.current = client;
     return () => {
-      client.deactivate();
+      void client.deactivate();
       if (clientRef.current === client) clientRef.current = null;
     };
   }, [isAuth]);
