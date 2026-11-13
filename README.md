@@ -108,17 +108,13 @@ Abre http://localhost:5173. Vite proxea `/api` al backend en `:8080`.
 
 ## 4. App móvil (Flutter)
 
-Documentación y APK: **[`mobile/README.md`](mobile/README.md)**.
+Documentación: **[`mobile/README.md`](mobile/README.md)**.
 
-APK arm64 versionado en el repo:
+**[⬇ Descargar APK Android v1.0.0](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk)**  
+(arm64 · ~57 MB · API Render)
 
-```
-mobile/releases/andina-rrhh-arm64-v1.0.0.apk
-```
-
-API de producción (Render): `https://rrhh-api-2bgd.onrender.com`  
-(configurable también dentro de la app: Perfil → Configuración).
-
+API de producción: `https://rrhh-api-2bgd.onrender.com`  
+(también configurable en la app: Perfil → Configuración).
 ## Configuración dinámica
 
 El código no fija reglas de negocio: salen de la base y se editan en **Maestros** (`MAESTRO_GESTIONAR`).

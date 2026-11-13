@@ -1,9 +1,13 @@
 # Releases — Andina RR. HH. (Android)
 
+## Descargar
+
+**[⬇ Descargar APK v1.0.0 (arm64)](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk)**
+
 | Archivo | Versión | ABI | API |
 |---------|---------|-----|-----|
-| [`andina-rrhh-arm64-v1.0.0.apk`](andina-rrhh-arm64-v1.0.0.apk) | 1.0.0 | arm64-v8a | `https://rrhh-api-2bgd.onrender.com` |
+| [andina-rrhh-arm64-v1.0.0.apk](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk) | 1.0.0 | arm64-v8a | `https://rrhh-api-2bgd.onrender.com` |
 
-Instalación: transferir al celular → permitir apps de orígenes desconocidos → abrir el APK.
+Instalación: abrir el enlace en el celular → permitir orígenes desconocidos → instalar.
 
-Regenerar: ver instrucciones en [`../README.md`](../README.md).
+Más detalle: [`../README.md`](../README.md).

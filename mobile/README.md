@@ -3,6 +3,29 @@
 Cliente móvil del **Sistema de Gestión de RR. HH.** de Consultora Contable Andina S.A.C.  
 Consume la API Spring Boot (`/api`) en local o en la nube (Render).
 
+## Descargar e instalar (Android)
+
+**[⬇ Descargar APK v1.0.0 (arm64)](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk)**
+
+| | |
+|---|---|
+| Archivo | [`andina-rrhh-arm64-v1.0.0.apk`](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk) (~57 MB) |
+| Arquitectura | **arm64-v8a** (celulares Android actuales) |
+| API | `https://rrhh-api-2bgd.onrender.com` |
+| Carpeta en el repo | [`mobile/releases/`](releases/) |
+
+### Cómo instalar en el celular
+
+1. Abre el enlace de descarga **desde el propio teléfono** (Chrome / navegador).
+2. Si pide permiso, permite **instalar apps de orígenes desconocidos** para el navegador.
+3. Abre el APK descargado e instala **Andina RRHH**.
+4. Usuario de prueba: `juan.espinoza` / `Andina2026`.
+
+> Enlace directo (por si el de arriba no abre en tu cliente Git):  
+> `https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk`
+
+> Si el dispositivo es muy antiguo (solo 32-bit), genera un APK universal con `flutter build apk --release`.
+
 ## Qué incluye
 
 | Área | Detalle |
@@ -15,20 +38,6 @@ Consume la API Spring Boot (`/api`) en local o en la nube (Render).
 | Perfil | Datos del colaborador, saldo de vacaciones, ajustes |
 | Configuración | Tema claro/oscuro y URL del servidor API |
 | Recordatorios | Notificaciones **locales** para avisar marcación (entrada/salida) |
-
-## APK listo para instalar
-
-En el repo:
-
-```
-mobile/releases/andina-rrhh-arm64-v1.0.0.apk
-```
-
-- Arquitectura: **arm64-v8a** (la mayoría de celulares Android actuales)
-- API por defecto: `https://rrhh-api-2bgd.onrender.com`
-- En el celular: transferir el APK → permitir «instalar apps desconocidas» → abrir e instalar
-
-> Si el dispositivo es muy antiguo (solo 32-bit), genera de nuevo con `flutter build apk --release` (APK universal) o `--split-per-abi`.
 
 ## Requisitos de desarrollo
 
