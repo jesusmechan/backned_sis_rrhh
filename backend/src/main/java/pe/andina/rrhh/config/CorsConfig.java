@@ -1,5 +1,6 @@
 package pe.andina.rrhh.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -38,9 +39,11 @@ public class CorsConfig {
     /**
      * CorsFilter servlet antes de rate-limit / idempotency, para que un 429
      * siga llevando Access-Control-Allow-Origin (si no, el navegador lo reporta como CORS).
+     * {@code @Qualifier}: HandlerMappingIntrospector también implementa CorsConfigurationSource.
      */
     @Bean
-    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(CorsConfigurationSource source) {
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(
+            @Qualifier("corsConfigurationSource") CorsConfigurationSource source) {
         FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new CorsFilter(source));
         registration.addUrlPatterns("/*");
