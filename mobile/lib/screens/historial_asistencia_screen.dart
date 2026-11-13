@@ -138,7 +138,10 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                   const SizedBox(height: 6),
                   Text(
                     'Hora de Lima · rango inclusive · ej. ${_fmtFiltro(LimaTime.todayIso())}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.mutedOf(ctx),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   ListTile(
@@ -251,7 +254,10 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                 Text(
                   '${_fmtFiltro(_desde)} – ${_fmtFiltro(_hasta)}'
                   '${_loading ? '' : ' · ${visibles.length} día${visibles.length == 1 ? '' : 's'}'}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.mutedOf(context),
+                  ),
                 ),
               ],
             ),
@@ -268,8 +274,12 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                             children: [
                               ErrorBanner(_error),
                               const SizedBox(height: 24),
-                              Icon(Icons.event_busy_outlined,
-                                  size: 48, color: AppColors.muted.withValues(alpha: 0.6)),
+                              Icon(
+                                Icons.event_busy_outlined,
+                                size: 48,
+                                color: AppColors.mutedOf(context)
+                                    .withValues(alpha: 0.6),
+                              ),
                               const SizedBox(height: 12),
                               Text(
                                 _error != null
@@ -278,7 +288,9 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                                         ? 'Sin resultados para «$_busqueda».'
                                         : 'No hay marcaciones en este periodo.',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.muted),
+                                style: TextStyle(
+                                  color: AppColors.mutedOf(context),
+                                ),
                               ),
                             ],
                           )

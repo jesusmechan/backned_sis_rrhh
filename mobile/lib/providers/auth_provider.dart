@@ -66,8 +66,11 @@ class AuthProvider extends ChangeNotifier {
           break;
         } on ApiException catch (e) {
           unreachable = e;
-          if (i < 2) await Future<void>.delayed(const Duration(milliseconds: 800));
-          else await _api.prepareConnection();
+          if (i < 2) {
+            await Future<void>.delayed(const Duration(milliseconds: 800));
+          } else {
+            await _api.prepareConnection();
+          }
         }
       }
       if (unreachable != null) throw unreachable;

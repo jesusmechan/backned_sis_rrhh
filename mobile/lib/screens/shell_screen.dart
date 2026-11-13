@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import '../theme/app_theme.dart';
+import '../widgets/droplet_nav_bar.dart';
 import 'home_screen.dart';
 import 'marcar_screen.dart';
 import 'notificaciones_screen.dart';
@@ -19,9 +19,7 @@ class ShellHost extends StatefulWidget {
 }
 
 class _ShellHostState extends State<ShellHost> with WidgetsBindingObserver {
-  static const _tabAvisos = 3;
-
-  int _index = 0;
+  int _index = ShellTabs.inicio;
   int _unread = 0;
   Timer? _unreadTimer;
 
@@ -70,51 +68,50 @@ class _ShellHostState extends State<ShellHost> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(onOpenTab: _goTo, active: _index == 0, onChanged: _refreshUnread),
-      MarcarScreen(active: _index == 1),
-      SolicitudesScreen(active: _index == 2),
-      NotificacionesScreen(active: _index == _tabAvisos, onChanged: _refreshUnread),
+      SolicitudesScreen(active: _index == ShellTabs.solicitudes),
+      MarcarScreen(active: _index == ShellTabs.marcar),
+      HomeScreen(
+        onOpenTab: _goTo,
+        active: _index == ShellTabs.inicio,
+        onChanged: _refreshUnread,
+      ),
+      NotificacionesScreen(
+        active: _index == ShellTabs.avisos,
+        onChanged: _refreshUnread,
+      ),
       const PerfilScreen(),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _goTo,
-        indicatorColor: AppColors.infoSoft,
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.fingerprint_outlined),
-            selectedIcon: Icon(Icons.fingerprint),
-            label: 'Marcar',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
-            selectedIcon: Icon(Icons.assignment),
+      bottomNavigationBar: DropletNavBar(
+        index: _index,
+        onTap: _goTo,
+        items: [
+          const DropletNavItem(
+            icon: Icons.description_outlined,
+            activeIcon: Icons.description_rounded,
             label: 'Solicitudes',
           ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: _unread > 0,
-              label: Text('$_unread'),
-              child: const Icon(Icons.notifications_outlined),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: _unread > 0,
-              label: Text('$_unread'),
-              child: const Icon(Icons.notifications),
-            ),
-            label: 'Avisos',
+          const DropletNavItem(
+            icon: Icons.fingerprint,
+            activeIcon: Icons.fingerprint,
+            label: 'Marcar',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+          const DropletNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home_rounded,
+            label: 'Inicio',
+          ),
+          DropletNavItem(
+            icon: Icons.notifications_none_rounded,
+            activeIcon: Icons.notifications_rounded,
+            label: 'Avisos',
+            showDot: _unread > 0,
+          ),
+          const DropletNavItem(
+            icon: Icons.person_outline_rounded,
+            activeIcon: Icons.person_rounded,
             label: 'Perfil',
           ),
         ],

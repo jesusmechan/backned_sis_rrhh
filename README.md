@@ -8,67 +8,66 @@ La consultora es una MYPE. El sistema cubre personal, contratos, asistencia, per
 ## Stack
 
 | Capa | Tecnología |
-|---|---|
-| Base de datos | PostgreSQL 16+ |
-| API | Java 21, Spring Boot 3.4.5, Spring Security, JPA |
-| Auth | JWT (access 15 min + refresh 7 días) |
+|------|------------|
+| Base de datos | PostgreSQL 16+ (local o [Neon](https://neon.tech)) |
+| API | Java 21, Spring Boot 3.4.x, Spring Security, JPA |
+| Auth | JWT (access ~15 min + refresh 7 días) |
 | Exportes | Excel (Apache POI) y PDF (OpenPDF) |
-| Logs | Logback + SLF4J (`backend/logs/rrhh-api.log`) |
-| Utilidades | Google Guava (caché, hashing SHA-256, colecciones) |
-| Frontend | React 19 + Vite (puerto 5173) |
+| Frontend web | React 19 + Vite |
+| App móvil | Flutter (Android) — carpeta [`mobile/`](mobile/) |
 
-## Estructura
+## Estructura del monorepo
 
 ```
-Proyecto_RRHH/
-├── README.md
-├── docs/
-│   ├── ARQUITECTURA_DE_PROYECTO.md  # Hexágono y comunicación entre carpetas
-│   ├── API.md
-│   ├── BASE_DE_DATOS.md
-│   ├── MER.md
-│   └── PRUEBAS.md           # Cuentas y recorrido de los flujos
-├── database/
-│   ├── 00_create_database.sql
-│   ├── 01_install.sql       # Todas las tablas + datos iniciales
-│   └── 02_reset.sql         # Limpia trámites y deja 4 cuentas
-├── backend/                 # API Spring Boot (puerto 8080)
-└── frontend/                # React + Vite (puerto 5173)
+backned_sis_rrhh/
+├── README.md                 # Este archivo
+├── docs/                     # Arquitectura, API, BD, pruebas, deploy
+├── database/                 # Scripts SQL (install / reset)
+├── backend/                  # API Spring Boot (:8080)
+├── frontend/                 # React + Vite (:5173)
+└── mobile/                   # App Flutter + APK en releases/
 ```
 
-## Requisitos
+## Inicio rápido
 
-- PostgreSQL 16 (pgAdmin)
-- JDK 21
-- Maven 3.9+
-- Node.js 20+
+| Qué | Cómo |
+|-----|------|
+| Base de datos | `database/00_create_database.sql` → `01_install.sql` (detalle abajo) |
+| Backend | `cd backend && cp .env.example .env && mvn spring-boot:run` |
+| Frontend | `cd frontend && npm install && npm run dev` |
+| Móvil | Ver [`mobile/README.md`](mobile/README.md) |
+| Nube | Guía completa: [`docs/DEPLOY.md`](docs/DEPLOY.md) |
 
-## 1. Base de datos (pgAdmin)
+### Cuentas demo (contraseña `Andina2026`)
 
-1. Query Tool sobre la base **`postgres`**, con **Auto commit** activo.
-2. Ejecutar `database/00_create_database.sql` (F5).
-3. Refresh → Query Tool sobre **`rrhh_andina`**.
-4. Ejecutar `01_install.sql` (esquema + menú + 4 cuentas + flujos).
-5. Para volver a dejar la base sin solicitudes y con asistencia hábil desde el 3 de agosto: `02_reset.sql`.
+| Usuario | Rol |
+|---------|-----|
+| `jesus.mechan` | ADMIN |
+| `carla.reyes` | RRHH |
+| `jesus.pantoja` | JEFE |
+| `juan.espinoza` | EMPLEADO |
 
-`01_install.sql` recrea el esquema `public`. Se puede repetir: borra solo objetos de `rrhh_andina`.
+Recorridos de prueba: [`docs/PRUEBAS.md`](docs/PRUEBAS.md).
 
-Cuentas y cómo recorrer cada flujo: [docs/PRUEBAS.md](docs/PRUEBAS.md).
+---
 
-Arquitectura hexagonal y comunicación entre carpetas: [docs/ARQUITECTURA_DE_PROYECTO.md](docs/ARQUITECTURA_DE_PROYECTO.md).
+## 1. Base de datos (pgAdmin / local)
 
-Detalle: [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md).
+1. Query Tool sobre **`postgres`**, con **Auto commit** activo.
+2. Ejecutar `database/00_create_database.sql`.
+3. Query Tool sobre **`rrhh_andina`** → ejecutar `01_install.sql`.
+4. Para resetear demo: `02_reset.sql`.
 
-Despliegue en la nube (Neon + Render + Cloudflare Pages, rama `jesus-pantoja`): **[docs/DEPLOY.md](docs/DEPLOY.md)** (guía paso a paso).
+Detalle: [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md) · MER: [`docs/MER.md`](docs/MER.md).
 
 ## 2. Backend
 
 ```bash
 cd backend
-copy .env.example .env    # o cp .env.example .env
+cp .env.example .env   # Windows: copy .env.example .env
 ```
 
-Editar `backend/.env` con la conexión local:
+Ejemplo local en `.env`:
 
 ```
 DB_URL=jdbc:postgresql://127.0.0.1:5432/rrhh_andina
@@ -76,21 +75,17 @@ DB_USERNAME=postgres
 DB_PASSWORD=root
 ```
 
-Arrancar:
-
 ```bash
-cd backend
 mvn spring-boot:run
 ```
 
-La API queda en `http://localhost:8080`.
+- API: http://localhost:8080  
+- Swagger: http://localhost:8080/swagger-ui.html  
+- OpenAPI: http://localhost:8080/v3/api-docs  
 
-Documentación interactiva (Swagger): [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)  
-Especificación OpenAPI: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+Usar `127.0.0.1` (no `localhost`) evita choques IPv6 con Docker en el puerto 5432.
 
-`localhost` en Java puede resolver por IPv6 y chocar con un contenedor Docker en el puerto 5432. Por eso la URL usa `127.0.0.1` (PostgreSQL de Windows / pgAdmin).
-
-## 3. Autenticación
+### Login
 
 `POST /api/auth/login`
 
@@ -98,26 +93,10 @@ Especificación OpenAPI: [http://localhost:8080/v3/api-docs](http://localhost:80
 { "nombreUsuario": "jesus.mechan", "password": "Andina2026" }
 ```
 
-Respuesta: `accessToken`, `refreshToken`, `tokenType` (`Bearer`), `expiresIn` y datos del usuario.
+Rutas protegidas: `Authorization: Bearer <accessToken>`.  
+Referencia: [`docs/API.md`](docs/API.md).
 
-Las demás rutas llevan:
-
-```
-Authorization: Bearer <accessToken>
-```
-
-Usuarios de prueba (contraseña **Andina2026**):
-
-| Usuario | Rol | Persona |
-|---|---|---|
-| `jesus.mechan` | ADMIN | Jesús Mechan Gonzales (acceso total; cierra Gerencia en la demo) |
-| `carla.reyes` | RRHH | Carla Reyes Huamán |
-| `jesus.pantoja` | JEFE | Jesús Pantoja Pantoja (jefe de Juan) |
-| `juan.espinoza` | EMPLEADO | Juan Espinoza (inicia el flujo) |
-
-Recorrido paso a paso: [docs/PRUEBAS.md](docs/PRUEBAS.md). Endpoints: [docs/API.md](docs/API.md).
-
-## 4. Frontend
+## 3. Frontend web
 
 ```bash
 cd frontend
@@ -125,43 +104,56 @@ npm install
 npm run dev
 ```
 
-Abre http://localhost:5173. Vite proxea `/api` al backend en el puerto 8080. El menú cambia según el rol.
+Abre http://localhost:5173. Vite proxea `/api` al backend en `:8080`.
+
+## 4. App móvil (Flutter)
+
+Documentación y APK: **[`mobile/README.md`](mobile/README.md)**.
+
+APK arm64 versionado en el repo:
+
+```
+mobile/releases/andina-rrhh-arm64-v1.0.0.apk
+```
+
+API de producción (Render): `https://rrhh-api-2bgd.onrender.com`  
+(configurable también dentro de la app: Perfil → Configuración).
 
 ## Configuración dinámica
 
-El código no fija reglas de negocio: todo sale de la base y se edita en **Maestros** (permiso `MAESTRO_GESTIONAR`).
+El código no fija reglas de negocio: salen de la base y se editan en **Maestros** (`MAESTRO_GESTIONAR`).
 
-- **Parámetros**: marca de la empresa (nombre, RUC, dominio de correo), zona horaria, idioma, moneda, límites (horas extras, tolerancia de tardanza, longitud de contraseña, prefijos de códigos) y tasas de planilla. El ámbito `PUBLICO` se entrega antes del login (`/api/configuracion/publica`), `SESION` a usuarios autenticados y `PRIVADO` solo al servidor.
-- **Catálogos**: opciones de los combos, etiquetas y colores de los estados, valor por defecto y validación por expresión regular (por ejemplo, el formato de cada tipo de documento).
-- **Valores por fecha**: RMV, UIT y cualquier parámetro que cambie con el tiempo; la planilla usa el valor vigente en el periodo.
-- **AFP, regímenes laborales y tramos de 5ta**: comisiones, factores de gratificación/CTS y escala de renta.
-- **Roles**: los permisos funcionales deciden qué puede hacer cada perfil; los roles y menús marcados como de sistema no se pueden desactivar ni borrar.
+- Parámetros (empresa, zona, moneda, límites, tasas)
+- Catálogos, valores por fecha (RMV, UIT), AFP, regímenes, tramos 5ta
+- Roles y permisos funcionales
 
-Los valores iniciales están en `database/01_install.sql`. En bases ya instaladas, el backend aplica `backend/src/main/resources/db/06_configuracion_dinamica.sql` al arrancar.
+Semilla: `database/01_install.sql`. En bases ya instaladas, el backend aplica scripts en `backend/src/main/resources/db/`.
 
 ## Módulos
 
 | Módulo | Qué cubre |
-|---|---|
-| Personal | Empleados, organigrama (`id_jefe_inmediato`), carga Excel |
-| Contratos | Modalidad, régimen laboral, AFP, horario, remuneración básica y vacaciones |
-| Maestros | Áreas, cargos, horarios, tipos de permiso, plan de cuentas, catálogos, parámetros, valores por fecha (RMV, UIT), AFP, regímenes laborales y tramos de 5ta |
-| Permisos / horas extras | Registro, cancelación, historial |
-| Aprobación | Flujos configurables + bandeja + aprobar/rechazar paso |
-| Asistencia | Marcación de ingreso/salida y corrección |
-| Planillas | Cálculo mensual de boletas y exportación PDF (básico, extras, descuentos, ONP, EsSalud, neto) |
-| Contabilidad | Asiento de partida doble al cerrar la planilla |
-| Desempeño | Evaluación con escala y criterios configurables en Maestros |
-| Reclutamiento | Convocatorias y seguimiento de postulantes |
-| Usuarios | Cuentas de acceso; el rol se elige del mantenedor (`rol`) |
-| Roles | Alta y edición de perfiles, menú y permisos funcionales |
-| Reportes | JSON, Excel y PDF |
-| Auditoría | Bitácora y trazabilidad de solicitudes |
+|--------|-----------|
+| Personal | Empleados, organigrama, carga Excel |
+| Contratos | Modalidad, régimen, AFP, horario, remuneración, vacaciones |
+| Maestros | Áreas, cargos, horarios, tipos de permiso, catálogos, parámetros |
+| Permisos / HE | Registro, cancelación, historial |
+| Aprobación | Flujos configurables + bandeja |
+| Asistencia | Marcación ingreso/salida y corrección |
+| Planillas | Boletas mensuales y PDF |
+| Contabilidad | Asiento al cerrar planilla |
+| Desempeño / Reclutamiento | Evaluación y convocatorias |
+| Usuarios / Roles | Cuentas, menú y permisos |
+| Reportes / Auditoría | JSON, Excel, PDF y bitácora |
 
 ## Documentación
 
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- OpenAPI JSON: http://localhost:8080/v3/api-docs
-- [Referencia escrita de la API](docs/API.md)
-- [MER de la base de datos](docs/MER.md)
-- [Base de datos](docs/BASE_DE_DATOS.md)
+| Documento | Contenido |
+|-----------|-----------|
+| [`docs/ARQUITECTURA_DE_PROYECTO.md`](docs/ARQUITECTURA_DE_PROYECTO.md) | Hexágono y carpetas |
+| [`docs/API.md`](docs/API.md) | Endpoints |
+| [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md) / [`docs/MER.md`](docs/MER.md) | Modelo de datos |
+| [`docs/PRUEBAS.md`](docs/PRUEBAS.md) | Cuentas y flujos |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Neon + Render + Cloudflare Pages |
+| [`mobile/README.md`](mobile/README.md) | App Flutter y APK |
+
+**Rama de despliegue en la nube:** `jesus-pantoja` (ver `docs/DEPLOY.md`).

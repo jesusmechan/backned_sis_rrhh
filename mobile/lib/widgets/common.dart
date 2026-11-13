@@ -88,12 +88,13 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppColors.tokens(context);
     final (bg, fg) = switch (tone) {
-      ChipTone.ok => (AppColors.okSoft, AppColors.ok),
-      ChipTone.warn => (AppColors.warnSoft, AppColors.warn),
-      ChipTone.danger => (AppColors.dangerSoft, AppColors.danger),
-      ChipTone.info => (AppColors.infoSoft, AppColors.info),
-      ChipTone.neutral => (AppColors.surface, AppColors.muted),
+      ChipTone.ok => (t.softOk, t.okFg),
+      ChipTone.warn => (t.softWarn, t.warnFg),
+      ChipTone.danger => (t.softDanger, t.dangerFg),
+      ChipTone.info => (t.softInfo, t.infoFg),
+      ChipTone.neutral => (t.softNeutral, t.muted),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -131,19 +132,23 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 42, color: AppColors.muted),
+            Icon(icon, size: 42, color: AppColors.mutedOf(context)),
             const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: AppColors.inkOf(context),
+              ),
             ),
             if (subtitle != null) ...[
               const SizedBox(height: 6),
               Text(
                 subtitle!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted),
+                style: TextStyle(color: AppColors.mutedOf(context)),
               ),
             ],
           ],
@@ -247,12 +252,15 @@ class InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 110,
-            child: Text(label, style: const TextStyle(color: AppColors.muted)),
+            child: Text(label, style: TextStyle(color: AppColors.mutedOf(context))),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkOf(context),
+              ),
             ),
           ),
         ],
@@ -270,9 +278,9 @@ class CircuitoAprobacion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (pasos.isEmpty) {
-      return const Text(
+      return Text(
         'Sin pasos de aprobación registrados.',
-        style: TextStyle(color: AppColors.muted),
+        style: TextStyle(color: AppColors.mutedOf(context)),
       );
     }
     return Column(
@@ -299,7 +307,7 @@ class _PasoTile extends StatelessWidget {
         ? (AppColors.danger, Icons.cancel)
         : e.contains('PEND')
         ? (AppColors.warn, Icons.schedule)
-        : (AppColors.muted, Icons.radio_button_unchecked);
+        : (AppColors.mutedOf(context), Icons.radio_button_unchecked);
     final responsable =
         paso.usuarioDecision ?? paso.usuarioAsignado ?? paso.rol;
     return IntrinsicHeight(
@@ -310,7 +318,9 @@ class _PasoTile extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 22),
               if (!ultimo)
-                Expanded(child: Container(width: 2, color: AppColors.line)),
+                Expanded(
+                  child: Container(width: 2, color: AppColors.lineOf(context)),
+                ),
             ],
           ),
           const SizedBox(width: 12),
@@ -325,7 +335,10 @@ class _PasoTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           '${paso.numeroPaso}. ${paso.nombrePaso}',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.inkOf(context),
+                          ),
                         ),
                       ),
                       StatusChip.fromEstado(paso.estado),
@@ -334,13 +347,13 @@ class _PasoTile extends StatelessWidget {
                   if (responsable != null && responsable.isNotEmpty)
                     Text(
                       responsable,
-                      style: const TextStyle(color: AppColors.muted),
+                      style: TextStyle(color: AppColors.mutedOf(context)),
                     ),
                   if (paso.fechaDecision != null)
                     Text(
                       fechaHora(paso.fechaDecision),
-                      style: const TextStyle(
-                        color: AppColors.muted,
+                      style: TextStyle(
+                        color: AppColors.mutedOf(context),
                         fontSize: 12,
                       ),
                     ),
@@ -370,11 +383,13 @@ class HistorialLista extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
-      return const Text(
+      return Text(
         'Sin movimientos.',
-        style: TextStyle(color: AppColors.muted),
+        style: TextStyle(color: AppColors.mutedOf(context)),
       );
     }
+    final ink = AppColors.inkOf(context);
+    final muted = AppColors.mutedOf(context);
     return Column(
       children: [
         for (final h in items)
@@ -383,9 +398,9 @@ class HistorialLista extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Icon(Icons.circle, size: 8, color: AppColors.navy),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Icon(Icons.circle, size: 8, color: ink),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -394,20 +409,17 @@ class HistorialLista extends StatelessWidget {
                     children: [
                       Text(
                         estadoLabel(h.accion),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: TextStyle(fontWeight: FontWeight.w700, color: ink),
                       ),
                       Text(
                         [
                           fechaHora(h.fechaHora),
                           if (h.usuario != null) h.usuario!,
                         ].join(' · '),
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: muted, fontSize: 12),
                       ),
                       if (h.comentario != null && h.comentario!.isNotEmpty)
-                        Text(h.comentario!),
+                        Text(h.comentario!, style: TextStyle(color: ink)),
                     ],
                   ),
                 ),

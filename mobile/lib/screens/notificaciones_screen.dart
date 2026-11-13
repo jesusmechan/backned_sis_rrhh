@@ -187,8 +187,12 @@ class _NotificacionesScreenState extends State<NotificacionesScreen>
                         final (icon, fg, bg) = _estilo(n);
                         final navegable = (n.tipo.toUpperCase() == 'BANDEJA' && n.idPaso != null) ||
                             n.idSolicitud != null;
+                        final isDark =
+                            Theme.of(context).brightness == Brightness.dark;
                         return Card(
-                          color: n.leida ? Colors.white : AppColors.infoSoft,
+                          color: n.leida
+                              ? AppColors.cardOf(context)
+                              : AppColors.softInfoOf(context),
                           child: ListTile(
                             onTap: () => _abrir(n),
                             leading: CircleAvatar(
@@ -198,23 +202,39 @@ class _NotificacionesScreenState extends State<NotificacionesScreen>
                             title: Text(
                               n.titulo,
                               style: TextStyle(
-                                fontWeight: n.leida ? FontWeight.w600 : FontWeight.w800,
+                                fontWeight:
+                                    n.leida ? FontWeight.w600 : FontWeight.w800,
+                                color: AppColors.inkOf(context),
                               ),
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (n.mensaje.isNotEmpty) Text(n.mensaje),
+                                if (n.mensaje.isNotEmpty)
+                                  Text(
+                                    n.mensaje,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? const Color(0xFFCBD5E1)
+                                          : AppColors.navy.withValues(alpha: 0.75),
+                                    ),
+                                  ),
                                 const SizedBox(height: 4),
                                 Text(
                                   DateFormat('dd MMM · HH:mm', 'es')
                                       .format(n.fechaCreacion.toLocal()),
-                                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.mutedOf(context),
+                                  ),
                                 ),
                               ],
                             ),
                             trailing: navegable
-                                ? const Icon(Icons.chevron_right, color: AppColors.muted)
+                                ? Icon(
+                                    Icons.chevron_right,
+                                    color: AppColors.mutedOf(context),
+                                  )
                                 : null,
                             isThreeLine: true,
                           ),

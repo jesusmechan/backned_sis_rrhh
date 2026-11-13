@@ -235,7 +235,7 @@ class _SolicitudCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(linea, style: const TextStyle(color: AppColors.muted)),
+              Text(linea, style: TextStyle(color: AppColors.mutedOf(context))),
               const SizedBox(height: 4),
               Text(motivo, maxLines: 2, overflow: TextOverflow.ellipsis),
             ],

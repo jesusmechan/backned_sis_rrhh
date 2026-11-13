@@ -27,7 +27,7 @@ class ApiClient {
   String? _baseUrl;
 
   Future<String> get baseUrl async {
-    if (_baseUrlOverride != null) return _baseUrlOverride!;
+    if (_baseUrlOverride != null) return _baseUrlOverride;
     _baseUrl ??= await ApiConfig.resolveBaseUrl();
     return _baseUrl!;
   }

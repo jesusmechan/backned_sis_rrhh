@@ -6,10 +6,11 @@ plugins {
 
 android {
     namespace = "pe.andina.andina_rrhh"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -30,9 +31,18 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Solo arm64: evita compilar armeabi-v7a + x86_64 (mucho más rápido en dispositivo).
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+        }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // APK de distribución: solo arm64 (celulares actuales; más liviano para el repo).
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+            // Firmado con debug keys (curso / demo). Producción: keystore propio.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -46,4 +56,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -124,17 +124,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final busy = auth.busy;
+    final tokens = AppColors.tokens(context);
+    final muted = tokens.muted;
+    final ink = tokens.ink;
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0), Color(0xFFCBD5E1)],
-          ),
-        ),
+        color: tokens.surface,
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -143,38 +140,42 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Material(
-                  color: Colors.white,
+                  color: tokens.card,
                   elevation: 0,
                   borderRadius: BorderRadius.circular(18),
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.line),
+                      border: Border.all(color: tokens.line),
                     ),
                     child: Form(
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'CONSULTORA CONTABLE ANDINA',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.4,
-                              color: AppColors.muted,
+                              color: muted,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                             'Ingreso móvil',
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: ink,
+                            ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Gestión de RR. HH. — marcar, permisos y avisos.',
-                            style: TextStyle(color: AppColors.muted),
+                            style: TextStyle(color: muted),
                           ),
                           const SizedBox(height: 20),
                           ErrorBanner(_error ?? auth.error),
@@ -225,12 +226,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              const Icon(Icons.dns_outlined, size: 18, color: AppColors.muted),
+                              Icon(Icons.dns_outlined, size: 18, color: muted),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Servidor: $_apiUrl',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                                  style: TextStyle(fontSize: 12, color: muted),
                                 ),
                               ),
                               TextButton(
@@ -271,9 +272,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           if (kDebugMode) ...[
                             const SizedBox(height: 6),
-                            const Text(
+                            Text(
                               'Usuario de prueba: juan.espinoza / Andina2026',
-                              style: TextStyle(fontSize: 12, color: AppColors.muted),
+                              style: TextStyle(fontSize: 12, color: muted),
                             ),
                           ],
                         ],

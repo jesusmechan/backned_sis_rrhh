@@ -181,12 +181,12 @@ class _DecisionScreenState extends State<DecisionScreen> {
                         ],
                       ),
                     ] else
-                      const Card(
+                      Card(
                         child: Padding(
-                          padding: EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(16),
                           child: Text(
                             'Este paso ya fue atendido o no le corresponde decidirlo.',
-                            style: TextStyle(color: AppColors.muted),
+                            style: TextStyle(color: AppColors.mutedOf(context)),
                           ),
                         ),
                       ),

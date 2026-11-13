@@ -5,12 +5,67 @@ skills-lock.json
 
 # Secretos
 .env
-.env.local
+.env.*
+!.env.example
 *.env.local
+**/credentials.json
+**/service-account*.json
+**/google-services.json
+**/GoogleService-Info.plist
 
 # SO / IDE
 .DS_Store
+Thumbs.db
 .idea/
 .vscode/
 *.swp
 *.swo
+*.iml
+
+# Node / frontend caches (por si aplica)
+node_modules/
+dist/
+.next/
+.turbo/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Java / backend build (refuerzo; backend/.gitignore también aplica)
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+hs_err_pid*
+
+# Flutter / mobile (refuerzo del mobile/.gitignore)
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/coverage/
+mobile/**/local.properties
+mobile/**/key.properties
+mobile/**/*.jks
+mobile/**/*.keystore
+mobile/**/*.apk
+mobile/**/*.aab
+!mobile/releases/
+!mobile/releases/*.apk
+
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/**/xcuserdata/
+mobile/android/.gradle/
+mobile/android/**/.cxx/
+mobile/android/captures/
+
+# Misc
+*.tmp
+*.temp
+*.bak
+*.orig

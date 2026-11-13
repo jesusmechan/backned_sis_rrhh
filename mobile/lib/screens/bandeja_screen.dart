@@ -167,7 +167,9 @@ class _ItemCard extends StatelessWidget {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: item.esPermiso ? AppColors.infoSoft : AppColors.warnSoft,
+                backgroundColor: item.esPermiso
+                    ? AppColors.softInfoOf(context)
+                    : AppColors.softWarnOf(context),
                 foregroundColor: item.esPermiso ? AppColors.info : AppColors.warn,
                 child: Icon(item.esPermiso ? Icons.event_note_outlined : Icons.more_time),
               ),
@@ -176,14 +178,33 @@ class _ItemCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.solicitante,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                    Text(item.tipoTramite, style: const TextStyle(color: AppColors.muted)),
+                    Text(
+                      item.solicitante,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: AppColors.inkOf(context),
+                      ),
+                    ),
+                    Text(
+                      item.tipoTramite,
+                      style: TextStyle(color: AppColors.mutedOf(context)),
+                    ),
                     const SizedBox(height: 4),
-                    Text(item.motivo, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      item.motivo,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: AppColors.inkOf(context)),
+                    ),
                     const SizedBox(height: 6),
-                    Text('Paso ${item.numeroPaso}: ${item.nombrePaso}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                    Text(
+                      'Paso ${item.numeroPaso}: ${item.nombrePaso}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.mutedOf(context),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -194,7 +215,10 @@ class _ItemCard extends StatelessWidget {
                   StatusChip.fromEstado(item.estadoSolicitud),
                   if (item.puedeDecidir) ...[
                     const SizedBox(height: 8),
-                    const Icon(Icons.chevron_right, color: AppColors.muted),
+                    Icon(
+                      Icons.chevron_right,
+                      color: AppColors.mutedOf(context),
+                    ),
                   ],
                 ],
               ),

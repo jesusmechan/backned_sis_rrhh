@@ -31,6 +31,8 @@ class DiaAsistenciaCard extends StatelessWidget {
     final duracion = duracionDia(day, enCursoHoy: enCursoHoy);
     final resumen = resumenEstadoDia(day);
     final mostrarDetalle = !expandible || expanded;
+    final muted = AppColors.mutedOf(context);
+    final ink = AppColors.inkOf(context);
 
     final child = Padding(
       padding: EdgeInsets.all(compact ? 14 : 16),
@@ -46,6 +48,7 @@ class DiaAsistenciaCard extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: compact ? 14 : 15,
+                    color: ink,
                   ),
                 ),
               ),
@@ -55,7 +58,7 @@ class DiaAsistenciaCard extends StatelessWidget {
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
                     Icons.expand_more,
-                    color: AppColors.muted,
+                    color: muted,
                     size: compact ? 22 : 24,
                   ),
                 ),
@@ -67,7 +70,7 @@ class DiaAsistenciaCard extends StatelessWidget {
               resumen,
               style: TextStyle(
                 fontSize: compact ? 12 : 13,
-                color: day.tieneAlguna ? AppColors.navy : AppColors.muted,
+                color: day.tieneAlguna ? ink : muted,
                 fontWeight: day.tieneAlguna ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -76,7 +79,7 @@ class DiaAsistenciaCard extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   'Tiempo: $duracion',
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(fontSize: 12, color: muted),
                 ),
               ),
             if (expandible)
@@ -86,7 +89,7 @@ class DiaAsistenciaCard extends StatelessWidget {
                   'Toca para ver entrada y salida',
                   style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.muted.withValues(alpha: 0.9),
+                    color: muted.withValues(alpha: 0.9),
                   ),
                 ),
               ),
@@ -129,14 +132,14 @@ class DiaAsistenciaCard extends StatelessWidget {
                 SizedBox(height: compact ? 10 : 12),
                 Row(
                   children: [
-                    const Icon(Icons.timer_outlined, size: 16, color: AppColors.muted),
+                    Icon(Icons.timer_outlined, size: 16, color: muted),
                     const SizedBox(width: 6),
                     Text(
                       'Tiempo: $duracion',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.muted,
+                        color: muted,
                       ),
                     ),
                   ],
@@ -178,18 +181,24 @@ class _HoraMarcacionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppColors.tokens(context);
+    final bg = done ? t.softOk : t.softNeutral;
+
     return Container(
       padding: EdgeInsets.all(compact ? 10 : 12),
       decoration: BoxDecoration(
-        color: done ? AppColors.okSoft : AppColors.surface,
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: t.line),
       ),
       child: Column(
         children: [
-          Icon(icon, size: compact ? 16 : 18, color: done ? AppColors.ok : AppColors.info),
+          Icon(icon, size: compact ? 16 : 18, color: done ? t.okFg : t.infoFg),
           SizedBox(height: compact ? 4 : 6),
-          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(color: t.muted, fontSize: 12),
+          ),
           SizedBox(height: compact ? 2 : 4),
           Text(
             time,
@@ -197,7 +206,7 @@ class _HoraMarcacionTile extends StatelessWidget {
               fontSize: compact ? 16 : 18,
               fontWeight: FontWeight.w800,
               fontFamily: 'monospace',
-              color: done ? AppColors.ok : AppColors.navy,
+              color: done ? t.okFg : t.ink,
             ),
           ),
         ],

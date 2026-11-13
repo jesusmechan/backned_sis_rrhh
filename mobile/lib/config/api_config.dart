@@ -28,6 +28,10 @@ class ApiConfig {
   static String get baseUrl => _resolved ?? defaultHost;
 
   /// Normaliza entrada del usuario: acepta IP LAN, host o URL completa.
+  ///
+  /// - `https://host` → sin puerto (443).
+  /// - `http://host` sin puerto → `:8080` (dev local).
+  /// - Con puerto explícito se respeta.
   static String parseUserUrl(String input) {
     var raw = input.trim();
     if (raw.isEmpty) {
@@ -38,10 +42,17 @@ class ApiConfig {
     }
     final uri = Uri.tryParse(raw);
     if (uri == null || uri.host.isEmpty) {
-      throw FormatException('URL no válida. Ejemplo: http://192.168.0.15:8080');
+      throw FormatException(
+        'URL no válida. Ejemplo: https://tu-api.onrender.com o http://192.168.0.15:8080',
+      );
     }
-    final port = uri.hasPort ? uri.port : 8080;
-    return _normalize('${uri.scheme}://${uri.host}:$port');
+    if (uri.hasPort) {
+      return _normalize('${uri.scheme}://${uri.host}:${uri.port}');
+    }
+    if (uri.scheme == 'https') {
+      return _normalize('https://${uri.host}');
+    }
+    return _normalize('http://${uri.host}:8080');
   }
 
   static Future<String> resolveBaseUrl() async {
@@ -141,8 +152,11 @@ class ApiConfig {
 
   static Future<bool> isReachable(String url) async {
     try {
-      final uri = Uri.parse('${_normalize(url)}/api/configuracion/publica');
-      final r = await http.get(uri, headers: {'Accept': 'application/json'}).timeout(probeTimeout);
+      final normalized = _normalize(url);
+      final uri = Uri.parse('$normalized/api/configuracion/publica');
+      // Render Free puede tardar en despertar; HTTPS usa timeout largo.
+      final wait = normalized.startsWith('https://') ? timeout : probeTimeout;
+      final r = await http.get(uri, headers: {'Accept': 'application/json'}).timeout(wait);
       return r.statusCode >= 200 && r.statusCode < 500;
     } catch (_) {
       return false;

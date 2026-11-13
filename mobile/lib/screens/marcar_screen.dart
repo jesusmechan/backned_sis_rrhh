@@ -301,37 +301,41 @@ class _MarcarScreenState extends State<MarcarScreen> with WidgetsBindingObserver
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Text(
+                        Text(
                           'La hora la registra el servidor (hora de Lima), no el celular.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.muted,
+                            color: AppColors.mutedOf(context),
                           ),
                         ),
                         if (anteriores.isNotEmpty) ...[
                           const SizedBox(height: 28),
                           Row(
                             children: [
-                              const Icon(Icons.history, size: 18, color: AppColors.navy),
+                              Icon(
+                                Icons.history,
+                                size: 18,
+                                color: AppColors.inkOf(context),
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Días anteriores',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w800,
                                         fontSize: 15,
-                                        color: AppColors.navy,
+                                        color: AppColors.inkOf(context),
                                       ),
                                     ),
                                     Text(
                                       'Últimos ${anteriores.length} días · toca un día para ver detalle',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: AppColors.muted,
+                                        color: AppColors.mutedOf(context),
                                       ),
                                     ),
                                   ],
