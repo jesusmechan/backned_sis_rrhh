@@ -110,8 +110,10 @@ Abre http://localhost:5173. Vite proxea `/api` al backend en `:8080`.
 
 Documentación: **[`mobile/README.md`](mobile/README.md)**.
 
-**[⬇ Descargar APK Android v1.0.0](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk)**  
-(arm64 · ~57 MB · API Render)
+**Android** — [⬇ APK v1.0.0](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-arm64-v1.0.0.apk) (arm64 · ~57 MB)
+
+**iOS** — [⬇ IPA v1.0.0](https://github.com/jesusmechan/backned_sis_rrhh/raw/main/mobile/releases/andina-rrhh-ios-v1.0.0.ipa) (~9 MB)  
+Instalación en iPhone desde Windows: **[`mobile/docs/INSTALAR_IOS_SIDELOADLY.md`](mobile/docs/INSTALAR_IOS_SIDELOADLY.md)** (Sideloadly).
 
 API de producción: `https://rrhh-api-2bgd.onrender.com`  
 (también configurable en la app: Perfil → Configuración).
@@ -150,6 +152,7 @@ Semilla: `database/01_install.sql`. En bases ya instaladas, el backend aplica sc
 | [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md) / [`docs/MER.md`](docs/MER.md) | Modelo de datos |
 | [`docs/PRUEBAS.md`](docs/PRUEBAS.md) | Cuentas y flujos |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | Neon + Render + Cloudflare Pages |
-| [`mobile/README.md`](mobile/README.md) | App Flutter y APK |
+| [`mobile/README.md`](mobile/README.md) | App Flutter, APK e IPA |
+| [`mobile/docs/INSTALAR_IOS_SIDELOADLY.md`](mobile/docs/INSTALAR_IOS_SIDELOADLY.md) | Instalar IPA en iPhone (Windows + Sideloadly) |
 
 **Rama de despliegue en la nube:** `jesus-pantoja` (ver `docs/DEPLOY.md`).

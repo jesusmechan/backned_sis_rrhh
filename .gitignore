@@ -53,9 +53,11 @@ mobile/**/key.properties
 mobile/**/*.jks
 mobile/**/*.keystore
 mobile/**/*.apk
+mobile/**/*.ipa
 mobile/**/*.aab
 !mobile/releases/
 !mobile/releases/*.apk
+!mobile/releases/*.ipa
 
 mobile/ios/Pods/
 mobile/ios/.symlinks/

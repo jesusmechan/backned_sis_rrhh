@@ -58,12 +58,14 @@ key.properties
 **/.cxx/
 **/captures/
 *.apk
+*.ipa
 *.aab
 *.ap_
 *.dex
-# Excepción: APK versionados para descarga desde el repo
+# Excepción: APK / IPA versionados para descarga desde el repo
 !releases/
 !releases/*.apk
+!releases/*.ipa
 
 
 # iOS / macOS ephemeral
