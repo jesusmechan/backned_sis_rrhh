@@ -41,14 +41,22 @@ logging:
     org.hibernate.SQL: WARN
 
 springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:true}
   swagger-ui:
     path: /swagger-ui.html
     tags-sorter: alpha
     operations-sorter: method
-  api-docs:
-    path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:true}
 
 app:
+  # En producción poner SWAGGER_ENABLED=false (A02: superficie de ataque).
+  swagger:
+    enabled: ${SWAGGER_ENABLED:true}
+  # Regenera docs/seguridad-report.html al arrancar (lee XML de la última corrida Maven).
+  security-report:
+    on-startup: ${SECURITY_REPORT_ON_STARTUP:true}
   jwt:
     # Obligatorio vía JWT_SECRET (backend/.env). Mínimo 32 caracteres. Sin default de código.
     secret: ${JWT_SECRET}

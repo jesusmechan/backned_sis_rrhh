@@ -11,6 +11,7 @@ Matriz formal de casos: [MATRIZ_PRUEBAS_SEM13.md](MATRIZ_PRUEBAS_SEM13.md).
 |---|---|---|---|
 | **Unitarias** (`*Test`) | `AuthServiceTest`, `LoginRequestValidationTest`, `AuthControllerTest`, `PlanillaCalculoPeruDinamicoTest`, `PoiExcelAdapterTest` | No (mocks) | `mvn test` |
 | **Integración** (`*IT`) | `AuthIntegrationIT`, `SesionIntegrationIT` | Sí → BD **`rrhh_andina_it`** | `mvn verify` |
+| **Seguridad** (S14) | `Security*IT`, `RateLimitFilterTest` | IT sí → `rrhh_andina_it` | [MATRIZ_PRUEBAS_SEGURIDAD_SEM14.md](MATRIZ_PRUEBAS_SEGURIDAD_SEM14.md) · demo: [COMO_DEMOSTRAR_SEGURIDAD_SEM14.md](COMO_DEMOSTRAR_SEGURIDAD_SEM14.md) |
 
 **Importante:** las IT **no** usan `rrhh_andina` (tu BD de desarrollo/demo).  
 Usan la BD de prueba `rrhh_andina_it`. Al arrancar, el test la crea si falta y carga `database/01_install.sql` (incluye `DROP SCHEMA` solo sobre esa BD).
@@ -57,9 +58,9 @@ Al final debe aparecer `BUILD SUCCESS` y, en los reportes:
 | Suite | Ubicación del resumen | Esperado |
 |---|---|---|
 | Unitarias | salida de Surefire / `target/surefire-reports` | Failures: **0**, Errors: **0** |
-| Integración | `target/failsafe-reports/failsafe-summary.xml` | `<completed>9</completed>`, errors/failures **0** |
+| Integración + seguridad | `target/failsafe-reports/failsafe-summary.xml` | errors/failures **0** (auth IT + `Security*IT`) |
 
-Las integración actuales son **9** casos (`CP-AUTH-IT-01` … `CP-AUTH-IT-09`).
+Las IT de auth siguen siendo `CP-AUTH-IT-01` … `CP-AUTH-IT-09`; además corren las de seguridad (`SEC-A01-*`, `SEC-A02-*`, etc.).
 
 ---
 
@@ -137,6 +138,7 @@ Referencia del avance:
    - `adapter/in/web/AuthIntegrationIT`
    - `adapter/in/web/SesionIntegrationIT`
 3. La primera ejecución puede tardar más: crea/carga `rrhh_andina_it`
+4. Pruebas de seguridad (S14) y vista visual: ver [COMO_DEMOSTRAR_SEGURIDAD_SEM14.md](COMO_DEMOSTRAR_SEGURIDAD_SEM14.md)
 
 ---
 
@@ -190,7 +192,7 @@ Sirven para demostrar el **resultado global** (BUILD SUCCESS), pero **no** para 
 - [ ] `mvn test` → BUILD SUCCESS (unitarias sin fallos)
 - [ ] PostgreSQL en `127.0.0.1:5432` y `.env` OK
 - [ ] `mvn verify` → BUILD SUCCESS
-- [ ] `failsafe-summary.xml` → 9 completed, 0 errors, 0 failures
+- [ ] `failsafe-summary.xml` → 0 errors, 0 failures
 - [ ] (Opcional) JaCoCo abierto y clases clave con cobertura razonable
 - [ ] Confirmado que la BD de demo `rrhh_andina` **sigue intacta** (las IT no la usan)
 

@@ -1,7 +1,13 @@
 # Utilidades solo locales (LaunchAgent / adb); no forman parte del despliegue.
-scripts/
+# Solo la carpeta /scripts de la raíz (no docs/scripts).
+/scripts/
 .agents/
+.tools/
 skills-lock.json
+
+# Reportes generados (mvn test/verify o al arrancar la API)
+docs/seguridad-report.html
+**/seguridad-report.html
 
 # Secretos
 .env
@@ -13,7 +19,7 @@ skills-lock.json
 **/google-services.json
 **/GoogleService-Info.plist
 
-# SO / IDE
+# SO / IDE / temporales de Office (lock ~$*.pptx)
 .DS_Store
 Thumbs.db
 .idea/
@@ -21,6 +27,8 @@ Thumbs.db
 *.swp
 *.swo
 *.iml
+~$*
+**/~$*
 
 # Node / frontend caches (por si aplica)
 node_modules/

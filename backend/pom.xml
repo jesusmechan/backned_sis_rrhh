@@ -154,6 +154,36 @@
                     <nvdApiDelay>3000</nvdApiDelay>
                 </configuration>
             </plugin>
+            <!-- Dashboard HTML de seguridad con datos reales de Surefire/Failsafe -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>seguridad-report-after-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pe.andina.rrhh.config.SecurityTestReportGenerator</mainClass>
+                            <classpathScope>compile</classpathScope>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>seguridad-report-after-verify</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>pe.andina.rrhh.config.SecurityTestReportGenerator</mainClass>
+                            <classpathScope>compile</classpathScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>
