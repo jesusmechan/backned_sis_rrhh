@@ -56,20 +56,26 @@ public final class DtoMapper {
                 p.getIdPasoSolicitud(), p.getNumeroPaso(), p.getNombrePaso(), p.getTipoAprobador(),
                 p.getRol() != null ? p.getRol().getNombre() : null,
                 p.getUsuarioAsignado() != null ? p.getUsuarioAsignado().getNombreUsuario() : null,
+                Boolean.TRUE.equals(p.getRequiereAdjunto()),
+                p.getTipoActividad(),
+                p.getAccionNoConforme(),
+                p.getNumeroPasoDevolver(),
                 p.getEstado(),
                 p.getUsuarioDecision() != null ? p.getUsuarioDecision().getNombreUsuario() : null,
                 p.getFechaInicio(), p.getFechaDecision(), p.getComentario()
         );
     }
 
-    public static PermisoResponse permiso(SolicitudPermiso s, List<SolicitudPasoAprobacion> pasos) {
+    public static PermisoResponse permiso(SolicitudPermiso s, List<SolicitudPasoAprobacion> pasos, int cantidadAdjuntos) {
         return new PermisoResponse(
                 s.getIdSolicitudPermiso(),
                 s.getEmpleado().getIdEmpleado(), s.getEmpleado().nombreCompleto(),
                 s.getTipoPermiso().getIdTipoPermiso(), s.getTipoPermiso().getNombre(),
+                Boolean.TRUE.equals(s.getTipoPermiso().getRequiereSustento()),
                 s.getConfiguracion() != null ? s.getConfiguracion().getNombre() : null,
                 s.getFechaInicio(), s.getFechaFin(), s.getHoraInicio(), s.getHoraFin(),
                 s.getMotivo(), s.getEstado(), s.getFechaCreacion(),
+                cantidadAdjuntos,
                 pasos.stream().map(DtoMapper::paso).toList()
         );
     }
@@ -103,6 +109,10 @@ public final class DtoMapper {
                         p.getRol() != null ? p.getRol().getIdRol() : null,
                         p.getUsuario() != null ? p.getUsuario().getIdUsuario() : null,
                         p.getEsObligatorio(),
+                        Boolean.TRUE.equals(p.getRequiereAdjunto()),
+                        p.getTipoActividad(),
+                        p.getAccionNoConforme(),
+                        p.getNumeroPasoDevolver(),
                         p.getRol() != null ? p.getRol().getNombre() : null,
                         p.getUsuario() != null ? p.getUsuario().getNombreUsuario() : null
                 )).toList()

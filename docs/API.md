@@ -175,6 +175,64 @@ Auth: **ADMIN** o **RRHH**.
 | GET | `/api/empleados/plantilla-excel` | Descarga plantilla `.xlsx` |
 | POST | `/api/empleados/carga-excel` | Carga masiva (`multipart/form-data`, campo `archivo`) |
 
+## Organigrama
+
+Árbol jerárquico basado en `empleado.id_jefe_inmediato`. El nivel se infiere del cargo:
+
+| Nivel | Criterio (nombre de cargo) |
+|---|---|
+| `GERENTE_GENERAL` | `Gerente General` |
+| `SUBGERENTE_GENERAL` | `Subgerente General` |
+| `JEFE_AREA` | Empieza con `Jefe ` |
+| `COLABORADOR` | Resto |
+
+Permisos: `ORGANIGRAMA_CONSULTAR` / `ORGANIGRAMA_GESTIONAR` (también acepta `PERSONAL_CONSULTAR` / `PERSONAL_ACTUALIZAR`).
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/organigrama` | Árbol completo (`incluirInactivos=false` por defecto) |
+| GET | `/api/organigrama/areas` | Vista por área: jefe de área + colaboradores |
+| GET | `/api/organigrama/equipo/{idEmpleado}` | Subárbol bajo un jefe |
+| PUT | `/api/organigrama/reasignar` | Cambia el jefe inmediato de uno o más trabajadores |
+| POST | `/api/organigrama/promover` | Cambia cargo (p. ej. a jefe de área) y opcionalmente asume el equipo del jefe saliente |
+| POST | `/api/organigrama/cesar` | Cesado + reasignación obligatoria de reportes (sucesor o nuevo jefe) |
+
+**Reasignar**
+
+```json
+{
+  "idsEmpleado": [3],
+  "idNuevoJefe": 2
+}
+```
+
+**Promover** (colaborador → jefe de área)
+
+```json
+{
+  "idEmpleado": 3,
+  "idCargoNuevo": 4,
+  "idArea": 3,
+  "idNuevoJefeDelPromovido": 5,
+  "idJefeSaliente": 2,
+  "asumirEquipoDelJefeActual": true
+}
+```
+
+**Cesar** (si tiene reportes activos exige sucesor o nuevo jefe)
+
+```json
+{
+  "idEmpleado": 2,
+  "fechaCese": "2026-11-17",
+  "idSucesor": 3,
+  "idCargoSucesor": 4,
+  "idNuevoJefeDeReportes": null
+}
+```
+
+Menú frontend: `/organigrama` (código `ORGANIGRAMA`).
+
 **Crear / actualizar**
 
 ```json
@@ -253,10 +311,14 @@ Auth: autenticado. Un empleado ve las suyas; ADMIN, RRHH, GERENCIA y JEFE ven el
 | Método | Ruta | Notas |
 |---|---|---|
 | GET | `/api/permisos` | Paginado (`page`, `size`, `estado`, `q`) |
-| GET | `/api/permisos/{id}` | Detalle |
+| GET | `/api/permisos/{id}` | Detalle (`requiereSustento`, `cantidadAdjuntos`, pasos con `requiereAdjunto`) |
 | POST | `/api/permisos` | Crear |
 | POST | `/api/permisos/{id}/cancelar` | Cancelar |
 | GET | `/api/permisos/{id}/historial` | Historial |
+| GET | `/api/permisos/{id}/adjuntos` | Listar evidencias |
+| POST | `/api/permisos/{id}/adjuntos` | Subir evidencia (`multipart`: `archivo`, opcional `idPaso`) |
+| GET | `/api/permisos/{id}/adjuntos/{idAdjunto}` | Descargar |
+| DELETE | `/api/permisos/{id}/adjuntos/{idAdjunto}` | Eliminar (solo pendiente) |
 
 ```json
 {
@@ -376,8 +438,9 @@ Auth: **ADMIN** o **RRHH**.
 | POST | `/api/flujos` |
 | PUT | `/api/flujos/{id}` |
 
-`tipoOrigen`: `PERMISO` o `HORA_EXTRA`.  
-`tipoAprobador`: `JEFE_INMEDIATO`, `ROL` o `USUARIO`.
+`tipoOrigen`: `PERMISO` o `HORA_EXTRA`.
+`tipoAprobador`: `JEFE_INMEDIATO`, `ROL`, `USUARIO` o `SOLICITANTE` (devuelve el trámite al dueño para adjuntar evidencia).
+Cada paso admite `requiereAdjunto: true` para exigir al menos un archivo antes de aprobar ese paso.
 
 ```json
 {
@@ -385,7 +448,7 @@ Auth: **ADMIN** o **RRHH**.
   "nombre": "Permiso por salud",
   "tipoOrigen": "PERMISO",
   "idTipoPermiso": 2,
-  "descripcion": "Jefe inmediato y RR. HH.",
+  "descripcion": "Jefe, evidencia del solicitante y RR. HH.",
   "activo": true,
   "pasos": [
     {
@@ -394,15 +457,26 @@ Auth: **ADMIN** o **RRHH**.
       "tipoAprobador": "JEFE_INMEDIATO",
       "idRol": null,
       "idUsuario": null,
-      "esObligatorio": true
+      "esObligatorio": true,
+      "requiereAdjunto": false
     },
     {
       "numeroPaso": 2,
+      "nombrePaso": "Adjuntar evidencia médica",
+      "tipoAprobador": "SOLICITANTE",
+      "idRol": null,
+      "idUsuario": null,
+      "esObligatorio": true,
+      "requiereAdjunto": true
+    },
+    {
+      "numeroPaso": 3,
       "nombrePaso": "Validación de RR. HH.",
       "tipoAprobador": "ROL",
       "idRol": 2,
       "idUsuario": null,
-      "esObligatorio": true
+      "esObligatorio": true,
+      "requiereAdjunto": false
     }
   ]
 }

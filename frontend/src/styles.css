@@ -58,4 +58,14 @@
 @layer utilities {
   .page-title { @apply text-2xl font-bold tracking-tight text-navy sm:text-3xl; }
   .break-any { overflow-wrap: anywhere; }
+
+  /* Controles más compactos (p. ej. configuración de flujo). */
+  .form-dense input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
+  .form-dense select,
+  .form-dense textarea {
+    @apply rounded-md px-2.5 py-1.5 text-sm;
+  }
+  .form-dense table { @apply min-w-[36rem]; }
+  .form-dense th { @apply px-2 py-2; }
+  .form-dense td { @apply border-t-0 px-2 py-1.5; }
 }

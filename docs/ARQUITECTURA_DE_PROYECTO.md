@@ -67,7 +67,7 @@ flowchart LR
 |---|---|
 | `frontend/` | Interfaz. No calcula planilla ni aprueba pasos: llama a `/api/...`. |
 | `backend/` | Hexágono: casos de uso, seguridad JWT y persistencia. |
-| `database/` | Scripts de instalación (`00`, `01`) y reset de demo (`02`). |
+| `database/` | Install limpio (`00`, `01`) y reset de demo (`02`). Ver `database/README.md`. |
 | `docs/` | Documentación del curso (API, base, pruebas, MER, esta arquitectura). |
 
 Al arrancar, Vite (puerto **5173**) reenvía `/api` a `http://127.0.0.1:8080`. El navegador nunca habla directo con PostgreSQL.

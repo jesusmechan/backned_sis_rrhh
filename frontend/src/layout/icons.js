@@ -10,6 +10,7 @@ import {
   Inbox,
   List,
   LogIn,
+  Network,
   Shield,
   Star,
   User,
@@ -41,7 +42,8 @@ const ICONS = {
   Star,
   UserPlus,
   Library,
-  KeyRound
+  KeyRound,
+  Network
 };
 
 export function menuIcon(name) {

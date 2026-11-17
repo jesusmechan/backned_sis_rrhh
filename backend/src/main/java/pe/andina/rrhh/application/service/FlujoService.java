@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.ConfiguracionAprobacion;
 import pe.andina.rrhh.domain.model.ConfiguracionAprobacionDetalle;
+import pe.andina.rrhh.domain.model.enums.AccionNoConforme;
+import pe.andina.rrhh.domain.model.enums.TipoActividad;
 import pe.andina.rrhh.domain.model.enums.TipoAprobador;
 import pe.andina.rrhh.application.dto.AppDtos.FlujoPasoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.FlujoRequest;
@@ -107,6 +109,25 @@ public class FlujoService implements FlujoUseCase {
             d.setNombrePaso(p.nombrePaso());
             d.setTipoAprobador(p.tipoAprobador());
             d.setEsObligatorio(p.esObligatorio() == null || p.esObligatorio());
+            d.setRequiereAdjunto(Boolean.TRUE.equals(p.requiereAdjunto()));
+            TipoActividad tipoActividad = p.tipoActividad() == null ? TipoActividad.DECISION : p.tipoActividad();
+            d.setTipoActividad(tipoActividad);
+            if (tipoActividad == TipoActividad.DECISION) {
+                AccionNoConforme accion = p.accionNoConforme() == null ? AccionNoConforme.CERRAR : p.accionNoConforme();
+                d.setAccionNoConforme(accion);
+                if (accion == AccionNoConforme.DEVOLVER) {
+                    if (p.numeroPasoDevolver() == null || p.numeroPasoDevolver() < 1 || p.numeroPasoDevolver() >= p.numeroPaso()) {
+                        throw DomainException.badRequest(
+                                "El paso " + p.numeroPaso() + " debe indicar un paso anterior al devolver");
+                    }
+                    d.setNumeroPasoDevolver(p.numeroPasoDevolver());
+                } else {
+                    d.setNumeroPasoDevolver(null);
+                }
+            } else {
+                d.setAccionNoConforme(null);
+                d.setNumeroPasoDevolver(null);
+            }
             d.setActivo(true);
             if (p.tipoAprobador() == TipoAprobador.ROL) {
                 if (p.idRol() == null) {
@@ -118,6 +139,11 @@ public class FlujoService implements FlujoUseCase {
                     throw DomainException.badRequest("El paso " + p.numeroPaso() + " requiere un usuario");
                 }
                 d.setUsuario(usuarioRepository.findById(p.idUsuario()).orElseThrow(() -> DomainException.badRequest("Usuario no existe")));
+            } else if (p.tipoAprobador() == TipoAprobador.SOLICITANTE
+                    || p.tipoAprobador() == TipoAprobador.JEFE_INMEDIATO) {
+                // Sin rol ni usuario fijo: se resuelve al instanciar el flujo
+                d.setRol(null);
+                d.setUsuario(null);
             }
             detalleRepository.save(d);
         }

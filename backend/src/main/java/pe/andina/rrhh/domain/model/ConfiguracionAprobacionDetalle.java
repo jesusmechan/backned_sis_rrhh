@@ -13,6 +13,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import pe.andina.rrhh.domain.model.enums.AccionNoConforme;
+import pe.andina.rrhh.domain.model.enums.TipoActividad;
 import pe.andina.rrhh.domain.model.enums.TipoAprobador;
 
 @Entity
@@ -50,6 +52,23 @@ public class ConfiguracionAprobacionDetalle {
     @Column(name = "es_obligatorio", nullable = false)
     private Boolean esObligatorio = true;
 
+    /** Si es true, al aprobar el paso debe existir al menos un adjunto en la solicitud. */
+    @Column(name = "requiere_adjunto", nullable = false)
+    private Boolean requiereAdjunto = false;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "tipo_actividad", nullable = false)
+    private TipoActividad tipoActividad = TipoActividad.DECISION;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "accion_no_conforme")
+    private AccionNoConforme accionNoConforme;
+
+    @Column(name = "numero_paso_devolver")
+    private Integer numeroPasoDevolver;
+
     @Column(nullable = false)
     private Boolean activo = true;
 
@@ -69,6 +88,14 @@ public class ConfiguracionAprobacionDetalle {
     public void setUsuario(Usuario usuario) { this.usuario = usuario; }
     public Boolean getEsObligatorio() { return esObligatorio; }
     public void setEsObligatorio(Boolean esObligatorio) { this.esObligatorio = esObligatorio; }
+    public Boolean getRequiereAdjunto() { return requiereAdjunto; }
+    public void setRequiereAdjunto(Boolean requiereAdjunto) { this.requiereAdjunto = requiereAdjunto; }
+    public TipoActividad getTipoActividad() { return tipoActividad; }
+    public void setTipoActividad(TipoActividad tipoActividad) { this.tipoActividad = tipoActividad; }
+    public AccionNoConforme getAccionNoConforme() { return accionNoConforme; }
+    public void setAccionNoConforme(AccionNoConforme accionNoConforme) { this.accionNoConforme = accionNoConforme; }
+    public Integer getNumeroPasoDevolver() { return numeroPasoDevolver; }
+    public void setNumeroPasoDevolver(Integer numeroPasoDevolver) { this.numeroPasoDevolver = numeroPasoDevolver; }
     public Boolean getActivo() { return activo; }
     public void setActivo(Boolean activo) { this.activo = activo; }
 }

@@ -93,7 +93,8 @@ public class CatalogoService implements CatalogoUseCase {
         return tipoPermisoRepository.findAll().stream()
                 .filter(t -> Boolean.TRUE.equals(t.getActivo()))
                 .map(t -> new TipoPermisoItem(t.getIdTipoPermiso(), t.getCodigo(), t.getNombre(),
-                        Boolean.TRUE.equals(t.getEsVacaciones())))
+                        Boolean.TRUE.equals(t.getEsVacaciones()),
+                        Boolean.TRUE.equals(t.getRequiereSustento())))
                 .toList();
     }
 

@@ -19,6 +19,7 @@ import pe.andina.rrhh.application.port.out.HorarioLaboralPort;
 
 import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.domain.model.Permisos;
+import pe.andina.rrhh.domain.service.OrganigramaReglas;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -35,6 +36,7 @@ public class EmpleadoService implements EmpleadoUseCase {
     private final CurrentUserPort currentUser;
     private final ParametroPort parametros;
     private final CatalogoReglas catalogo;
+    private final OrganigramaReglas organigramaReglas;
 
     public EmpleadoService(EmpleadoPort empleadoRepository,
                            AreaPort areaRepository,
@@ -43,7 +45,8 @@ public class EmpleadoService implements EmpleadoUseCase {
                            AuditoriaUseCase auditoriaService,
                            CurrentUserPort currentUser,
                            ParametroPort parametros,
-                           CatalogoReglas catalogo) {
+                           CatalogoReglas catalogo,
+                           OrganigramaReglas organigramaReglas) {
         this.parametros = parametros;
         this.catalogo = catalogo;
         this.empleadoRepository = empleadoRepository;
@@ -52,6 +55,7 @@ public class EmpleadoService implements EmpleadoUseCase {
         this.horarioRepository = horarioRepository;
         this.auditoriaService = auditoriaService;
         this.currentUser = currentUser;
+        this.organigramaReglas = organigramaReglas;
     }
 
     @Transactional(readOnly = true)
@@ -125,10 +129,9 @@ public class EmpleadoService implements EmpleadoUseCase {
         e.setTipoContrato(catalogo.oPorDefecto(r.tipoContrato(), CatalogoReglas.TIPO_CONTRATO, TipoContrato.class));
         e.setEstado(catalogo.oPorDefecto(r.estado(), CatalogoReglas.ESTADO_EMPLEADO, EstadoEmpleado.class));
         if (r.idJefeInmediato() != null) {
-            if (e.getIdEmpleado() != null && r.idJefeInmediato().equals(e.getIdEmpleado())) {
-                throw DomainException.badRequest("El trabajador no puede ser su propio jefe");
-            }
-            e.setJefeInmediato(buscar(r.idJefeInmediato()));
+            Empleado jefe = buscar(r.idJefeInmediato());
+            organigramaReglas.validarNuevaJefatura(e, jefe, empleadoRepository.findAll());
+            e.setJefeInmediato(jefe);
         } else {
             e.setJefeInmediato(null);
         }

@@ -96,11 +96,18 @@ export function BandejaDecision() {
     setSaving(true);
     try {
       await http.post(`/api/pasos/${idPaso}/${accion}`, { comentario: textComentario || 'Conforme' });
+      const okMsg = accion === 'aprobar'
+        ? (esDecision
+          ? 'Paso aprobado. La solicitud queda en seguimiento, solo lectura.'
+          : 'Actividad completada. El flujo continúa.')
+        : (devolver
+          ? 'Actividad devuelta. El responsable anterior debe corregirla.'
+          : 'Solicitud rechazada. Queda visible en seguimiento.');
       navigate('/bandeja', {
         replace: true,
         state: {
-          ok: accion === 'aprobar' ? 'Paso aprobado. La solicitud queda en seguimiento, solo lectura.' : 'Solicitud rechazada. Queda visible en seguimiento.',
-          tab: 'seguimiento'
+          ok: okMsg,
+          tab: accion === 'aprobar' || devolver ? 'pendientes' : 'seguimiento'
         }
       });
     } catch (e) {
@@ -113,6 +120,11 @@ export function BandejaDecision() {
 
   const facts = factsOf(detalle, item?.tipoSolicitud);
   const pasoActual = (detalle?.pasos || []).find((p) => String(p.idPasoSolicitud) === String(idPaso));
+  const tipoActividad = pasoActual?.tipoActividad || 'DECISION';
+  const esDecision = tipoActividad === 'DECISION';
+  const devolver = esDecision && pasoActual?.accionNoConforme === 'DEVOLVER';
+  const labelAprobar = esDecision ? 'Aprobar paso' : (tipoActividad === 'CARGA' ? 'Completar carga' : 'Derivar / Continuar');
+  const labelRechazar = devolver ? 'Devolver' : 'Rechazar solicitud';
 
   return (
     <div>
@@ -173,13 +185,22 @@ export function BandejaDecision() {
                     placeholder="Obligatorio al rechazar"
                   />
                 </Field>
+                {pasoActual && (
+                  <p className="mb-3 text-xs text-muted">
+                    Tipo: {etiqueta('TIPO_ACTIVIDAD', tipoActividad)}
+                    {esDecision ? ` · ${etiqueta('ACCION_NO_CONFORME', pasoActual.accionNoConforme || 'CERRAR')}` : ''}
+                    {devolver && pasoActual.numeroPasoDevolver ? ` (paso ${pasoActual.numeroPasoDevolver})` : ''}
+                  </p>
+                )}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button disabled={saving} onClick={() => decidir('aprobar')}>
-                    {saving ? 'Guardando…' : 'Aprobar paso'}
+                    {saving ? 'Guardando…' : labelAprobar}
                   </Button>
-                  <Button variant="danger" disabled={saving} onClick={pedirRechazo}>
-                    Rechazar solicitud
-                  </Button>
+                  {esDecision && (
+                    <Button variant="danger" disabled={saving} onClick={pedirRechazo}>
+                      {labelRechazar}
+                    </Button>
+                  )}
                   <Button type="button" variant="secondary" onClick={() => navigate('/bandeja')}>
                     Cancelar
                   </Button>
@@ -199,9 +220,11 @@ export function BandejaDecision() {
       )}
 
       {confirmReject && (
-        <Modal title="Rechazar solicitud" onClose={() => !saving && setConfirmReject(false)}>
+        <Modal title={devolver ? 'Devolver actividad' : 'Rechazar solicitud'} onClose={() => !saving && setConfirmReject(false)}>
           <p className="text-sm text-slate-600">
-            ¿Confirma el rechazo? El flujo se cierra y la solicitud quedará visible en seguimiento.
+            {devolver
+              ? `¿Confirma la devolución al paso ${pasoActual?.numeroPasoDevolver}? La solicitud seguirá pendiente.`
+              : '¿Confirma el rechazo? El flujo se cierra y la solicitud quedará visible en seguimiento.'}
           </p>
           {comentario.trim() && (
             <p className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-navy">
@@ -214,7 +237,7 @@ export function BandejaDecision() {
               Volver
             </Button>
             <Button type="button" variant="danger" disabled={saving} onClick={() => decidir('rechazar')}>
-              {saving ? 'Procesando…' : 'Confirmar rechazo'}
+              {saving ? 'Procesando…' : (devolver ? 'Confirmar devolución' : 'Confirmar rechazo')}
             </Button>
           </div>
         </Modal>

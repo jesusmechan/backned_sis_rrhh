@@ -3,9 +3,10 @@ import { fmtDateTime, fmtRelative } from '../../lib/format';
 const ACCION = {
   REGISTRAR: { label: 'Registró la solicitud', tone: 'bg-info' },
   APROBAR: { label: 'Aprobó un paso', tone: 'bg-ok' },
+  COMPLETAR: { label: 'Completó una actividad', tone: 'bg-ok' },
   RECHAZAR: { label: 'Rechazó la solicitud', tone: 'bg-danger' },
   CANCELAR: { label: 'Canceló la solicitud', tone: 'bg-danger' },
-  DEVOLVER: { label: 'Devolvió la solicitud', tone: 'bg-warn' }
+  DEVOLVER: { label: 'Devolvió a un paso anterior', tone: 'bg-warn' }
 };
 
 export function SolicitudHistorial({ historial = [] }) {

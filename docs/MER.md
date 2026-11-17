@@ -68,7 +68,7 @@ erDiagram
     }
 ```
 
-`empleado.id_jefe_inmediato` es organigrama (no puede ser él mismo). Se usa cuando el paso del flujo es `JEFE_INMEDIATO`.
+`empleado.id_jefe_inmediato` es organigrama (no puede ser él mismo ni un subordinado). Alimenta el árbol `/api/organigrama` y los pasos `JEFE_INMEDIATO`. Niveles de cargo: Gerente General, Subgerente General, Jefe de área (`Jefe …`), colaborador.
 
 ---
 

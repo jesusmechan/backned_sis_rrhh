@@ -209,7 +209,7 @@ export function PersonCell({ name, meta, leading, showAvatar = true }) {
   );
 }
 
-export function MobileRow({ leading, title, meta, badge, actions }) {
+export function MobileRow({ leading, title, meta, badge, body, actions }) {
   return (
     <div className="flex gap-3 px-4 py-3">
       {leading}
@@ -221,6 +221,7 @@ export function MobileRow({ leading, title, meta, badge, actions }) {
           </div>
           {badge ? <div className="shrink-0">{badge}</div> : null}
         </div>
+        {body ? <div className="mt-2">{body}</div> : null}
         {actions ? <div className="mt-2 flex flex-wrap gap-2">{actions}</div> : null}
       </div>
     </div>

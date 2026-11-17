@@ -12,6 +12,8 @@ public final class Permisos {
     public static final String PERSONAL_ACTUALIZAR = "PERSONAL_ACTUALIZAR";
     public static final String PERSONAL_CONSULTAR = "PERSONAL_CONSULTAR";
     public static final String PERSONAL_CARGAR_EXCEL = "PERSONAL_CARGAR_EXCEL";
+    public static final String ORGANIGRAMA_CONSULTAR = "ORGANIGRAMA_CONSULTAR";
+    public static final String ORGANIGRAMA_GESTIONAR = "ORGANIGRAMA_GESTIONAR";
     public static final String ASISTENCIA_GESTIONAR = "ASISTENCIA_GESTIONAR";
     public static final String CONTRATO_GESTIONAR = "CONTRATO_GESTIONAR";
     public static final String DESEMPENO_REGISTRAR = "DESEMPENO_REGISTRAR";

@@ -19,6 +19,7 @@ public final class BandejaAsignacion {
     static {
         ESTRATEGIAS.put(TipoAprobador.JEFE_INMEDIATO, BandejaAsignacion::asignadoAlUsuario);
         ESTRATEGIAS.put(TipoAprobador.USUARIO, BandejaAsignacion::asignadoAlUsuario);
+        ESTRATEGIAS.put(TipoAprobador.SOLICITANTE, BandejaAsignacion::asignadoAlUsuario);
         ESTRATEGIAS.put(TipoAprobador.ROL, BandejaAsignacion::mismoRol);
     }
 

@@ -3,6 +3,7 @@ package pe.andina.rrhh.application.port.out;
 import java.util.List;
 import java.util.Optional;
 import pe.andina.rrhh.domain.model.ConfiguracionAprobacion;
+import pe.andina.rrhh.domain.model.enums.TipoOrigenFlujo;
 
 public interface ConfiguracionAprobacionPort {
     Optional<ConfiguracionAprobacion> findById(Integer id);
@@ -14,4 +15,10 @@ public interface ConfiguracionAprobacionPort {
     long count();
 
     Optional<ConfiguracionAprobacion> findByCodigo(String codigo);
+
+    Optional<ConfiguracionAprobacion> findFirstByTipoOrigenAndTipoPermiso_IdTipoPermisoAndActivoTrue(
+            TipoOrigenFlujo tipoOrigen, Integer idTipoPermiso);
+
+    Optional<ConfiguracionAprobacion> findFirstByTipoOrigenAndTipoPermisoIsNullAndActivoTrue(
+            TipoOrigenFlujo tipoOrigen);
 }
