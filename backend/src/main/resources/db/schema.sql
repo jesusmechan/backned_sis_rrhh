@@ -45,6 +45,7 @@ FROM (VALUES
     ('ASISTENCIA', 'Asistencia', '/asistencia', 'Fingerprint', 'Operación', 'Consultar el historial de marcaciones.', 60),
     ('PERFIL', 'Mi perfil', '/perfil', 'User', 'Operación', 'Ficha de personal y datos de la cuenta.', 70),
     ('PERSONAL', 'Personal', '/empleados', 'Users', 'Administración', 'Directorio, alta y carga de colaboradores.', 80),
+    ('ORGANIGRAMA', 'Organigrama', '/organigrama', 'Network', 'Administración', 'Jerarquía: gerencia, jefes de área y colaboradores.', 82),
     ('CONTRATOS', 'Contratos', '/contratos', 'FileText', 'Administración', 'Modalidad, horario y vigencia del vínculo laboral.', 85),
     ('MAESTROS', 'Maestros', '/maestros', 'Library', 'Administración', 'Áreas, cargos, horarios, tipos de permiso, parámetros y plan de cuentas.', 88),
     ('USUARIOS', 'Usuarios', '/usuarios', 'UserCog', 'Administración', 'Cuentas de acceso y asignación de perfil.', 90),
@@ -73,7 +74,7 @@ FROM menu_item m
 JOIN rol r ON r.codigo = 'RRHH'
 WHERE m.codigo IN (
     'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
-    'PERSONAL', 'CONTRATOS', 'MAESTROS', 'USUARIOS', 'FLUJOS',
+    'PERSONAL', 'ORGANIGRAMA', 'CONTRATOS', 'MAESTROS', 'USUARIOS', 'FLUJOS',
     'PLANILLAS', 'CONTABILIDAD', 'DESEMPENO', 'RECLUTAMIENTO',
     'REPORTES', 'AUDITORIA'
 )
@@ -110,7 +111,7 @@ FROM menu_item m
 JOIN rol r ON r.codigo = 'GERENCIA'
 WHERE m.codigo IN (
     'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
-    'PERSONAL', 'DESEMPENO', 'REPORTES'
+    'PERSONAL', 'ORGANIGRAMA', 'DESEMPENO', 'REPORTES'
 )
   AND NOT EXISTS (SELECT 1 FROM menu_rol x WHERE x.id_menu = m.id_menu AND x.id_rol = r.id_rol);
 
@@ -267,4 +268,35 @@ CREATE TABLE IF NOT EXISTS notificacion (
 );
 
 CREATE INDEX IF NOT EXISTS ix_notificacion_usuario ON notificacion (id_usuario, leida, fecha_creacion DESC);
+
+-- Organigrama: cargos, permisos y menú (idempotente)
+INSERT INTO cargo (nombre, descripcion)
+SELECT v.nombre, v.descripcion
+FROM (VALUES
+    ('Subgerente General', 'Segunda línea de dirección; coordina a los jefes de área'),
+    ('Jefe de Administración', 'Responsable del área administrativa')
+) AS v(nombre, descripcion)
+WHERE NOT EXISTS (SELECT 1 FROM cargo c WHERE c.nombre = v.nombre);
+
+INSERT INTO permiso_funcional (codigo, nombre, modulo)
+SELECT v.codigo, v.nombre, v.modulo
+FROM (VALUES
+    ('ORGANIGRAMA_CONSULTAR', 'Consultar organigrama', 'ORGANIGRAMA'),
+    ('ORGANIGRAMA_GESTIONAR', 'Reasignar, promover y cesar en el organigrama', 'ORGANIGRAMA')
+) AS v(codigo, nombre, modulo)
+WHERE NOT EXISTS (SELECT 1 FROM permiso_funcional p WHERE p.codigo = v.codigo);
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo IN ('ORGANIGRAMA_CONSULTAR', 'ORGANIGRAMA_GESTIONAR')
+WHERE r.codigo IN ('ADMIN', 'RRHH')
+  AND NOT EXISTS (SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
+
+INSERT INTO rol_permiso (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM rol r
+JOIN permiso_funcional p ON p.codigo = 'ORGANIGRAMA_CONSULTAR'
+WHERE r.codigo = 'GERENCIA'
+  AND NOT EXISTS (SELECT 1 FROM rol_permiso x WHERE x.id_rol = r.id_rol AND x.id_permiso = p.id_permiso);
 

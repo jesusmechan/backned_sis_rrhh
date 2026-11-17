@@ -13,7 +13,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import pe.andina.rrhh.domain.model.enums.AccionNoConforme;
 import pe.andina.rrhh.domain.model.enums.EstadoPasoAprobacion;
+import pe.andina.rrhh.domain.model.enums.TipoActividad;
 import pe.andina.rrhh.domain.model.enums.TipoAprobador;
 
 import java.time.OffsetDateTime;
@@ -62,6 +64,22 @@ public class SolicitudPasoAprobacion {
     @JoinColumn(name = "id_usuario_asignado")
     private Usuario usuarioAsignado;
 
+    @Column(name = "requiere_adjunto", nullable = false)
+    private Boolean requiereAdjunto = false;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "tipo_actividad", nullable = false)
+    private TipoActividad tipoActividad = TipoActividad.DECISION;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "accion_no_conforme")
+    private AccionNoConforme accionNoConforme;
+
+    @Column(name = "numero_paso_devolver")
+    private Integer numeroPasoDevolver;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false)
@@ -100,6 +118,14 @@ public class SolicitudPasoAprobacion {
     public void setRol(Rol rol) { this.rol = rol; }
     public Usuario getUsuarioAsignado() { return usuarioAsignado; }
     public void setUsuarioAsignado(Usuario usuarioAsignado) { this.usuarioAsignado = usuarioAsignado; }
+    public Boolean getRequiereAdjunto() { return requiereAdjunto; }
+    public void setRequiereAdjunto(Boolean requiereAdjunto) { this.requiereAdjunto = requiereAdjunto; }
+    public TipoActividad getTipoActividad() { return tipoActividad; }
+    public void setTipoActividad(TipoActividad tipoActividad) { this.tipoActividad = tipoActividad; }
+    public AccionNoConforme getAccionNoConforme() { return accionNoConforme; }
+    public void setAccionNoConforme(AccionNoConforme accionNoConforme) { this.accionNoConforme = accionNoConforme; }
+    public Integer getNumeroPasoDevolver() { return numeroPasoDevolver; }
+    public void setNumeroPasoDevolver(Integer numeroPasoDevolver) { this.numeroPasoDevolver = numeroPasoDevolver; }
     public EstadoPasoAprobacion getEstado() { return estado; }
     public void setEstado(EstadoPasoAprobacion estado) { this.estado = estado; }
     public Usuario getUsuarioDecision() { return usuarioDecision; }

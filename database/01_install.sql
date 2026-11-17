@@ -2,18 +2,18 @@
 -- Instalación completa de rrhh_andina: esquema + datos iniciales.
 -- PostgreSQL 16+. Origen: Plan de Toma de Requerimientos v1.0 (Agosto 2026).
 --
--- pgAdmin:
---   1. 00_create_database.sql   Query Tool sobre "postgres" (Auto commit)
---   2. 01_install.sql           Query Tool sobre "rrhh_andina", F5
---   3. 02_reset.sql             Solo si quieres volver a dejar 4 cuentas limpias
+-- Install limpio (recomendado si borras la BD):
+--   1. Drop de rrhh_andina en pgAdmin (si existe)
+--   2. 00_create_database.sql   Query Tool sobre "postgres" (Auto commit)
+--   3. 01_install.sql           Query Tool sobre "rrhh_andina", F5
+--   4. 02_reset.sql             Opcional: solo para limpiar demo más adelante
 --
--- Incluye planilla Perú (ONP/AFP, AF, HE 25/35 %, 5ta), marcación móvil,
--- régimen laboral (general / MYPE) y configuración dinámica (catálogos, AFP,
--- tramos de 5ta, parámetros con vigencia y ámbito, permisos funcionales).
--- Ya no hace falta ejecutar los antiguos upgrades 03 a 06.
+-- Incluye planilla Perú, régimen laboral, configuración dinámica, adjuntos de
+-- sustento (solicitud_adjunto), tipo SOLICITANTE y flujos Salud/Duelo con
+-- paso de evidencia. Un solo script: no hay upgrades aparte.
 --
 -- Este archivo se puede repetir: borra el esquema public y lo recrea.
--- Contraseña de las 4 cuentas: Andina2026. Guía: docs/PRUEBAS.md
+-- Contraseña de las 4 cuentas: Andina2026. Guía: docs/PRUEBAS.md / database/README.md
 -- =============================================================================
 
 DROP SCHEMA IF EXISTS public CASCADE;
@@ -41,7 +41,9 @@ CREATE TYPE accion_solicitud AS ENUM (
     'APROBAR',
     'RECHAZAR',
     'CANCELAR',
-    'ACTUALIZAR'
+    'ACTUALIZAR',
+    'DEVOLVER',
+    'COMPLETAR'
 );
 CREATE TYPE estado_carga AS ENUM ('PROCESANDO', 'COMPLETADA', 'COMPLETADA_CON_ERRORES', 'FALLIDA');
 CREATE TYPE resultado_fila_carga AS ENUM ('INSERTADO', 'ACTUALIZADO', 'ERROR');
@@ -54,7 +56,9 @@ CREATE TYPE tipo_reporte AS ENUM (
     'USUARIOS'
 );
 CREATE TYPE tipo_origen_flujo AS ENUM ('PERMISO', 'HORA_EXTRA');
-CREATE TYPE tipo_aprobador AS ENUM ('JEFE_INMEDIATO', 'ROL', 'USUARIO');
+CREATE TYPE tipo_aprobador AS ENUM ('JEFE_INMEDIATO', 'ROL', 'USUARIO', 'SOLICITANTE');
+CREATE TYPE tipo_actividad AS ENUM ('CARGA', 'DERIVACION', 'DECISION');
+CREATE TYPE accion_no_conforme AS ENUM ('CERRAR', 'DEVOLVER');
 CREATE TYPE estado_paso_aprobacion AS ENUM (
     'PENDIENTE',
     'EN_CURSO',
@@ -391,6 +395,10 @@ CREATE TABLE configuracion_aprobacion_detalle (
     id_rol              INTEGER REFERENCES rol (id_rol),
     id_usuario          INTEGER REFERENCES usuario (id_usuario),
     es_obligatorio      BOOLEAN NOT NULL DEFAULT TRUE,
+    requiere_adjunto    BOOLEAN NOT NULL DEFAULT FALSE,
+    tipo_actividad      tipo_actividad NOT NULL DEFAULT 'DECISION',
+    accion_no_conforme  accion_no_conforme,
+    numero_paso_devolver INTEGER,
     activo              BOOLEAN NOT NULL DEFAULT TRUE,
     fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_config_detalle_paso UNIQUE (id_configuracion, numero_paso),
@@ -399,6 +407,26 @@ CREATE TABLE configuracion_aprobacion_detalle (
         (tipo_aprobador = 'JEFE_INMEDIATO' AND id_rol IS NULL AND id_usuario IS NULL)
         OR (tipo_aprobador = 'ROL' AND id_rol IS NOT NULL AND id_usuario IS NULL)
         OR (tipo_aprobador = 'USUARIO' AND id_usuario IS NOT NULL AND id_rol IS NULL)
+        OR (tipo_aprobador = 'SOLICITANTE' AND id_rol IS NULL AND id_usuario IS NULL)
+    ),
+    CONSTRAINT ck_config_detalle_actividad CHECK (
+        (
+            tipo_actividad IN ('CARGA', 'DERIVACION')
+            AND accion_no_conforme IS NULL
+            AND numero_paso_devolver IS NULL
+        )
+        OR (
+            tipo_actividad = 'DECISION'
+            AND accion_no_conforme = 'CERRAR'
+            AND numero_paso_devolver IS NULL
+        )
+        OR (
+            tipo_actividad = 'DECISION'
+            AND accion_no_conforme = 'DEVOLVER'
+            AND numero_paso_devolver IS NOT NULL
+            AND numero_paso_devolver >= 1
+            AND numero_paso_devolver < numero_paso
+        )
     )
 );
 
@@ -469,6 +497,10 @@ CREATE TABLE solicitud_paso_aprobacion (
     tipo_aprobador          tipo_aprobador NOT NULL,
     id_rol                  INTEGER REFERENCES rol (id_rol),
     id_usuario_asignado     INTEGER REFERENCES usuario (id_usuario),
+    requiere_adjunto        BOOLEAN NOT NULL DEFAULT FALSE,
+    tipo_actividad          tipo_actividad NOT NULL DEFAULT 'DECISION',
+    accion_no_conforme      accion_no_conforme,
+    numero_paso_devolver    INTEGER,
     estado                  estado_paso_aprobacion NOT NULL DEFAULT 'PENDIENTE',
     id_usuario_decision     INTEGER REFERENCES usuario (id_usuario),
     fecha_inicio            TIMESTAMPTZ,
@@ -521,6 +553,31 @@ CREATE TABLE historial_solicitud (
         OR (id_solicitud_permiso IS NULL AND id_solicitud_hora_extra IS NOT NULL)
     )
 );
+
+-- -----------------------------------------------------------------------------
+-- Adjuntos de sustento en solicitudes (evidencia por actividad)
+-- -----------------------------------------------------------------------------
+CREATE TABLE solicitud_adjunto (
+    id_adjunto              INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    id_solicitud_permiso    INTEGER REFERENCES solicitud_permiso (id_solicitud_permiso) ON DELETE CASCADE,
+    id_solicitud_hora_extra INTEGER REFERENCES solicitud_hora_extra (id_solicitud_hora_extra) ON DELETE CASCADE,
+    id_paso_solicitud       INTEGER REFERENCES solicitud_paso_aprobacion (id_paso_solicitud) ON DELETE SET NULL,
+    nombre_original         VARCHAR(255) NOT NULL,
+    content_type            VARCHAR(120) NOT NULL,
+    tamanio_bytes           INTEGER NOT NULL,
+    contenido               BYTEA NOT NULL,
+    id_usuario_carga        INTEGER NOT NULL REFERENCES usuario (id_usuario),
+    fecha_carga             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_adjunto_una_solicitud CHECK (
+        (id_solicitud_permiso IS NOT NULL AND id_solicitud_hora_extra IS NULL)
+        OR (id_solicitud_permiso IS NULL AND id_solicitud_hora_extra IS NOT NULL)
+    ),
+    CONSTRAINT ck_adjunto_tamanio CHECK (tamanio_bytes > 0 AND tamanio_bytes <= 5242880)
+);
+
+CREATE INDEX ix_adjunto_permiso ON solicitud_adjunto (id_solicitud_permiso);
+CREATE INDEX ix_adjunto_hora_extra ON solicitud_adjunto (id_solicitud_hora_extra);
+CREATE INDEX ix_adjunto_paso ON solicitud_adjunto (id_paso_solicitud);
 
 -- -----------------------------------------------------------------------------
 -- Auditoría general (SS-07, RI-06, RG-14, RNF-S03)
@@ -893,6 +950,12 @@ BEGIN
         JOIN usuario u ON u.id_empleado = e.id_jefe_inmediato
         WHERE e.id_empleado = p_id_empleado
           AND u.activo;
+    ELSIF p_tipo_aprobador = 'SOLICITANTE' THEN
+        SELECT id_usuario INTO v_id_usuario
+        FROM usuario
+        WHERE id_empleado = p_id_empleado
+          AND activo
+        LIMIT 1;
     ELSIF p_tipo_aprobador = 'ROL' THEN
         v_id_usuario := NULL;
     END IF;
@@ -928,20 +991,20 @@ CREATE TRIGGER trg_hora_extra_configuracion
 CREATE OR REPLACE FUNCTION fn_instanciar_pasos_aprobacion()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_detalle RECORD;
-    v_id_usuario INTEGER;
-    v_estado estado_paso_aprobacion;
-    v_id_empleado INTEGER;
     v_id_config INTEGER;
+    v_id_empleado INTEGER;
     v_id_permiso INTEGER;
     v_id_hextra INTEGER;
-    v_motivo VARCHAR(400);
-    v_hay_en_curso BOOLEAN := FALSE;
+    v_id_usuario INTEGER;
     v_id_usuario_solicitante INTEGER;
+    v_detalle RECORD;
+    v_estado estado_paso_aprobacion;
+    v_hay_en_curso BOOLEAN := FALSE;
 BEGIN
-    v_id_empleado := NEW.id_empleado;
     v_id_config := NEW.id_configuracion;
-    v_motivo := NEW.motivo;
+    v_id_empleado := NEW.id_empleado;
+    v_id_permiso := NULL;
+    v_id_hextra := NULL;
 
     IF TG_TABLE_NAME = 'solicitud_permiso' THEN
         v_id_permiso := NEW.id_solicitud_permiso;
@@ -1000,6 +1063,10 @@ BEGIN
             tipo_aprobador,
             id_rol,
             id_usuario_asignado,
+            requiere_adjunto,
+            tipo_actividad,
+            accion_no_conforme,
+            numero_paso_devolver,
             estado,
             fecha_inicio
         ) VALUES (
@@ -1012,6 +1079,10 @@ BEGIN
             v_detalle.tipo_aprobador,
             v_detalle.id_rol,
             v_id_usuario,
+            COALESCE(v_detalle.requiere_adjunto, FALSE),
+            COALESCE(v_detalle.tipo_actividad, 'DECISION'::tipo_actividad),
+            v_detalle.accion_no_conforme,
+            v_detalle.numero_paso_devolver,
             v_estado,
             CASE WHEN v_estado = 'EN_CURSO' THEN NOW() END
         );
@@ -1032,8 +1103,8 @@ BEGIN
             v_id_usuario_solicitante,
             'REGISTRAR',
             NULL,
-            'PENDIENTE'::estado_solicitud,
-            v_motivo
+            'PENDIENTE',
+            'Solicitud registrada'
         );
     END IF;
 
@@ -1075,7 +1146,7 @@ BEGIN
         RETURN FALSE;
     END IF;
 
-    IF v_paso.tipo_aprobador IN ('JEFE_INMEDIATO', 'USUARIO') THEN
+    IF v_paso.tipo_aprobador IN ('JEFE_INMEDIATO', 'USUARIO', 'SOLICITANTE') THEN
         RETURN v_paso.id_usuario_asignado = p_id_usuario;
     END IF;
 
@@ -1100,6 +1171,22 @@ BEGIN
             RAISE EXCEPTION 'El usuario % no está autorizado para el paso %.',
                 NEW.id_usuario_decision, NEW.nombre_paso;
         END IF;
+        IF NEW.estado = 'APROBADO' AND COALESCE(NEW.requiere_adjunto, FALSE) THEN
+            IF NEW.id_solicitud_permiso IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1 FROM solicitud_adjunto a
+                    WHERE a.id_solicitud_permiso = NEW.id_solicitud_permiso
+               ) THEN
+                RAISE EXCEPTION 'Debe adjuntar el sustento antes de completar el paso "%".', NEW.nombre_paso;
+            END IF;
+            IF NEW.id_solicitud_hora_extra IS NOT NULL
+               AND NOT EXISTS (
+                    SELECT 1 FROM solicitud_adjunto a
+                    WHERE a.id_solicitud_hora_extra = NEW.id_solicitud_hora_extra
+               ) THEN
+                RAISE EXCEPTION 'Debe adjuntar el sustento antes de completar el paso "%".', NEW.nombre_paso;
+            END IF;
+        END IF;
         NEW.fecha_decision := COALESCE(NEW.fecha_decision, NOW());
     END IF;
 
@@ -1119,11 +1206,84 @@ DECLARE
     v_siguiente INTEGER;
     v_accion accion_solicitud;
     v_estado_final estado_solicitud;
+    v_destino INTEGER;
 BEGIN
-    v_accion := CASE NEW.estado
-        WHEN 'APROBADO' THEN 'APROBAR'::accion_solicitud
-        ELSE 'RECHAZAR'::accion_solicitud
-    END;
+    IF NEW.estado = 'APROBADO' THEN
+        v_accion := CASE
+            WHEN NEW.tipo_actividad IN ('CARGA', 'DERIVACION') THEN 'COMPLETAR'::accion_solicitud
+            ELSE 'APROBAR'::accion_solicitud
+        END;
+    ELSIF NEW.estado = 'RECHAZADO'
+          AND NEW.tipo_actividad = 'DECISION'
+          AND NEW.accion_no_conforme = 'DEVOLVER' THEN
+        v_accion := 'DEVOLVER'::accion_solicitud;
+    ELSE
+        v_accion := 'RECHAZAR'::accion_solicitud;
+    END IF;
+
+    -- Devolver a un paso anterior: no cierra la solicitud
+    IF NEW.estado = 'RECHAZADO'
+       AND NEW.tipo_actividad = 'DECISION'
+       AND NEW.accion_no_conforme = 'DEVOLVER' THEN
+
+        IF NEW.numero_paso_devolver IS NULL OR NEW.numero_paso_devolver >= NEW.numero_paso THEN
+            RAISE EXCEPTION 'El paso "%" no tiene un destino de devolución válido.', NEW.nombre_paso;
+        END IF;
+
+        INSERT INTO historial_solicitud (
+            id_solicitud_permiso,
+            id_solicitud_hora_extra,
+            id_paso_solicitud,
+            id_usuario,
+            accion,
+            estado_anterior,
+            estado_nuevo,
+            comentario
+        ) VALUES (
+            NEW.id_solicitud_permiso,
+            NEW.id_solicitud_hora_extra,
+            NEW.id_paso_solicitud,
+            NEW.id_usuario_decision,
+            'DEVOLVER',
+            'PENDIENTE'::estado_solicitud,
+            'PENDIENTE'::estado_solicitud,
+            NEW.comentario
+        );
+
+        -- Reinicia desde el destino hasta el paso actual (queda PENDIENTE para re-correr)
+        UPDATE solicitud_paso_aprobacion
+        SET estado = 'PENDIENTE',
+            id_usuario_decision = NULL,
+            fecha_decision = NULL,
+            fecha_inicio = NULL,
+            comentario = NULL
+        WHERE numero_paso >= NEW.numero_paso_devolver
+          AND numero_paso <= NEW.numero_paso
+          AND (
+              (NEW.id_solicitud_permiso IS NOT NULL AND id_solicitud_permiso = NEW.id_solicitud_permiso)
+              OR (NEW.id_solicitud_hora_extra IS NOT NULL AND id_solicitud_hora_extra = NEW.id_solicitud_hora_extra)
+          );
+
+        SELECT id_paso_solicitud INTO v_destino
+        FROM solicitud_paso_aprobacion
+        WHERE numero_paso = NEW.numero_paso_devolver
+          AND (
+              (NEW.id_solicitud_permiso IS NOT NULL AND id_solicitud_permiso = NEW.id_solicitud_permiso)
+              OR (NEW.id_solicitud_hora_extra IS NOT NULL AND id_solicitud_hora_extra = NEW.id_solicitud_hora_extra)
+          )
+        LIMIT 1;
+
+        IF v_destino IS NULL THEN
+            RAISE EXCEPTION 'No se encontró el paso destino % para devolver.', NEW.numero_paso_devolver;
+        END IF;
+
+        UPDATE solicitud_paso_aprobacion
+        SET estado = 'EN_CURSO',
+            fecha_inicio = NOW()
+        WHERE id_paso_solicitud = v_destino;
+
+        RETURN NEW;
+    END IF;
 
     INSERT INTO historial_solicitud (
         id_solicitud_permiso,
@@ -1581,8 +1741,11 @@ INSERT INTO area (nombre, descripcion) VALUES
 
 INSERT INTO cargo (nombre, descripcion) VALUES
     ('Gerente General', 'Representante legal y sponsor de la organización'),
+    ('Subgerente General', 'Segunda línea de dirección; coordina a los jefes de área'),
     ('Jefe de Recursos Humanos', 'Responsable de la gestión del personal'),
     ('Jefe de Contabilidad', 'Responsable del área contable'),
+    ('Jefe de Tributario', 'Responsable del área tributaria'),
+    ('Jefe de Administración', 'Responsable del área administrativa'),
     ('Contador', 'Ejecución de labores contables'),
     ('Analista Contable', 'Análisis y registro de operaciones contables'),
     ('Asistente Contable', 'Apoyo operativo del área contable'),
@@ -1590,7 +1753,6 @@ INSERT INTO cargo (nombre, descripcion) VALUES
     ('Asistente Tributario', 'Apoyo operativo del área tributaria'),
     ('Asistente Administrativo', 'Soporte administrativo interno'),
     ('Asistente de Recepción', 'Atención y apoyo operativo general'),
-    ('Jefe de Tributario', 'Responsable del área tributaria'),
     ('Asistente de Recursos Humanos', 'Apoyo operativo de RR. HH.');
 
 INSERT INTO horario_laboral (nombre, hora_ingreso, hora_salida, minutos_refrigerio) VALUES
@@ -1720,6 +1882,8 @@ INSERT INTO catalogo_tipo (codigo, nombre, extensible) VALUES
     ('ESTADO_POSTULACION', 'Estado de postulación', FALSE),
     ('TIPO_ORIGEN_FLUJO', 'Trámite del flujo', FALSE),
     ('TIPO_APROBADOR', 'Tipo de aprobador', FALSE),
+    ('TIPO_ACTIVIDAD', 'Tipo de actividad', FALSE),
+    ('ACCION_NO_CONFORME', 'Acción si no conforme', FALSE),
     ('TIPO_REPORTE', 'Tipo de reporte', FALSE),
     ('TIPO_NOTIFICACION', 'Tipo de notificación', FALSE),
     ('USO_CUENTA', 'Uso de cuenta en el asiento de planilla', FALSE),
@@ -1787,6 +1951,12 @@ INSERT INTO catalogo_valor (tipo, codigo, nombre, tono, orden, por_defecto, regl
     ('TIPO_APROBADOR', 'JEFE_INMEDIATO', 'Jefe inmediato', NULL, 10, TRUE, NULL, NULL),
     ('TIPO_APROBADOR', 'ROL', 'Perfil', NULL, 20, FALSE, NULL, NULL),
     ('TIPO_APROBADOR', 'USUARIO', 'Usuario específico', NULL, 30, FALSE, NULL, NULL),
+    ('TIPO_APROBADOR', 'SOLICITANTE', 'Solicitante', 'info', 40, FALSE, NULL, NULL),
+    ('TIPO_ACTIVIDAD', 'CARGA', 'Carga / evidencia', 'info', 10, FALSE, NULL, NULL),
+    ('TIPO_ACTIVIDAD', 'DERIVACION', 'Derivación', NULL, 20, FALSE, NULL, NULL),
+    ('TIPO_ACTIVIDAD', 'DECISION', 'Decisión', 'warn', 30, TRUE, NULL, NULL),
+    ('ACCION_NO_CONFORME', 'CERRAR', 'Rechazar solicitud', 'danger', 10, TRUE, NULL, NULL),
+    ('ACCION_NO_CONFORME', 'DEVOLVER', 'Devolver a paso', 'warn', 20, FALSE, NULL, NULL),
     ('TIPO_REPORTE', 'PERMISOS', 'Permisos', NULL, 10, TRUE, NULL, NULL),
     ('TIPO_REPORTE', 'HORAS_EXTRAS', 'Horas extras', NULL, 20, FALSE, NULL, NULL),
     ('TIPO_REPORTE', 'ASISTENCIA', 'Asistencia', NULL, 30, FALSE, NULL, NULL),
@@ -1836,6 +2006,8 @@ INSERT INTO permiso_funcional (codigo, nombre, modulo) VALUES
     ('PERSONAL_ACTUALIZAR', 'Actualizar trabajador', 'PERSONAL'),
     ('PERSONAL_CONSULTAR', 'Consultar trabajador', 'PERSONAL'),
     ('PERSONAL_CARGAR_EXCEL', 'Cargar trabajadores desde Excel', 'PERSONAL'),
+    ('ORGANIGRAMA_CONSULTAR', 'Consultar organigrama', 'ORGANIGRAMA'),
+    ('ORGANIGRAMA_GESTIONAR', 'Reasignar, promover y cesar en el organigrama', 'ORGANIGRAMA'),
     ('PERMISO_REGISTRAR', 'Registrar solicitud de permiso', 'PERMISOS'),
     ('PERMISO_CONSULTAR_PROPIO', 'Consultar estado de permiso propio', 'PERMISOS'),
     ('PERMISO_APROBAR', 'Aprobar o rechazar permiso', 'PERMISOS'),
@@ -1880,6 +2052,7 @@ SELECT r.id_rol, p.id_permiso
 FROM rol r
 JOIN permiso_funcional p ON p.codigo IN (
     'PERSONAL_REGISTRAR', 'PERSONAL_ACTUALIZAR', 'PERSONAL_CONSULTAR', 'PERSONAL_CARGAR_EXCEL',
+    'ORGANIGRAMA_CONSULTAR', 'ORGANIGRAMA_GESTIONAR',
     'PERMISO_REGISTRAR', 'PERMISO_CONSULTAR_PROPIO', 'PERMISO_APROBAR', 'PERMISO_GESTIONAR',
     'HEXTRA_REGISTRAR', 'HEXTRA_CONSULTAR_PROPIO', 'HEXTRA_APROBAR', 'HEXTRA_GESTIONAR',
     'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA', 'ASISTENCIA_GESTIONAR',
@@ -1908,7 +2081,7 @@ JOIN permiso_funcional p ON p.codigo IN (
     'PERMISO_REGISTRAR', 'PERMISO_APROBAR', 'PERMISO_CONSULTAR_PROPIO',
     'HEXTRA_REGISTRAR', 'HEXTRA_APROBAR', 'HEXTRA_CONSULTAR_PROPIO',
     'ASISTENCIA_MARCAR', 'ASISTENCIA_CONSULTAR_PROPIA',
-    'PERSONAL_CONSULTAR',
+    'PERSONAL_CONSULTAR', 'ORGANIGRAMA_CONSULTAR',
     'REPORTE_PERMISOS', 'REPORTE_HORAS_EXTRAS', 'REPORTE_ASISTENCIA',
     'DESEMPENO_REGISTRAR', 'ALCANCE_ORGANIZACION'
 )
@@ -1933,6 +2106,7 @@ INSERT INTO menu_item (codigo, etiqueta, ruta, icono, grupo, descripcion, orden)
     ('ASISTENCIA', 'Asistencia', '/asistencia', 'Fingerprint', 'Operación', 'Consultar el historial de marcaciones.', 60),
     ('PERFIL', 'Mi perfil', '/perfil', 'User', 'Operación', 'Ficha de personal y datos de la cuenta.', 70),
     ('PERSONAL', 'Personal', '/empleados', 'Users', 'Administración', 'Directorio, alta y carga de colaboradores.', 80),
+    ('ORGANIGRAMA', 'Organigrama', '/organigrama', 'Network', 'Administración', 'Jerarquía: gerencia, jefes de área y colaboradores.', 82),
     ('CONTRATOS', 'Contratos', '/contratos', 'FileText', 'Administración', 'Modalidad, horario y vigencia del vínculo laboral.', 85),
     ('MAESTROS', 'Maestros', '/maestros', 'Library', 'Administración', 'Áreas, cargos, horarios, tipos de permiso, parámetros y plan de cuentas.', 88),
     ('USUARIOS', 'Usuarios', '/usuarios', 'UserCog', 'Administración', 'Cuentas de acceso y asignación de perfil.', 90),
@@ -1960,7 +2134,7 @@ FROM menu_item m
 JOIN rol r ON r.codigo = 'RRHH'
 WHERE m.codigo IN (
     'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
-    'PERSONAL', 'CONTRATOS', 'MAESTROS', 'USUARIOS', 'FLUJOS',
+    'PERSONAL', 'ORGANIGRAMA', 'CONTRATOS', 'MAESTROS', 'USUARIOS', 'FLUJOS',
     'PLANILLAS', 'CONTABILIDAD', 'DESEMPENO', 'RECLUTAMIENTO',
     'REPORTES', 'AUDITORIA'
 );
@@ -1977,7 +2151,7 @@ FROM menu_item m
 JOIN rol r ON r.codigo = 'GERENCIA'
 WHERE m.codigo IN (
     'INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL',
-    'PERSONAL', 'DESEMPENO', 'REPORTES'
+    'PERSONAL', 'ORGANIGRAMA', 'DESEMPENO', 'REPORTES'
 );
 
 INSERT INTO menu_rol (id_menu, id_rol)
@@ -1986,7 +2160,11 @@ FROM menu_item m
 JOIN rol r ON r.codigo = 'EMPLEADO'
 WHERE m.codigo IN ('INICIO', 'BANDEJA', 'PERMISOS', 'HORAS_EXTRAS', 'MARCAR', 'ASISTENCIA', 'PERFIL');
 
--- Organigrama: Juan → Pantoja (jefe) → Mechan (gerencia). Carla (RR. HH.) reporta a Mechan.
+-- Organigrama demo:
+-- Mechan (Gerente General)
+--   └─ Vargas (Subgerente General)
+--         ├─ Pantoja (Jefe Contabilidad) → Espinoza (colaborador)
+--         └─ Reyes (Jefe RR. HH.)
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,
     nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
@@ -2006,13 +2184,27 @@ INSERT INTO empleado (
     correo_institucional, telefono, direccion, fecha_ingreso,
     id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
 ) VALUES
+    ('AND-005', 'DNI', '70567890', 'María', 'Vargas', 'Salas', '1988-01-15', 'F',
+     'maria.vargas@andina.pe', '999111005', 'Av. El Polo 210, Surco', '2018-02-01',
+     (SELECT id_area FROM area WHERE nombre = 'Gerencia'),
+     (SELECT id_cargo FROM cargo WHERE nombre = 'Subgerente General'),
+     (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada gerencial'),
+     'PLANILLA', 'ACTIVO',
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+
+INSERT INTO empleado (
+    codigo_empleado, tipo_documento, numero_documento,
+    nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
+    correo_institucional, telefono, direccion, fecha_ingreso,
+    id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
+) VALUES
     ('AND-002', 'DNI', '70234567', 'Jesús', 'Pantoja', 'Pantoja', '1990-07-21', 'M',
      'jesus.pantoja@andina.pe', '999111002', 'Av. Arequipa 890, Lince', '2019-07-10',
      (SELECT id_area FROM area WHERE nombre = 'Contabilidad'),
      (SELECT id_cargo FROM cargo WHERE nombre = 'Jefe de Contabilidad'),
      (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
      'PLANILLA', 'ACTIVO',
-     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-005'));
 
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,
@@ -2040,7 +2232,7 @@ INSERT INTO empleado (
      (SELECT id_cargo FROM cargo WHERE nombre = 'Jefe de Recursos Humanos'),
      (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
      'PLANILLA', 'ACTIVO',
-     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-005'));
 
 INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, correo, password_hash, activo)
 SELECT e.id_empleado, r.id_rol, v.nombre_usuario, e.correo_institucional,
@@ -2049,7 +2241,8 @@ FROM (VALUES
     ('AND-001', 'jesus.mechan',  'ADMIN'),
     ('AND-002', 'jesus.pantoja', 'JEFE'),
     ('AND-003', 'juan.espinoza', 'EMPLEADO'),
-    ('AND-004', 'carla.reyes',   'RRHH')
+    ('AND-004', 'carla.reyes',   'RRHH'),
+    ('AND-005', 'maria.vargas',  'GERENCIA')
 ) AS v(codigo_empleado, nombre_usuario, codigo_rol)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
 JOIN rol r ON r.codigo = v.codigo_rol;
@@ -2065,7 +2258,8 @@ FROM (VALUES
     ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC, 'ONP', NULL, TRUE),
     ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC, 'AFP', 'INTEGRA', TRUE),
     ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC, 'AFP', 'HABITAT', FALSE),
-    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC, 'ONP', NULL, FALSE)
+    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC, 'ONP', NULL, FALSE),
+    ('CTR-005', 'AND-005', 'COLABORADOR', 4000::NUMERIC, 'AFP', 'PRIMA', TRUE)
 ) AS v(codigo, codigo_empleado, modalidad, remuneracion, regimen, afp, asignacion)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado;
 
@@ -2094,7 +2288,7 @@ INSERT INTO configuracion_aprobacion (codigo, nombre, tipo_origen, id_tipo_permi
      'Solo jefe inmediato.'),
     ('CFG-PERMISO-SALUD', 'Permiso por salud', 'PERMISO',
      (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'SALUD'),
-     'Jefe inmediato y luego RR. HH.'),
+     'Solicitante carga evidencia; el jefe puede devolver; RR. HH. cierra.'),
     ('CFG-PERMISO-VACACIONES', 'Vacaciones', 'PERMISO',
      (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'VACACIONES'),
      'Jefe inmediato, RR. HH. y Gerencia.'),
@@ -2106,32 +2300,37 @@ INSERT INTO configuracion_aprobacion (codigo, nombre, tipo_origen, id_tipo_permi
      'Jefe inmediato y Gerencia.'),
     ('CFG-PERMISO-DUELO', 'Permiso por duelo', 'PERMISO',
      (SELECT id_tipo_permiso FROM tipo_permiso WHERE codigo = 'DUELO'),
-     'Jefe inmediato y RR. HH.'),
+     'Solicitante carga sustento; el jefe puede devolver; RR. HH. cierra.'),
     ('CFG-HEXTRA', 'Horas extras', 'HORA_EXTRA', NULL,
      'Jefe inmediato y validación de RR. HH.');
 
 INSERT INTO configuracion_aprobacion_detalle (
-    id_configuracion, numero_paso, nombre_paso, tipo_aprobador, id_rol, id_usuario, es_obligatorio
+    id_configuracion, numero_paso, nombre_paso, tipo_aprobador, id_rol, id_usuario,
+    es_obligatorio, requiere_adjunto, tipo_actividad, accion_no_conforme, numero_paso_devolver
 )
 SELECT c.id_configuracion, v.numero_paso, v.nombre_paso, v.tipo_aprobador::tipo_aprobador,
-       r.id_rol, u.id_usuario, v.es_obligatorio
+       r.id_rol, u.id_usuario, v.es_obligatorio, v.requiere_adjunto,
+       v.tipo_actividad::tipo_actividad, v.accion_no_conforme::accion_no_conforme, v.numero_paso_devolver
 FROM (VALUES
-    ('CFG-PERMISO-DEFAULT', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-PARTICULAR', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-SALUD', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-SALUD', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
-    ('CFG-PERMISO-VACACIONES', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
-    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'ROL', 'GERENCIA', NULL, TRUE),
-    ('CFG-PERMISO-CAPACITACION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
-    ('CFG-PERMISO-COMISION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-COMISION', 2, 'Autorización de Gerencia', 'ROL', 'GERENCIA', NULL, TRUE),
-    ('CFG-PERMISO-DUELO', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-PERMISO-DUELO', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE),
-    ('CFG-HEXTRA', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE),
-    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE)
-) AS v(codigo, numero_paso, nombre_paso, tipo_aprobador, codigo_rol, nombre_usuario, es_obligatorio)
+    ('CFG-PERMISO-DEFAULT', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-PARTICULAR', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-SALUD', 1, 'Adjuntar evidencia médica', 'SOLICITANTE', NULL, NULL, TRUE, TRUE, 'CARGA', NULL, NULL),
+    ('CFG-PERMISO-SALUD', 2, 'Revisar evidencias', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'DEVOLVER', 1),
+    ('CFG-PERMISO-SALUD', 3, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-VACACIONES', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'ROL', 'GERENCIA', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-CAPACITACION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-COMISION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-COMISION', 2, 'Autorización de Gerencia', 'ROL', 'GERENCIA', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-DUELO', 1, 'Adjuntar sustento', 'SOLICITANTE', NULL, NULL, TRUE, TRUE, 'CARGA', NULL, NULL),
+    ('CFG-PERMISO-DUELO', 2, 'Revisar sustento', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'DEVOLVER', 1),
+    ('CFG-PERMISO-DUELO', 3, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-HEXTRA', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL)
+) AS v(codigo, numero_paso, nombre_paso, tipo_aprobador, codigo_rol, nombre_usuario, es_obligatorio, requiere_adjunto,
+       tipo_actividad, accion_no_conforme, numero_paso_devolver)
 JOIN configuracion_aprobacion c ON c.codigo = v.codigo
 LEFT JOIN rol r ON r.codigo = v.codigo_rol
 LEFT JOIN usuario u ON u.nombre_usuario = v.nombre_usuario;

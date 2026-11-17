@@ -1,5 +1,7 @@
 # Instrucciones de Migración: Cálculo Dinámico de Planilla
 
+> **Histórico.** Si reinstalas la BD desde cero, solo ejecuta `00_create_database.sql` + `01_install.sql` (ya incluye planilla dinámica, adjuntos y flujos actuales). Ver `database/README.md`.
+
 ## Resumen de Cambios
 
 Este PR implementa el cálculo dinámico de planilla según los regímenes laborales vigentes en Perú (Ley 32353 MYPE y régimen general D. Leg. 728). Todos los valores están verificados contra fuentes oficiales (SUNAT, SBS, MTPE) para 2026.

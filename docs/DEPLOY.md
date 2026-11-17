@@ -35,8 +35,10 @@ Los scripts del repo **no** los ejecuta Neon ni Render automáticamente; tú los
 | Archivo | ¿En Neon? | Función |
 |---------|-----------|---------|
 | **`00_create_database.sql`** | **Normalmente no** | Crea la base **`rrhh_andina`** conectado a `postgres` en **pgAdmin local**. Neon ya trae una base (`neondb`); no hace falta este archivo salvo que quieras otra base con ese nombre vía `CREATE DATABASE`. |
-| **`01_install.sql`** | **Sí — obligatorio** | Instalación **completa** (~2 180 líneas): `DROP SCHEMA public CASCADE`, tipos ENUM, tablas, índices, **funciones y triggers** de aprobación/planilla, menú, catálogos, 4 usuarios demo, marcaciones seed (zona **`America/Lima`**). Requiere extensión **`pgcrypto`**. Contraseña demo: **`Andina2026`**. |
+| **`01_install.sql`** | **Sí — obligatorio** | Instalación **completa**: `DROP SCHEMA public CASCADE`, tipos ENUM, tablas (incl. `solicitud_adjunto`), triggers, menú, catálogos, flujos con `SOLICITANTE`/evidencia, 4 usuarios demo. Extensión **`pgcrypto`**. Contraseña: **`Andina2026`**. |
 | **`02_reset.sql`** | **Solo después** | Limpia trámites y deja las 4 cuentas; **no** sustituye a `01_install.sql`. Úsalo para resetear demo en la misma base. |
+
+Install limpio local: Drop BD → `00` → `01`. Guía corta: `database/README.md`.
 
 **Compatibilidad con el backend Spring:** al final, `01_install.sql` inserta en `script_aplicado` el código **`06_configuracion_dinamica`**, para que al arrancar Render **no** vuelva a aplicar duplicados de `backend/src/main/resources/db/06_configuracion_dinamica.sql`. Aun así, **debes** ejecutar `01_install.sql` en Neon **antes** del primer deploy; el `MenuSchemaInitializer` del backend **no** reemplaza la instalación completa.
 

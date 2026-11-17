@@ -3,18 +3,20 @@
 -- Conserva: áreas, cargos, horarios, tipos de permiso, parámetros, vigencias,
 -- catálogos, AFP, regímenes, tramos de 5ta, roles, permisos funcionales, menú,
 -- plan de cuentas y cabeceras de flujos.
--- Restaura los pasos de los flujos y vuelve a sembrar marcaciones hábiles
--- desde el 2026-08-03 hasta hoy.
+-- Restaura los pasos de los flujos (tipo_actividad / devolver / requiere_adjunto) y
+-- vuelve a sembrar marcaciones hábiles desde el 2026-08-03 hasta hoy.
 --
 -- Requiere una base instalada con 01_install.sql.
+-- NO sustituye un install limpio: si borras la BD, usa 00 + 01.
 -- pgAdmin: Query Tool sobre rrhh_andina, F5.
--- Contraseña: Andina2026. Guía: docs/PRUEBAS.md
+-- Contraseña: Andina2026. Guía: docs/PRUEBAS.md / database/README.md
 -- =============================================================================
 
 DELETE FROM refresh_token;
 DELETE FROM notificacion;
 DELETE FROM auditoria;
 DELETE FROM historial_solicitud;
+DELETE FROM solicitud_adjunto;
 DELETE FROM solicitud_paso_aprobacion;
 DELETE FROM solicitud_permiso;
 DELETE FROM solicitud_hora_extra;
@@ -39,33 +41,38 @@ DELETE FROM empleado;
 -- -----------------------------------------------------------------------------
 DELETE FROM configuracion_aprobacion_detalle;
 INSERT INTO configuracion_aprobacion_detalle (
-    id_configuracion, numero_paso, nombre_paso, tipo_aprobador, id_rol, id_usuario, es_obligatorio
+    id_configuracion, numero_paso, nombre_paso, tipo_aprobador, id_rol, id_usuario,
+    es_obligatorio, requiere_adjunto, tipo_actividad, accion_no_conforme, numero_paso_devolver
 )
 SELECT c.id_configuracion, v.numero_paso, v.nombre_paso, v.tipo_aprobador::tipo_aprobador,
-       r.id_rol, NULL, v.es_obligatorio
+       r.id_rol, NULL, v.es_obligatorio, v.requiere_adjunto,
+       v.tipo_actividad::tipo_actividad, v.accion_no_conforme::accion_no_conforme, v.numero_paso_devolver
 FROM (VALUES
-    ('CFG-PERMISO-DEFAULT', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-PERMISO-PARTICULAR', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-PERMISO-SALUD', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-PERMISO-SALUD', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
-    ('CFG-PERMISO-VACACIONES', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
-    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'ROL', 'GERENCIA', TRUE),
-    ('CFG-PERMISO-CAPACITACION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
-    ('CFG-PERMISO-COMISION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-PERMISO-COMISION', 2, 'Autorización de Gerencia', 'ROL', 'GERENCIA', TRUE),
-    ('CFG-PERMISO-DUELO', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-PERMISO-DUELO', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE),
-    ('CFG-HEXTRA', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE),
-    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE)
-) AS v(codigo, numero_paso, nombre_paso, tipo_aprobador, codigo_rol, es_obligatorio)
+    ('CFG-PERMISO-DEFAULT', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-PARTICULAR', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-SALUD', 1, 'Adjuntar evidencia médica', 'SOLICITANTE', NULL, TRUE, TRUE, 'CARGA', NULL, NULL),
+    ('CFG-PERMISO-SALUD', 2, 'Revisar evidencias', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'DEVOLVER', 1),
+    ('CFG-PERMISO-SALUD', 3, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-VACACIONES', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-VACACIONES', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-VACACIONES', 3, 'Autorización de Gerencia', 'ROL', 'GERENCIA', TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-CAPACITACION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-CAPACITACION', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-COMISION', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-COMISION', 2, 'Autorización de Gerencia', 'ROL', 'GERENCIA', TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-PERMISO-DUELO', 1, 'Adjuntar sustento', 'SOLICITANTE', NULL, TRUE, TRUE, 'CARGA', NULL, NULL),
+    ('CFG-PERMISO-DUELO', 2, 'Revisar sustento', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'DEVOLVER', 1),
+    ('CFG-PERMISO-DUELO', 3, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-HEXTRA', 1, 'Jefe inmediato', 'JEFE_INMEDIATO', NULL, TRUE, FALSE, 'DECISION', 'CERRAR', NULL),
+    ('CFG-HEXTRA', 2, 'Validación de RR. HH.', 'ROL', 'RRHH', TRUE, FALSE, 'DECISION', 'CERRAR', NULL)
+) AS v(codigo, numero_paso, nombre_paso, tipo_aprobador, codigo_rol, es_obligatorio, requiere_adjunto,
+       tipo_actividad, accion_no_conforme, numero_paso_devolver)
 JOIN configuracion_aprobacion c ON c.codigo = v.codigo
 LEFT JOIN rol r ON r.codigo = v.codigo_rol;
 
 -- -----------------------------------------------------------------------------
 -- Personal de demostración
--- Organigrama: Juan → Pantoja (jefe) → Mechan (gerencia). Carla (RR. HH.) reporta a Mechan.
+-- Organigrama: Mechan (GG) → Vargas (SGG) → jefes de área → colaboradores
 -- -----------------------------------------------------------------------------
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,
@@ -86,13 +93,27 @@ INSERT INTO empleado (
     correo_institucional, telefono, direccion, fecha_ingreso,
     id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
 ) VALUES
+    ('AND-005', 'DNI', '70567890', 'María', 'Vargas', 'Salas', '1988-01-15', 'F',
+     'maria.vargas@andina.pe', '999111005', 'Av. El Polo 210, Surco', '2018-02-01',
+     (SELECT id_area FROM area WHERE nombre = 'Gerencia'),
+     (SELECT id_cargo FROM cargo WHERE nombre = 'Subgerente General'),
+     (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada gerencial'),
+     'PLANILLA', 'ACTIVO',
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+
+INSERT INTO empleado (
+    codigo_empleado, tipo_documento, numero_documento,
+    nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo,
+    correo_institucional, telefono, direccion, fecha_ingreso,
+    id_area, id_cargo, id_horario, tipo_contrato, estado, id_jefe_inmediato
+) VALUES
     ('AND-002', 'DNI', '70234567', 'Jesús', 'Pantoja', 'Pantoja', '1990-07-21', 'M',
      'jesus.pantoja@andina.pe', '999111002', 'Av. Arequipa 890, Lince', '2019-07-10',
      (SELECT id_area FROM area WHERE nombre = 'Contabilidad'),
      (SELECT id_cargo FROM cargo WHERE nombre = 'Jefe de Contabilidad'),
      (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
      'PLANILLA', 'ACTIVO',
-     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-005'));
 
 INSERT INTO empleado (
     codigo_empleado, tipo_documento, numero_documento,
@@ -120,7 +141,7 @@ INSERT INTO empleado (
      (SELECT id_cargo FROM cargo WHERE nombre = 'Jefe de Recursos Humanos'),
      (SELECT id_horario FROM horario_laboral WHERE nombre = 'Jornada administrativa'),
      'PLANILLA', 'ACTIVO',
-     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-001'));
+     (SELECT id_empleado FROM empleado WHERE codigo_empleado = 'AND-005'));
 
 INSERT INTO usuario (id_empleado, id_rol, nombre_usuario, correo, password_hash, activo)
 SELECT e.id_empleado, r.id_rol, v.nombre_usuario, e.correo_institucional,
@@ -129,7 +150,8 @@ FROM (VALUES
     ('AND-001', 'jesus.mechan',  'ADMIN'),
     ('AND-002', 'jesus.pantoja', 'JEFE'),
     ('AND-003', 'juan.espinoza', 'EMPLEADO'),
-    ('AND-004', 'carla.reyes',   'RRHH')
+    ('AND-004', 'carla.reyes',   'RRHH'),
+    ('AND-005', 'maria.vargas',  'GERENCIA')
 ) AS v(codigo_empleado, nombre_usuario, codigo_rol)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado
 JOIN rol r ON r.codigo = v.codigo_rol;
@@ -145,7 +167,8 @@ FROM (VALUES
     ('CTR-001', 'AND-001', 'COLABORADOR', 4200::NUMERIC, 'ONP', NULL, TRUE),
     ('CTR-002', 'AND-002', 'COLABORADOR', 3800::NUMERIC, 'AFP', 'INTEGRA', TRUE),
     ('CTR-003', 'AND-003', 'COLABORADOR', 3200::NUMERIC, 'AFP', 'HABITAT', FALSE),
-    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC, 'ONP', NULL, FALSE)
+    ('CTR-004', 'AND-004', 'COLABORADOR', 3600::NUMERIC, 'ONP', NULL, FALSE),
+    ('CTR-005', 'AND-005', 'COLABORADOR', 4000::NUMERIC, 'AFP', 'PRIMA', TRUE)
 ) AS v(codigo, codigo_empleado, modalidad, remuneracion, regimen, afp, asignacion)
 JOIN empleado e ON e.codigo_empleado = v.codigo_empleado;
 

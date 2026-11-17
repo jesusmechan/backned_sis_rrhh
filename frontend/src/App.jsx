@@ -18,6 +18,7 @@ import { Empleados } from './pages/Empleados';
 import { Usuarios } from './pages/Usuarios';
 import { Flujos } from './pages/Flujos';
 import { FlujoConfig } from './pages/FlujoConfig';
+import { FlujoPasoConfig } from './pages/FlujoPasoConfig';
 import { Reportes } from './pages/Reportes';
 import { Auditoria } from './pages/Auditoria';
 import { AccesoRestringido } from './pages/AccesoRestringido';
@@ -31,6 +32,7 @@ import { Desempeno } from './pages/Desempeno';
 import { Reclutamiento } from './pages/Reclutamiento';
 import { Roles } from './pages/Roles';
 import { Maestros } from './pages/Maestros';
+import { Organigrama } from './pages/Organigrama';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -69,6 +71,7 @@ export default function App() {
         <Route path="marcar" element={<Private path="/marcar"><Marcar /></Private>} />
         <Route path="asistencia" element={<Private path="/asistencia"><Asistencia /></Private>} />
         <Route path="empleados" element={<Private path="/empleados"><Empleados /></Private>} />
+        <Route path="organigrama" element={<Private path="/organigrama"><Organigrama /></Private>} />
         <Route path="contratos" element={<Private path="/contratos"><Contratos /></Private>} />
         <Route path="maestros" element={<Private path="/maestros"><Maestros /></Private>} />
         <Route path="planillas" element={<Private path="/planillas"><Planillas /></Private>} />
@@ -80,7 +83,9 @@ export default function App() {
         <Route path="roles" element={<Private path="/roles"><Roles /></Private>} />
         <Route path="menu" element={<Private path="/menu"><Menus /></Private>} />
         <Route path="flujos" element={<Private path="/flujos"><Flujos /></Private>} />
+        <Route path="flujos/nuevo/pasos/:numeroPaso" element={<Private path="/flujos"><FlujoPasoConfig /></Private>} />
         <Route path="flujos/nuevo" element={<Private path="/flujos"><FlujoConfig /></Private>} />
+        <Route path="flujos/:id/pasos/:numeroPaso" element={<Private path="/flujos"><FlujoPasoConfig /></Private>} />
         <Route path="flujos/:id" element={<Private path="/flujos"><FlujoConfig /></Private>} />
         <Route path="reportes" element={<Private path="/reportes"><Reportes /></Private>} />
         <Route path="auditoria" element={<Private path="/auditoria"><Auditoria /></Private>} />

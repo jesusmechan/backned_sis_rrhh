@@ -7,10 +7,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import pe.andina.rrhh.domain.model.enums.EstadoAsiento;
+import pe.andina.rrhh.domain.model.enums.NivelJerarquico;
 import pe.andina.rrhh.domain.model.enums.EstadoContrato;
 import pe.andina.rrhh.domain.model.enums.EstadoConvocatoria;
 import pe.andina.rrhh.domain.model.enums.EstadoEmpleado;
@@ -22,6 +24,8 @@ import pe.andina.rrhh.domain.model.enums.EstadoSolicitud;
 import pe.andina.rrhh.domain.model.enums.ModalidadContrato;
 import pe.andina.rrhh.domain.model.enums.RegimenPensionario;
 import pe.andina.rrhh.domain.model.enums.SexoEmpleado;
+import pe.andina.rrhh.domain.model.enums.AccionNoConforme;
+import pe.andina.rrhh.domain.model.enums.TipoActividad;
 import pe.andina.rrhh.domain.model.enums.TipoAprobador;
 import pe.andina.rrhh.domain.model.enums.TipoContrato;
 import pe.andina.rrhh.domain.model.enums.TipoDocumento;
@@ -40,7 +44,8 @@ public final class AppDtos {
     public record IdNombre(Integer id, String nombre) {}
     public record CatalogoItem(Integer id, String codigo, String nombre) {}
     public record PermisoFuncionalItem(Integer id, String codigo, String nombre, String modulo) {}
-    public record TipoPermisoItem(Integer id, String codigo, String nombre, boolean esVacaciones) {}
+    public record TipoPermisoItem(Integer id, String codigo, String nombre, boolean esVacaciones,
+                                  boolean requiereSustento) {}
     public record CatalogoValorItem(String codigo, String nombre, String tono, Integer orden, boolean porDefecto,
                                     String regla, String mensajeRegla) {}
     public record AfpItem(String codigo, String nombre, BigDecimal tasaComision) {}
@@ -261,6 +266,7 @@ public final class AppDtos {
             String empleado,
             Integer idTipoPermiso,
             String tipoPermiso,
+            boolean requiereSustento,
             String flujo,
             LocalDate fechaInicio,
             LocalDate fechaFin,
@@ -269,7 +275,24 @@ public final class AppDtos {
             String motivo,
             EstadoSolicitud estado,
             OffsetDateTime fechaCreacion,
+            int cantidadAdjuntos,
             List<PasoResponse> pasos
+    ) {}
+
+    public record AdjuntoResponse(
+            Integer idAdjunto,
+            Integer idPasoSolicitud,
+            String nombreOriginal,
+            String contentType,
+            Integer tamanioBytes,
+            String usuarioCarga,
+            OffsetDateTime fechaCarga
+    ) {}
+
+    public record AdjuntoArchivo(
+            String nombreOriginal,
+            String contentType,
+            byte[] contenido
     ) {}
 
     public record HoraExtraRequest(
@@ -306,6 +329,10 @@ public final class AppDtos {
             TipoAprobador tipoAprobador,
             String rol,
             String usuarioAsignado,
+            boolean requiereAdjunto,
+            TipoActividad tipoActividad,
+            AccionNoConforme accionNoConforme,
+            Integer numeroPasoDevolver,
             EstadoPasoAprobacion estado,
             String usuarioDecision,
             OffsetDateTime fechaInicio,
@@ -376,6 +403,10 @@ public final class AppDtos {
             Integer idRol,
             Integer idUsuario,
             Boolean esObligatorio,
+            Boolean requiereAdjunto,
+            TipoActividad tipoActividad,
+            AccionNoConforme accionNoConforme,
+            Integer numeroPasoDevolver,
             String rol,
             String usuario
     ) {}
@@ -794,4 +825,69 @@ public final class AppDtos {
     ) {}
 
     public record ContadorNotificaciones(long noLeidas) {}
+
+    /** Nodo del organigrama (árbol recursivo por jefe inmediato). */
+    public record OrganigramaNodoResponse(
+            Integer idEmpleado,
+            String codigoEmpleado,
+            String nombreCompleto,
+            Integer idArea,
+            String area,
+            Integer idCargo,
+            String cargo,
+            NivelJerarquico nivel,
+            EstadoEmpleado estado,
+            Integer idJefeInmediato,
+            String jefeInmediato,
+            int cantidadReportes,
+            List<OrganigramaNodoResponse> reportes
+    ) {}
+
+    public record OrganigramaResponse(
+            int totalActivos,
+            int totalNodos,
+            List<OrganigramaNodoResponse> raices
+    ) {}
+
+    /** Vista por área: jefe de área + colaboradores. */
+    public record OrganigramaAreaResponse(
+            Integer idArea,
+            String area,
+            OrganigramaNodoResponse jefeArea,
+            List<OrganigramaNodoResponse> colaboradores
+    ) {}
+
+    public record ReasignarOrganigramaRequest(
+            @NotEmpty(message = "Indique al menos un colaborador")
+            List<@NotNull Integer> idsEmpleado,
+            Integer idNuevoJefe
+    ) {}
+
+    public record PromoverOrganigramaRequest(
+            @NotNull(message = "Indique el colaborador a promover")
+            Integer idEmpleado,
+            @NotNull(message = "Indique el cargo destino")
+            Integer idCargoNuevo,
+            Integer idArea,
+            Integer idNuevoJefeDelPromovido,
+            /** Si es true, los reportes del jefe saliente pasan al promovido. */
+            Boolean asumirEquipoDelJefeActual,
+            /** Si se informa, ese jefe deja de ser jefe de área (pasa a reportar al promovido o a idNuevoJefeDelSaliente). */
+            Integer idJefeSaliente,
+            Integer idNuevoJefeDelSaliente
+    ) {}
+
+    public record CesarOrganigramaRequest(
+            @NotNull(message = "Indique el empleado a cesar")
+            Integer idEmpleado,
+            LocalDate fechaCese,
+            /**
+             * Obligatorio si el cesado tiene reportes activos: nuevo jefe de esos reportes.
+             * Suele ser un colaborador promovido o el subgerente/gerente.
+             */
+            Integer idNuevoJefeDeReportes,
+            /** Si se informa junto con idCargoNuevo, primero se promueve a ese colaborador y luego se cede el equipo. */
+            Integer idSucesor,
+            Integer idCargoSucesor
+    ) {}
 }

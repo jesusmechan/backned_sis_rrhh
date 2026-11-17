@@ -106,6 +106,11 @@ public class GlobalExceptionHandler {
             return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
                     "La fecha de fin no puede ser anterior a la de inicio."));
         }
+        if (lower.contains("adjuntar el sustento")) {
+            log.warn("Integridad: falta sustento adjunto");
+            return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request",
+                    "Debe adjuntar el sustento antes de completar este paso."));
+        }
         log.warn("Conflicto de integridad: {}", detail);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(409, "Conflict", "La operación entra en conflicto con un registro existente."));

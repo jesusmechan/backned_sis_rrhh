@@ -99,7 +99,7 @@ export function Flujos() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Aprobaciones</p>
           <h1 className="page-title mt-1">Flujos</h1>
           <p className="mt-2 text-sm text-muted">
-            Circuitos de aprobación por tipo de trámite. El primer paso queda en curso al registrar; un rechazo cierra la solicitud.
+            Circuitos por tipo de trámite. Cada actividad puede ser carga, derivación o decisión (cerrar o devolver).
           </p>
         </div>
         <Button onClick={() => navigate('/flujos/nuevo')}><Plus size={16} /> Nuevo flujo</Button>
@@ -143,6 +143,7 @@ export function Flujos() {
             title={r.nombre}
             meta={`${r.codigo} · ${etiqueta('TIPO_ORIGEN_FLUJO', r.tipoOrigen)} · ${(r.pasos || []).length} pasos`}
             badge={<Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} />}
+            body={<FlujogramaCompact pasos={r.pasos} roles={roles} usuarios={usuarios} />}
             actions={(
               <>
                 <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => navigate(`/flujos/${r.idConfiguracion}`)}>Configurar</Button>
@@ -167,7 +168,7 @@ export function Flujos() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.idConfiguracion}>
-                  <td>
+                  <td className="align-top">
                     <div className="flex items-start gap-3">
                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
                         <GitBranch size={16} />
@@ -185,11 +186,11 @@ export function Flujos() {
                           {r.tipoPermiso ? ` · ${r.tipoPermiso}` : r.tipoOrigen === 'PERMISO' ? ' · Por defecto' : ''}
                           {' · '}{(r.pasos || []).length} paso{(r.pasos || []).length === 1 ? '' : 's'}
                         </p>
-                        {r.descripcion ? <p className="mt-1 text-sm text-slate-600">{r.descripcion}</p> : null}
+                        {r.descripcion ? <p className="mt-1 line-clamp-2 text-sm text-slate-600">{r.descripcion}</p> : null}
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td className="align-top">
                     <FlujogramaCompact pasos={r.pasos} roles={roles} usuarios={usuarios} />
                   </td>
                   <td><Badge tipo="ESTADO_REGISTRO" value={r.activo ? 'ACTIVO' : 'INACTIVO'} /></td>

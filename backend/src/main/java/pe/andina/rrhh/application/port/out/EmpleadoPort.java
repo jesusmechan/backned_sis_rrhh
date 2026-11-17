@@ -15,4 +15,7 @@ public interface EmpleadoPort {
 
     Optional<Empleado> findByCodigoEmpleado(String codigo);
     Optional<Empleado> findByNumeroDocumento(String numero);
+
+    List<Empleado> findByJefeInmediato_IdEmpleado(Integer idJefe);
+    List<Empleado> findByArea_IdArea(Integer idArea);
 }

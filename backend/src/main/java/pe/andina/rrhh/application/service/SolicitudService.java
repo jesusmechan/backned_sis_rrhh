@@ -23,12 +23,18 @@ import pe.andina.rrhh.application.dto.AppDtos.HoraExtraResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PasoResponse;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoRequest;
 import pe.andina.rrhh.application.dto.AppDtos.PermisoResponse;
+import pe.andina.rrhh.application.port.out.ConfiguracionAprobacionDetallePort;
+import pe.andina.rrhh.application.port.out.ConfiguracionAprobacionPort;
 import pe.andina.rrhh.application.port.out.HistorialSolicitudPort;
 import pe.andina.rrhh.application.port.out.ParametroPort;
+import pe.andina.rrhh.application.port.out.SolicitudAdjuntoPort;
 import pe.andina.rrhh.application.port.out.SolicitudHoraExtraPort;
 import pe.andina.rrhh.application.port.out.SolicitudPasoAprobacionPort;
 import pe.andina.rrhh.application.port.out.SolicitudPermisoPort;
 import pe.andina.rrhh.application.port.out.TipoPermisoPort;
+import pe.andina.rrhh.domain.model.ConfiguracionAprobacion;
+import pe.andina.rrhh.domain.model.TipoPermiso;
+import pe.andina.rrhh.domain.model.enums.TipoOrigenFlujo;
 import pe.andina.rrhh.domain.service.BandejaAsignacion;
 import pe.andina.rrhh.domain.service.HoraExtraReglas;
 import pe.andina.rrhh.domain.service.PermisoReglas;
@@ -46,8 +52,11 @@ public class SolicitudService implements SolicitudUseCase {
     private final SolicitudPermisoPort permisoRepository;
     private final SolicitudHoraExtraPort horaExtraRepository;
     private final SolicitudPasoAprobacionPort pasoRepository;
+    private final SolicitudAdjuntoPort adjuntoRepository;
     private final HistorialSolicitudPort historialRepository;
     private final TipoPermisoPort tipoPermisoRepository;
+    private final ConfiguracionAprobacionPort flujoRepository;
+    private final ConfiguracionAprobacionDetallePort detalleRepository;
     private final EmpleadoScope empleadoScope;
     private final PermisoReglas permisoReglas;
     private final HoraExtraReglas horaExtraReglas;
@@ -61,8 +70,11 @@ public class SolicitudService implements SolicitudUseCase {
     public SolicitudService(SolicitudPermisoPort permisoRepository,
                             SolicitudHoraExtraPort horaExtraRepository,
                             SolicitudPasoAprobacionPort pasoRepository,
+                            SolicitudAdjuntoPort adjuntoRepository,
                             HistorialSolicitudPort historialRepository,
                             TipoPermisoPort tipoPermisoRepository,
+                            ConfiguracionAprobacionPort flujoRepository,
+                            ConfiguracionAprobacionDetallePort detalleRepository,
                             EmpleadoScope empleadoScope,
                             PermisoReglas permisoReglas,
                             HoraExtraReglas horaExtraReglas,
@@ -75,8 +87,11 @@ public class SolicitudService implements SolicitudUseCase {
         this.permisoRepository = permisoRepository;
         this.horaExtraRepository = horaExtraRepository;
         this.pasoRepository = pasoRepository;
+        this.adjuntoRepository = adjuntoRepository;
         this.historialRepository = historialRepository;
         this.tipoPermisoRepository = tipoPermisoRepository;
+        this.flujoRepository = flujoRepository;
+        this.detalleRepository = detalleRepository;
         this.empleadoScope = empleadoScope;
         this.permisoReglas = permisoReglas;
         this.horaExtraReglas = horaExtraReglas;
@@ -92,6 +107,7 @@ public class SolicitudService implements SolicitudUseCase {
         var tipo = tipoPermisoRepository.findById(request.idTipoPermiso())
                 .orElseThrow(() -> DomainException.badRequest("Tipo de permiso no existe"));
         permisoReglas.validarAlCrear(empleado, tipo, request);
+        validarFlujoConSustento(tipo);
         SolicitudPermiso s = new SolicitudPermiso();
         s.setEmpleado(empleado);
         s.setTipoPermiso(tipo);
@@ -194,9 +210,23 @@ public class SolicitudService implements SolicitudUseCase {
         if (!BandejaAsignacion.corresponde(paso, currentUser.idUsuario(), currentUser.codigoRol())) {
             throw DomainException.forbidden("Este paso no le corresponde");
         }
+        var tipoActividad = paso.getTipoActividad();
+        boolean esDecision = tipoActividad == null
+                || tipoActividad == pe.andina.rrhh.domain.model.enums.TipoActividad.DECISION;
+        boolean devolver = !aprobar
+                && esDecision
+                && paso.getAccionNoConforme() == pe.andina.rrhh.domain.model.enums.AccionNoConforme.DEVOLVER;
+        if (!aprobar && !esDecision) {
+            throw DomainException.badRequest("Esta actividad no admite rechazo; solo se puede completar");
+        }
         int minRechazo = parametros.entero("comentario_rechazo_min_caracteres");
         if (!aprobar && request.comentario().trim().length() < minRechazo) {
-            throw DomainException.badRequest("Al rechazar, el comentario debe tener al menos " + minRechazo + " caracteres");
+            throw DomainException.badRequest(
+                    (devolver ? "Al devolver" : "Al rechazar")
+                            + ", el comentario debe tener al menos " + minRechazo + " caracteres");
+        }
+        if (aprobar && Boolean.TRUE.equals(paso.getRequiereAdjunto())) {
+            exigirAdjuntosDelPaso(paso);
         }
         Usuario decisor = currentUser.usuario();
         paso.setUsuarioDecision(decisor);
@@ -213,8 +243,11 @@ public class SolicitudService implements SolicitudUseCase {
         }
         List<SolicitudPasoAprobacion> pasos = pasosDe(paso);
         pasos.forEach(entityManager::refresh);
-        auditoriaService.registrar(decisor, aprobar ? "APROBAR" : "RECHAZAR", "PASO_APROBACION", idPaso, request.comentario());
-        notificarTrasDecision(pasos, paso, aprobar);
+        String accionAudit = aprobar
+                ? (esDecision ? "APROBAR" : "COMPLETAR")
+                : (devolver ? "DEVOLVER" : "RECHAZAR");
+        auditoriaService.registrar(decisor, accionAudit, "PASO_APROBACION", idPaso, request.comentario());
+        notificarTrasDecision(pasos, paso, aprobar || devolver);
         return DtoMapper.paso(paso);
     }
 
@@ -387,8 +420,43 @@ public class SolicitudService implements SolicitudUseCase {
                 paso.getSolicitudHoraExtra().getIdSolicitudHoraExtra());
     }
 
+    private void validarFlujoConSustento(TipoPermiso tipo) {
+        if (!Boolean.TRUE.equals(tipo.getRequiereSustento())) {
+            return;
+        }
+        ConfiguracionAprobacion cfg = flujoRepository
+                .findFirstByTipoOrigenAndTipoPermiso_IdTipoPermisoAndActivoTrue(
+                        TipoOrigenFlujo.PERMISO, tipo.getIdTipoPermiso())
+                .or(() -> flujoRepository.findFirstByTipoOrigenAndTipoPermisoIsNullAndActivoTrue(TipoOrigenFlujo.PERMISO))
+                .orElseThrow(() -> DomainException.badRequest(
+                        "No hay un flujo activo para el tipo de permiso " + tipo.getNombre()));
+        boolean tienePasoConAdjunto = detalleRepository
+                .findByConfiguracion_IdConfiguracionOrderByNumeroPasoAsc(cfg.getIdConfiguracion())
+                .stream()
+                .anyMatch(d -> Boolean.TRUE.equals(d.getActivo()) && Boolean.TRUE.equals(d.getRequiereAdjunto()));
+        if (!tienePasoConAdjunto) {
+            throw DomainException.badRequest(
+                    "El tipo \"" + tipo.getNombre() + "\" exige sustento: configure al menos un paso del flujo con requiereAdjunto");
+        }
+    }
+
+    private void exigirAdjuntosDelPaso(SolicitudPasoAprobacion paso) {
+        if (paso.getSolicitudPermiso() == null) {
+            throw DomainException.badRequest("Este paso exige adjunto, pero la solicitud no admite evidencia");
+        }
+        long cantidad = adjuntoRepository.countBySolicitudPermiso_IdSolicitudPermiso(
+                paso.getSolicitudPermiso().getIdSolicitudPermiso());
+        if (cantidad <= 0) {
+            throw DomainException.badRequest(
+                    "Debe adjuntar el sustento antes de completar el paso \"" + paso.getNombrePaso() + "\"");
+        }
+    }
+
     private PermisoResponse toPermiso(SolicitudPermiso s) {
-        return DtoMapper.permiso(s, pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
+        int adjuntos = (int) adjuntoRepository.countBySolicitudPermiso_IdSolicitudPermiso(s.getIdSolicitudPermiso());
+        return DtoMapper.permiso(s,
+                pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()),
+                adjuntos);
     }
 
     private HoraExtraResponse toHoraExtra(SolicitudHoraExtra s) {

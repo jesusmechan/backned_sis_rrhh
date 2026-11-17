@@ -4,15 +4,17 @@ PostgreSQL 16+. Los scripts viven en `database/` y se ejecutan desde **pgAdmin**
 
 ## Orden de ejecución
 
+**Install limpio** (borrar la BD y empezar de cero): Drop de `rrhh_andina` → `00` → `01`. Ver `database/README.md`.
+
 | # | Archivo | Dónde | Qué hace |
 |---|---|---|---|
 | 0 | `00_create_database.sql` | Query Tool sobre **postgres** | Crea `rrhh_andina` |
-| 1 | `01_install.sql` | Query Tool sobre **rrhh_andina** | Todas las tablas, menú, 4 cuentas y flujos |
-| 2 | `02_reset.sql` | Misma conexión | Limpia trámites y deja las 4 cuentas |
+| 1 | `01_install.sql` | Query Tool sobre **rrhh_andina** | Esquema completo + menú, cuentas demo, flujos y adjuntos |
+| 2 | `02_reset.sql` | Misma conexión | Opcional: limpia trámites y deja las cuentas demo |
 
 En el Query Tool del `00`, dejar **Auto commit** activo. `CREATE DATABASE` no puede ir dentro de una transacción.
 
-`01_install.sql` empieza con `DROP SCHEMA public CASCADE`. Se puede repetir sobre `rrhh_andina` sin tocar otras bases. Contiene **todas** las `CREATE TABLE` (personal, contratos, trámites, planilla, contabilidad, desempeño y reclutamiento).
+`01_install.sql` empieza con `DROP SCHEMA public CASCADE`. Se puede repetir sobre `rrhh_andina` sin tocar otras bases. Contiene **todas** las `CREATE TABLE` (personal, contratos, trámites, adjuntos, planilla, contabilidad, desempeño, reclutamiento y organigrama).
 
 ## Modelo de aprobación
 
@@ -22,7 +24,19 @@ La solicitud **no** guarda al aprobador. El circuito se arma así:
 2. `configuracion_aprobacion_detalle` — pasos configurados.
 3. `solicitud_paso_aprobacion` — instancia real de cada solicitud.
 
-`empleado.id_jefe_inmediato` es solo organigrama. El trigger lo usa cuando el paso es `JEFE_INMEDIATO`.
+`empleado.id_jefe_inmediato` es el **organigrama** (lista de adyacencia). La API `/api/organigrama` arma el árbol, la vista por área y las operaciones de reasignar / promover / cesar. El mismo campo alimenta los flujos cuando el paso es `JEFE_INMEDIATO`.
+
+Jerarquía demo:
+
+```
+Gerente General (AND-001)
+  └─ Subgerente General (AND-005)
+        ├─ Jefe de Contabilidad (AND-002)
+        │     └─ Asistente Contable (AND-003)
+        └─ Jefe de RR. HH. (AND-004)
+```
+
+Niveles inferidos por nombre de `cargo`: `Gerente General`, `Subgerente General`, cargos que empiezan con `Jefe ` (jefes de área), resto = colaborador.
 
 ```
 Empleado registra permiso / hora extra
@@ -45,6 +59,9 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 | `JEFE_INMEDIATO` | Jefe del solicitante (`empleado.id_jefe_inmediato`) |
 | `ROL` | Cualquier usuario activo con ese rol (p. ej. RRHH) |
 | `USUARIO` | Un usuario concreto |
+| `SOLICITANTE` | El dueño de la solicitud (p. ej. para adjuntar evidencia) |
+
+Cada paso puede marcar `requiere_adjunto = TRUE`: no se puede aprobar sin al menos un archivo en `solicitud_adjunto`.
 
 ### Flujos seed
 
@@ -52,11 +69,11 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 |---|---|---|
 | `CFG-PERMISO-DEFAULT` | Fallback | Jefe |
 | `CFG-PERMISO-PARTICULAR` | Particular | Jefe |
-| `CFG-PERMISO-SALUD` | Salud | Jefe → RRHH |
+| `CFG-PERMISO-SALUD` | Salud | Jefe → Adjuntar evidencia (`SOLICITANTE`) → RRHH |
 | `CFG-PERMISO-VACACIONES` | Vacaciones | Jefe → RRHH → GERENCIA |
 | `CFG-PERMISO-CAPACITACION` | Capacitación | Jefe → RRHH |
 | `CFG-PERMISO-COMISION` | Comisión | Jefe → GERENCIA |
-| `CFG-PERMISO-DUELO` | Duelo | Jefe → RRHH |
+| `CFG-PERMISO-DUELO` | Duelo | Jefe → Adjuntar sustento (`SOLICITANTE`) → RRHH |
 | `CFG-HEXTRA` | Horas extras | Jefe → RRHH |
 
 ## Tablas principales
@@ -76,9 +93,10 @@ Aprobador atiende su paso (API: /api/pasos/{id}/aprobar|rechazar)
 
 **Trámites**
 
-- `tipo_permiso`
-- `configuracion_aprobacion`, `configuracion_aprobacion_detalle`
+- `tipo_permiso` (`requiere_sustento`)
+- `configuracion_aprobacion`, `configuracion_aprobacion_detalle` (`requiere_adjunto`)
 - `solicitud_permiso`, `solicitud_hora_extra`
+- `solicitud_adjunto` (evidencia / sustento)
 
 **Planilla, contabilidad, desempeño y reclutamiento**
 
