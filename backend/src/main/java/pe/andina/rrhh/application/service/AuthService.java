@@ -14,6 +14,7 @@ import pe.andina.rrhh.domain.model.Usuario;
 import pe.andina.rrhh.application.dto.AuthDtos.AuthResponse;
 import pe.andina.rrhh.application.dto.AuthDtos.LoginRequest;
 import pe.andina.rrhh.application.port.out.CurrentUserPort;
+import pe.andina.rrhh.application.port.out.MetricsPort;
 import pe.andina.rrhh.application.port.out.RefreshTokenPort;
 import pe.andina.rrhh.application.port.out.TokenPort;
 import pe.andina.rrhh.application.port.out.UsuarioPort;
@@ -33,6 +34,7 @@ public class AuthService implements AuthUseCase {
     private final PasswordEncoder passwordEncoder;
     private final SesionUseCase sesionService;
     private final CurrentUserPort currentUser;
+    private final MetricsPort metrics;
 
     public AuthService(UsuarioPort usuarioRepository,
                        RefreshTokenPort refreshTokenRepository,
@@ -40,7 +42,8 @@ public class AuthService implements AuthUseCase {
                        AuditoriaUseCase auditoriaService,
                        PasswordEncoder passwordEncoder,
                        SesionUseCase sesionService,
-                       CurrentUserPort currentUser) {
+                       CurrentUserPort currentUser,
+                       MetricsPort metrics) {
         this.usuarioRepository = usuarioRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.tokenPort = tokenPort;
@@ -48,6 +51,7 @@ public class AuthService implements AuthUseCase {
         this.passwordEncoder = passwordEncoder;
         this.sesionService = sesionService;
         this.currentUser = currentUser;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -55,14 +59,17 @@ public class AuthService implements AuthUseCase {
         Usuario usuario = usuarioRepository.findByNombreUsuario(request.nombreUsuario())
                 .orElseThrow(() -> {
                     log.warn("Login rechazado usuario={}", request.nombreUsuario());
+                    metrics.login("failure", "unknown_user");
                     return DomainException.unauthorized("Usuario o contraseña incorrectos");
                 });
         if (!Boolean.TRUE.equals(usuario.getActivo())) {
             log.warn("Login rechazado usuario inactivo={}", request.nombreUsuario());
+            metrics.login("failure", "inactive");
             throw DomainException.unauthorized("El usuario está inactivo");
         }
         if (!passwordMatches(request.password(), usuario.getPasswordHash())) {
             log.warn("Login rechazado usuario={}", request.nombreUsuario());
+            metrics.login("failure", "bad_credentials");
             throw DomainException.unauthorized("Usuario o contraseña incorrectos");
         }
         usuario.getRol().getCodigo();
@@ -72,6 +79,7 @@ public class AuthService implements AuthUseCase {
         usuario.setUltimoAcceso(OffsetDateTime.now());
         auditoriaService.registrar(usuario, "LOGIN", "USUARIO", usuario.getIdUsuario(), null);
         log.info("Login exitoso usuario={} rol={}", usuario.getNombreUsuario(), usuario.getRol().getCodigo());
+        metrics.login("success", "ok");
         return emitirTokens(usuario);
     }
 

@@ -36,6 +36,7 @@ import pe.andina.rrhh.application.port.out.AsientoContablePort;
 import pe.andina.rrhh.application.port.out.ContratoPort;
 import pe.andina.rrhh.application.port.out.CuentaContablePort;
 import pe.andina.rrhh.application.port.out.EmpleadoPort;
+import pe.andina.rrhh.application.port.out.MetricsPort;
 import pe.andina.rrhh.application.port.out.PlanillaDetallePort;
 import pe.andina.rrhh.application.port.out.PlanillaPort;
 import pe.andina.rrhh.application.port.out.SolicitudHoraExtraPort;
@@ -69,6 +70,7 @@ public class PlanillaService implements PlanillaUseCase {
 
     private final CurrentUserPort currentUser;
     private final ReglasPlanillaPort reglas;
+    private final MetricsPort metrics;
 
     public PlanillaService(PlanillaPort planillaRepository,
                            PlanillaDetallePort detalleRepository,
@@ -82,7 +84,8 @@ public class PlanillaService implements PlanillaUseCase {
                            AuditoriaUseCase auditoriaService,
                            BoletaPdfPort boletaPdfService,
                            CurrentUserPort currentUser,
-                           ReglasPlanillaPort reglas) {
+                           ReglasPlanillaPort reglas,
+                           MetricsPort metrics) {
         this.reglas = reglas;
         this.planillaRepository = planillaRepository;
         this.detalleRepository = detalleRepository;
@@ -96,6 +99,7 @@ public class PlanillaService implements PlanillaUseCase {
         this.auditoriaService = auditoriaService;
         this.boletaPdfService = boletaPdfService;
         this.currentUser = currentUser;
+        this.metrics = metrics;
     }
 
     @Transactional(readOnly = true)
@@ -123,11 +127,13 @@ public class PlanillaService implements PlanillaUseCase {
         p.setEstado(EstadoPlanilla.BORRADOR);
         planillaRepository.save(p);
         auditoriaService.registrar(currentUser.usuario(), "CREAR", "PLANILLA", p.getIdPlanilla(), periodo(p.getAnio(), p.getMes()));
+        metrics.planillaAccion("crear");
         return toResponse(p, List.of());
     }
 
     @Transactional
     public PlanillaResponse calcular(Integer id) {
+        long started = System.nanoTime();
         Planilla p = buscar(id);
         if (p.getEstado() == EstadoPlanilla.CERRADA) {
             throw DomainException.badRequest("La planilla cerrada no se vuelve a calcular");
@@ -174,6 +180,8 @@ public class PlanillaService implements PlanillaUseCase {
         p.setEstado(EstadoPlanilla.CALCULADA);
         p.setFechaCalculo(OffsetDateTime.now());
         auditoriaService.registrar(currentUser.usuario(), "CALCULAR", "PLANILLA", id, periodo(p.getAnio(), p.getMes()));
+        metrics.planillaAccion("calcular");
+        metrics.planillaCalculoDuration((System.nanoTime() - started) / 1_000_000L);
         return toResponse(p, detalleRepository.findByPlanilla_IdPlanillaOrderByIdDetalleAsc(id));
     }
 
@@ -191,6 +199,7 @@ public class PlanillaService implements PlanillaUseCase {
         AsientoContable asiento = generarAsiento(p);
         asientoRepository.save(asiento);
         auditoriaService.registrar(currentUser.usuario(), "CERRAR", "PLANILLA", id, asiento.getCodigo());
+        metrics.planillaAccion("cerrar");
         return toResponse(p, detalleRepository.findByPlanilla_IdPlanillaOrderByIdDetalleAsc(id));
     }
 

@@ -48,6 +48,32 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+# Actuator + Micrometer → Prometheus (/actuator/prometheus)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: API Sistema RRHH — Consultora Contable Andina S.A.C.
+    java: ${java.version}
+
 app:
   jwt:
     # Obligatorio vía JWT_SECRET (backend/.env). Mínimo 32 caracteres. Sin default de código.

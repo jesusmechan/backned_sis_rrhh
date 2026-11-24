@@ -1,0 +1,18 @@
+# Configuración local: scrapea la API Spring Boot en el host.
+# En producción, cambia targets a tu host HTTPS (p. ej. rrhh-api.onrender.com)
+# y scheme: https.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: rrhh-api
+    metrics_path: /actuator/prometheus
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          - host.docker.internal:8080
+        labels:
+          env: local
+          app: rrhh-api

@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import pe.andina.rrhh.adapter.in.web.ratelimit.RateLimitFilter;
 import pe.andina.rrhh.adapter.in.web.ratelimit.RateLimitService;
+import pe.andina.rrhh.application.port.out.MetricsPort;
 
 @Configuration
 @EnableConfigurationProperties(RateLimitProperties.class)
@@ -17,9 +18,10 @@ public class RateLimitConfig {
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(
             RateLimitProperties properties,
             RateLimitService rateLimitService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            MetricsPort metrics) {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new RateLimitFilter(properties, rateLimitService, objectMapper));
+        registration.setFilter(new RateLimitFilter(properties, rateLimitService, objectMapper, metrics));
         registration.addUrlPatterns("/api/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
         registration.setName("rateLimitFilter");

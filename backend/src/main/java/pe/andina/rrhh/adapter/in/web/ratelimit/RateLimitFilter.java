@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 import pe.andina.rrhh.adapter.in.web.ApiError;
+import pe.andina.rrhh.application.port.out.MetricsPort;
 import pe.andina.rrhh.config.RateLimitProperties;
 
 /**
@@ -25,13 +26,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimitProperties properties;
     private final RateLimitService rateLimitService;
     private final ObjectMapper objectMapper;
+    private final MetricsPort metrics;
 
     public RateLimitFilter(RateLimitProperties properties,
                            RateLimitService rateLimitService,
-                           ObjectMapper objectMapper) {
+                           ObjectMapper objectMapper,
+                           MetricsPort metrics) {
         this.properties = properties;
         this.rateLimitService = rateLimitService;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
     }
 
     @Override
@@ -63,6 +67,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         if (!decision.allowed()) {
             log.warn("Rate limit excedido path={} auth={} cliente={}", path, auth, clientKey);
+            metrics.rateLimitRejected(auth ? "auth" : "api");
             response.setHeader("Retry-After", String.valueOf(decision.retryAfterSeconds()));
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);

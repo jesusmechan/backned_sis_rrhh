@@ -26,6 +26,7 @@ import pe.andina.rrhh.application.dto.AppDtos.PermisoResponse;
 import pe.andina.rrhh.application.port.out.ConfiguracionAprobacionDetallePort;
 import pe.andina.rrhh.application.port.out.ConfiguracionAprobacionPort;
 import pe.andina.rrhh.application.port.out.HistorialSolicitudPort;
+import pe.andina.rrhh.application.port.out.MetricsPort;
 import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.port.out.SolicitudAdjuntoPort;
 import pe.andina.rrhh.application.port.out.SolicitudHoraExtraPort;
@@ -66,6 +67,7 @@ public class SolicitudService implements SolicitudUseCase {
 
     private final CurrentUserPort currentUser;
     private final ParametroPort parametros;
+    private final MetricsPort metrics;
 
     public SolicitudService(SolicitudPermisoPort permisoRepository,
                             SolicitudHoraExtraPort horaExtraRepository,
@@ -82,7 +84,8 @@ public class SolicitudService implements SolicitudUseCase {
                             AuditoriaUseCase auditoriaService,
                             NotificacionUseCase notificacionService,
                             CurrentUserPort currentUser,
-                            ParametroPort parametros) {
+                            ParametroPort parametros,
+                            MetricsPort metrics) {
         this.parametros = parametros;
         this.permisoRepository = permisoRepository;
         this.horaExtraRepository = horaExtraRepository;
@@ -99,6 +102,7 @@ public class SolicitudService implements SolicitudUseCase {
         this.auditoriaService = auditoriaService;
         this.notificacionService = notificacionService;
         this.currentUser = currentUser;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -120,6 +124,7 @@ public class SolicitudService implements SolicitudUseCase {
         permisoRepository.saveAndFlush(s);
         entityManager.refresh(s);
         auditoriaService.registrar(currentUser.usuario(), "REGISTRAR", "PERMISO", s.getIdSolicitudPermiso(), s.getMotivo());
+        metrics.solicitudCreada("PERMISO");
         notificarPasoEnCurso(pasoRepository.findBySolicitudPermiso_IdSolicitudPermisoOrderByNumeroPasoAsc(s.getIdSolicitudPermiso()));
         return toPermiso(s);
     }
@@ -139,6 +144,7 @@ public class SolicitudService implements SolicitudUseCase {
         horaExtraRepository.saveAndFlush(s);
         entityManager.refresh(s);
         auditoriaService.registrar(currentUser.usuario(), "REGISTRAR", "HORA_EXTRA", s.getIdSolicitudHoraExtra(), s.getMotivo());
+        metrics.solicitudCreada("HORA_EXTRA");
         notificarPasoEnCurso(pasoRepository.findBySolicitudHoraExtra_IdSolicitudHoraExtraOrderByNumeroPasoAsc(s.getIdSolicitudHoraExtra()));
         return toHoraExtra(s);
     }
@@ -247,6 +253,8 @@ public class SolicitudService implements SolicitudUseCase {
                 ? (esDecision ? "APROBAR" : "COMPLETAR")
                 : (devolver ? "DEVOLVER" : "RECHAZAR");
         auditoriaService.registrar(decisor, accionAudit, "PASO_APROBACION", idPaso, request.comentario());
+        String origen = paso.getSolicitudPermiso() != null ? "PERMISO" : "HORA_EXTRA";
+        metrics.aprobacionDecision(accionAudit, origen);
         notificarTrasDecision(pasos, paso, aprobar || devolver);
         return DtoMapper.paso(paso);
     }
