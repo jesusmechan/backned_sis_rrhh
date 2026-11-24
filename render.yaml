@@ -6,7 +6,7 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile
     branch: jesus-pantoja
-    healthCheckPath: /api/configuracion/publica
+    healthCheckPath: /actuator/health
     envVars:
       - key: JWT_SECRET
         generateValue: true

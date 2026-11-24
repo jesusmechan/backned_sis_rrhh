@@ -12,6 +12,7 @@ La consultora es una MYPE. El sistema cubre personal, contratos, asistencia, per
 | Base de datos | PostgreSQL 16+ (local o [Neon](https://neon.tech)) |
 | API | Java 21, Spring Boot 3.4.x, Spring Security, JPA |
 | Auth | JWT (access ~15 min + refresh 7 días) |
+| Observabilidad | Actuator + Micrometer → Prometheus + Grafana ([guía](docs/OBSERVABILIDAD.md)) |
 | Exportes | Excel (Apache POI) y PDF (OpenPDF) |
 | Frontend web | React 19 + Vite |
 | App móvil | Flutter (Android) — carpeta [`mobile/`](mobile/) |
@@ -82,6 +83,10 @@ mvn spring-boot:run
 - API: http://localhost:8080  
 - Swagger: http://localhost:8080/swagger-ui.html  
 - OpenAPI: http://localhost:8080/v3/api-docs  
+- Health: http://localhost:8080/actuator/health  
+- Métricas Prometheus: http://localhost:8080/actuator/prometheus  
+
+Observabilidad local (Prometheus + Grafana): ver [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md).
 
 Usar `127.0.0.1` (no `localhost`) evita choques IPv6 con Docker en el puerto 5432.
 
@@ -152,6 +157,7 @@ Semilla: `database/01_install.sql`. En bases ya instaladas, el backend aplica sc
 | [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md) / [`docs/MER.md`](docs/MER.md) | Modelo de datos |
 | [`docs/PRUEBAS.md`](docs/PRUEBAS.md) | Cuentas y flujos |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | Neon + Render + Cloudflare Pages |
+| [`docs/OBSERVABILIDAD.md`](docs/OBSERVABILIDAD.md) | Prometheus + Grafana (indicadores) |
 | [`mobile/README.md`](mobile/README.md) | App Flutter, APK e IPA |
 | [`mobile/docs/INSTALAR_IOS_SIDELOADLY.md`](mobile/docs/INSTALAR_IOS_SIDELOADLY.md) | Instalar IPA en iPhone (Windows + Sideloadly) |
 

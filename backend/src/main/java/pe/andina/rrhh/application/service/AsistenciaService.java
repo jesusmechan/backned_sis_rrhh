@@ -10,6 +10,7 @@ import pe.andina.rrhh.domain.exception.DomainException;
 import pe.andina.rrhh.domain.model.Empleado;
 import pe.andina.rrhh.domain.model.Marcacion;
 import pe.andina.rrhh.domain.model.Permisos;
+import pe.andina.rrhh.application.port.out.MetricsPort;
 import pe.andina.rrhh.application.port.out.ParametroPort;
 import pe.andina.rrhh.application.dto.AppDtos.MarcacionRequest;
 import pe.andina.rrhh.application.dto.AppDtos.MarcacionResponse;
@@ -27,6 +28,7 @@ public class AsistenciaService implements AsistenciaUseCase {
     private final EmpleadoScope empleadoScope;
     private final AuditoriaUseCase auditoriaService;
     private final ParametroPort parametros;
+    private final MetricsPort metrics;
 
     private final CurrentUserPort currentUser;
 
@@ -35,13 +37,15 @@ public class AsistenciaService implements AsistenciaUseCase {
                              EmpleadoScope empleadoScope,
                              AuditoriaUseCase auditoriaService,
                              CurrentUserPort currentUser,
-                             ParametroPort parametros) {
+                             ParametroPort parametros,
+                             MetricsPort metrics) {
         this.parametros = parametros;
         this.marcacionRepository = marcacionRepository;
         this.empleadoService = empleadoService;
         this.empleadoScope = empleadoScope;
         this.auditoriaService = auditoriaService;
         this.currentUser = currentUser;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -75,6 +79,7 @@ public class AsistenciaService implements AsistenciaUseCase {
         m.setUsuarioRegistro(currentUser.usuario());
         marcacionRepository.saveAndFlush(m);
         auditoriaService.registrar(currentUser.usuario(), "MARCAR", "ASISTENCIA", m.getIdMarcacion(), request.tipo().name());
+        metrics.asistenciaMarcacion(request.tipo().name(), origen);
         return DtoMapper.marcacion(marcacionRepository.findById(m.getIdMarcacion()).orElse(m));
     }
 

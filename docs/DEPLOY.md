@@ -306,6 +306,10 @@ Sin `VITE_API_BASE_URL`, el front en local usa el proxy de Vite (`/api` → `127
 
 ## Problemas frecuentes
 
+### Health check
+
+El Blueprint (`render.yaml`) usa **`/actuator/health`**. Si creaste el servicio a mano con la ruta antigua `/api/configuracion/publica`, puedes cambiarla en **Settings → Health Check Path**.
+
 ### Render: deploy falla o health check rojo
 
 - Revisa **Logs**: error de conexión a Neon → `DB_URL` / SSL / usuario.

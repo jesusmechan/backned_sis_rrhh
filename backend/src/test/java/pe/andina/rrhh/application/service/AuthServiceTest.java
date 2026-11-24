@@ -14,6 +14,7 @@ import pe.andina.rrhh.application.dto.AuthDtos.AuthResponse;
 import pe.andina.rrhh.application.dto.AuthDtos.LoginRequest;
 import pe.andina.rrhh.application.port.in.AuditoriaUseCase;
 import pe.andina.rrhh.application.port.in.SesionUseCase;
+import pe.andina.rrhh.application.port.out.MetricsPort;
 import pe.andina.rrhh.application.port.out.RefreshTokenPort;
 import pe.andina.rrhh.application.port.out.TokenPort;
 import pe.andina.rrhh.application.port.out.UsuarioPort;
@@ -44,6 +45,8 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private SesionUseCase sesionService;
+    @Mock
+    private MetricsPort metrics;
 
     @InjectMocks
     private AuthService authService;
@@ -86,6 +89,7 @@ class AuthServiceTest {
         assertNotNull(response.refreshToken());
         assertFalse(response.refreshToken().isBlank());
         verify(auditoriaService).registrar(eq(usuarioActivo), eq("LOGIN"), eq("USUARIO"), eq(10), isNull());
+        verify(metrics).login("success", "ok");
         ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
         verify(refreshTokenRepository).save(captor.capture());
         assertEquals(usuarioActivo, captor.getValue().getUsuario());
@@ -103,6 +107,7 @@ class AuthServiceTest {
 
         assertEquals(DomainException.Code.UNAUTHORIZED, ex.getCode());
         verify(refreshTokenRepository, never()).save(any());
+        verify(metrics).login("failure", "bad_credentials");
     }
 
     @Test
@@ -114,6 +119,7 @@ class AuthServiceTest {
                 () -> authService.login(new LoginRequest("nadie", "Andina2026")));
 
         assertEquals(DomainException.Code.UNAUTHORIZED, ex.getCode());
+        verify(metrics).login("failure", "unknown_user");
     }
 
     @Test
@@ -127,5 +133,6 @@ class AuthServiceTest {
 
         assertEquals(DomainException.Code.UNAUTHORIZED, ex.getCode());
         assertTrue(ex.getMessage().toLowerCase().contains("inactivo"));
+        verify(metrics).login("failure", "inactive");
     }
 }

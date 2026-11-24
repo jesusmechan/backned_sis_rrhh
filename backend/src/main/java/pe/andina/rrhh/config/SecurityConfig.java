@@ -58,7 +58,11 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/webjars/**",
                                 "/ws",
-                                "/ws/**"
+                                "/ws/**",
+                                // Scrapes de Prometheus y health checks (Render / orquestadores)
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/actuator/prometheus"
                         ).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, exception) -> {
