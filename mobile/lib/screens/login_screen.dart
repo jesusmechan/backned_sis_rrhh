@@ -55,6 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     final api = context.read<AuthProvider>().api;
+    // Revalida la URL configurada ahora (no reutiliza un «último OK» muerto).
     final msg = await probeServerMessage(api);
     if (!mounted) return;
     setState(() {

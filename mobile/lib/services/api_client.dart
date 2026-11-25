@@ -39,8 +39,27 @@ class ApiClient {
     _baseUrl = await ApiConfig.redetectBaseUrl();
   }
 
+  /// Fija y comprueba la URL configurada (manual / preferida), sin saltar a otro host.
+  Future<void> verifyConfiguredConnection() async {
+    final configured = await ApiConfig.preferredBaseUrl();
+    _baseUrl = configured;
+    ApiConfig.setResolved(configured);
+    if (!await ApiConfig.isReachable(configured)) {
+      await ApiConfig.clearLastWorkingIf(configured);
+      throw _sinConexion();
+    }
+    await ApiConfig.markReachable(configured);
+  }
+
   Future<void> ensureReady() async {
     await baseUrl;
+  }
+
+  /// Aplica de inmediato una URL ya guardada (p. ej. tras Cambiar/Guardar).
+  Future<void> applyConfiguredUrl() async {
+    final configured = await ApiConfig.preferredBaseUrl();
+    _baseUrl = configured;
+    ApiConfig.setResolved(configured);
   }
 
   void resetBaseUrl() {
@@ -114,17 +133,45 @@ class ApiClient {
       _send('POST', path, body: body, idempotencyKey: idempotencyKey);
 
   Future<void> ping() async {
-    final uri = await _uri('/api/configuracion/publica');
-    final response = await http
-        .get(uri, headers: {'Accept': 'application/json'})
-        .timeout(ApiConfig.timeout);
-    if (response.statusCode >= 500) {
+    final root = await baseUrl;
+    final wait = ApiConfig.waitFor(root);
+    if (root.startsWith('https://')) {
+      try {
+        await http
+            .get(
+              await _uri('/actuator/health'),
+              headers: {'Accept': 'application/json'},
+            )
+            .timeout(wait);
+      } catch (_) {
+        // El health solo despierta Render; el fallo real se mide en /publica.
+      }
+    }
+    late http.Response response;
+    try {
+      response = await http
+          .get(
+            await _uri('/api/configuracion/publica'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(wait);
+    } on TimeoutException {
       throw ApiException(
-        'El servidor respondió con error ${response.statusCode}.',
+        root.startsWith('https://')
+            ? 'El servidor en la nube ($baseUrlLabel) no respondió a tiempo. '
+                'En Render Free puede tardar ~1 min en despertar: espera y pulsa «Probar conexión» de nuevo.'
+            : 'No hay conexión con el servidor ($baseUrlLabel).',
+      );
+    } on http.ClientException {
+      throw _sinConexion();
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        'El servidor no tiene la API disponible (HTTP ${response.statusCode}) en $baseUrlLabel.',
         statusCode: response.statusCode,
       );
     }
-    await ApiConfig.markReachable(await baseUrl);
+    await ApiConfig.markReachable(root);
   }
 
   Future<String?> _refreshAccess() {
@@ -164,11 +211,21 @@ class ApiClient {
     return data['accessToken'] as String;
   }
 
-  ApiException _sinConexion() => ApiException(
-        'No hay conexión con el servidor ($baseUrlLabel). '
-        'Comprueba que el backend esté activo (:8080) y configura la IP de tu PC en '
-        'Perfil → Servidor API o en login (Detectar auto / Guardar URL).',
+  ApiException _sinConexion() {
+    final label = baseUrlLabel;
+    if (label.startsWith('https://')) {
+      return ApiException(
+        'No hay conexión con el servidor ($label). '
+        'Si usas Render Free, abre el link en el navegador, espera a que despierte '
+        '(~30–60 s) y vuelve a «Probar conexión».',
       );
+    }
+    return ApiException(
+      'No hay conexión con el servidor ($label). '
+      'Comprueba que el backend esté activo (:8080) y configura la IP de tu PC en '
+      'Perfil → Servidor API o en login (Detectar auto / Guardar URL).',
+    );
+  }
 
   Future<bool> _redetectAndRetry() async {
     if (_baseUrlOverride != null) return false;
