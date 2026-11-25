@@ -11,13 +11,13 @@ Despliegue del **Sistema RRHH Andina** con:
 **Repositorio:** `jesusmechan/backned_sis_rrhh`  
 **Rama de despliegue:** `jesus-pantoja`
 
-Los puertos **8080** y **5173** son solo para desarrollo local. En producción, Render usa la variable **`PORT`** y Pages publica por **HTTPS** (`*.pages.dev` o dominio propio).
+Los puertos **8080** y **5173** son solo para desarrollo local. En producción, Render usa la variable `PORT` y Pages publica por **HTTPS** (`*.pages.dev` o dominio propio).
 
 ---
 
 ## Antes de empezar
 
-- [ ] Código subido a GitHub en la rama **`jesus-pantoja`**.
+- [ ] Código subido a GitHub en la rama `jesus-pantoja`.
 - [ ] Cuenta en [Neon](https://console.neon.tech/signup), [Render](https://dashboard.render.com/register) y [Cloudflare](https://dash.cloudflare.com/sign-up).
 - [ ] En Render, conectar GitHub: **Account Settings** → **Account Security** → **Git Deployment Credentials** → **Add credential** → GitHub → autorizar.  
   Documentación: [Connect your Git provider](https://render.com/docs/git-provider).
@@ -32,23 +32,23 @@ Los puertos **8080** y **5173** son solo para desarrollo local. En producción, 
 
 Los scripts del repo **no** los ejecuta Neon ni Render automáticamente; tú los corres una vez contra la base en la nube. Detalle del modelo: [docs/BASE_DE_DATOS.md](BASE_DE_DATOS.md).
 
-| Archivo | ¿En Neon? | Función |
-|---------|-----------|---------|
-| **`00_create_database.sql`** | **Normalmente no** | Crea la base **`rrhh_andina`** conectado a `postgres` en **pgAdmin local**. Neon ya trae una base (`neondb`); no hace falta este archivo salvo que quieras otra base con ese nombre vía `CREATE DATABASE`. |
-| **`01_install.sql`** | **Sí — obligatorio** | Instalación **completa**: `DROP SCHEMA public CASCADE`, tipos ENUM, tablas (incl. `solicitud_adjunto`), triggers, menú, catálogos, flujos con `SOLICITANTE`/evidencia, 4 usuarios demo. Extensión **`pgcrypto`**. Contraseña: **`Andina2026`**. |
-| **`02_reset.sql`** | **Solo después** | Limpia trámites y deja las 4 cuentas; **no** sustituye a `01_install.sql`. Úsalo para resetear demo en la misma base. |
+| Archivo                  | ¿En Neon?            | Función                                                                                                                                                                                                                                     |
+| ------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `00_create_database.sql` | **Normalmente no**   | Crea la base `rrhh_andina` conectado a `postgres` en **pgAdmin local**. Neon ya trae una base (`neondb`); no hace falta este archivo salvo que quieras otra base con ese nombre vía `CREATE DATABASE`.                                      |
+| `01_install.sql`         | **Sí — obligatorio** | Instalación **completa**: `DROP SCHEMA public CASCADE`, tipos ENUM, tablas (incl. `solicitud_adjunto`), triggers, menú, catálogos, flujos con `SOLICITANTE`/evidencia, **5 usuarios** demo. Extensión `pgcrypto`. Contraseña: `Andina2026`. |
+| `02_reset.sql`           | **Solo después**     | Limpia trámites y deja las **5 cuentas**; **no** sustituye a `01_install.sql`. Úsalo para resetear demo en la misma base.                                                                                                                   |
 
 Install limpio local: Drop BD → `00` → `01`. Guía corta: `database/README.md`.
 
-**Compatibilidad con el backend Spring:** al final, `01_install.sql` inserta en `script_aplicado` el código **`06_configuracion_dinamica`**, para que al arrancar Render **no** vuelva a aplicar duplicados de `backend/src/main/resources/db/06_configuracion_dinamica.sql`. Aun así, **debes** ejecutar `01_install.sql` en Neon **antes** del primer deploy; el `MenuSchemaInitializer` del backend **no** reemplaza la instalación completa.
+**Compatibilidad con el backend Spring:** al final, `01_install.sql` inserta en `script_aplicado` el código `06_configuracion_dinamica`, para que al arrancar Render **no** vuelva a aplicar duplicados de `backend/src/main/resources/db/06_configuracion_dinamica.sql`. Aun así, **debes** ejecutar `01_install.sql` en Neon **antes** del primer deploy; el `MenuSchemaInitializer` del backend **no** reemplaza la instalación completa.
 
 **PostgreSQL:** el proyecto pide **16+**; los triggers usan `EXECUTE FUNCTION` (sintaxis PG14+). Elige Postgres 16–18 al crear el proyecto Neon.
 
 **Precauciones en Neon:**
 
-- `01_install.sql` empieza destruyendo **`public`** en la base seleccionada; no lo ejecutes en una base compartida con otros datos.
-- El script es **grande**; si el SQL Editor corta o hace timeout, usa **`psql`** con la connection string de Neon o ejecuta por bloques (DDL → triggers → INSERTs).
-- El nombre **`rrhh_andina`** en JDBC es **opcional**; lo importante es que `DB_URL` apunte a la base donde corriste `01_install.sql` (`neondb` o `rrhh_andina`).
+- `01_install.sql` empieza destruyendo `public` en la base seleccionada; no lo ejecutes en una base compartida con otros datos.
+- El script es **grande**; si el SQL Editor corta o hace timeout, usa `psql` con la connection string de Neon o ejecuta por bloques (DDL → triggers → INSERTs).
+- El nombre `rrhh_andina` en JDBC es **opcional**; lo importante es que `DB_URL` apunte a la base donde corriste `01_install.sql` (`neondb` o `rrhh_andina`).
 
 ### 1.1 Crear proyecto
 
@@ -61,8 +61,8 @@ Install limpio local: Drop BD → `00` → `01`. Guía corta: `database/README.m
 
 Neon crea por defecto:
 
-- Rama **`production`** (en consola; en API puede llamarse `main`).
-- Base de datos **`neondb`**.
+- Rama `production` (en consola; en API puede llamarse `main`).
+- Base de datos `neondb`.
 - Rol propietario (p. ej. `neondb_owner`).
 
 Documentación: [Create a project](https://neon.com/docs/manage/projects).
@@ -71,26 +71,35 @@ Documentación: [Create a project](https://neon.com/docs/manage/projects).
 
 El script local `database/00_create_database.sql` está pensado para pgAdmin. En Neon puedes:
 
-- **Opción A (simple):** usar **`neondb`** y ejecutar solo `01_install.sql` ahí, **o**
+- **Opción A (simple):** usar `neondb` y ejecutar solo `01_install.sql` ahí, **o**
 - **Opción B:** en **SQL Editor**, ejecutar `CREATE DATABASE rrhh_andina;`, cambiar la base activa a `rrhh_andina` y luego ejecutar `01_install.sql`.
 
 ### 1.3 Instalar esquema y datos
 
 1. En el proyecto Neon: menú lateral **Postgres database** → **SQL Editor**.
-2. Arriba, selecciona rama **`production`** y base **`neondb`** (o `rrhh_andina`).
-3. Abre en tu repo el archivo **`database/01_install.sql`**, copia **todo** el contenido y pégalo en el editor.
+2. Arriba, selecciona rama `production` y base `neondb` (o `rrhh_andina`).
+3. Abre en tu repo el archivo `database/01_install.sql`, copia **todo** el contenido y pégalo en el editor.
 4. Pulsa **Run** (puede tardar 1–2 minutos).
 
-Si el editor falla por tamaño o tiempo, divide el script en bloques o usa **`psql`** con la cadena de conexión de Neon (ver **Connection details** en el panel).
+Si el editor falla por tamaño o tiempo, divide el script en bloques o usa `psql` con la cadena de conexión de Neon (ver **Connection details** en el panel).
 
 5. Comprueba la instalación:
-
    ```sql
-   SELECT COUNT(*) FROM usuario;          -- debe ser 4
-   SELECT codigo FROM script_aplicado;    -- debe incluir 06_configuracion_dinamica
+    SELECT COUNT(*) FROM usuario;          -- debe ser 5
+    SELECT codigo FROM script_aplicado;    -- debe incluir 06_configuracion_dinamica
    ```
 
-**Contraseña demo** de usuarios tras la instalación: **`Andina2026`** (cámbiala en un entorno real). Usuarios: ver [docs/PRUEBAS.md](PRUEBAS.md).
+**Contraseña demo** de usuarios tras la instalación: `Andina2026` (cámbiala en un entorno real).
+
+| Usuario | Rol |
+|---------|-----|
+| `jesus.mechan` | ADMIN |
+| `maria.vargas` | GERENCIA |
+| `jesus.pantoja` | JEFE |
+| `juan.espinoza` | EMPLEADO |
+| `carla.reyes` | RRHH |
+
+Recorridos: [docs/PRUEBAS.md](PRUEBAS.md) · listado en [`database/README.md`](../database/README.md).
 
 ### 1.4 Guardar credenciales para Render
 
@@ -98,7 +107,6 @@ Si el editor falla por tamaño o tiempo, divide el script en bloques o usa **`ps
 2. Copia los datos (host, database, user, password). Neon muestra URI tipo:
 
    `postgresql://USUARIO:CONTRASEÑA@ep-xxxxx.region.aws.neon.tech/neondb?sslmode=require`
-
 3. Conviértelos a variables para Spring:
 
 | Variable Render | Valor |
@@ -107,9 +115,9 @@ Si el editor falla por tamaño o tiempo, divide el script en bloques o usa **`ps
 | `DB_PASSWORD` | contraseña generada por Neon |
 | `DB_URL` | `jdbc:postgresql://ep-xxxxx.region.aws.neon.tech/neondb?sslmode=require` |
 
-**Importante:** la URL JDBC debe incluir **`?sslmode=require`**. No uses `localhost` ni el puerto 5432 de tu PC.
+**Importante:** la URL JDBC debe incluir `?sslmode=require`. No uses `localhost` ni el puerto 5432 de tu PC.
 
-**No pegues la URI tal cual de Neon en `DB_URL`.** Neon muestra `postgresql://usuario:contraseña@host/...`; el driver JDBC exige el prefijo **`jdbc:`** y, en Render, conviene **sin** usuario ni contraseña en la URL (van en `DB_USERNAME` y `DB_PASSWORD`):
+**No pegues la URI tal cual de Neon en** `DB_URL`**.** Neon muestra `postgresql://usuario:contraseña@host/...`; el driver JDBC exige el prefijo `jdbc:` y, en Render, conviene **sin** usuario ni contraseña en la URL (van en `DB_USERNAME` y `DB_PASSWORD`):
 
 | Incorrecto en `DB_URL` | Correcto |
 |------------------------|----------|
@@ -121,12 +129,12 @@ Desde una versión reciente del backend, si pegas `postgresql://...`, el arranqu
 
 ## Parte 2 — Backend en Render
 
-El repo incluye **`backend/Dockerfile`** y opcionalmente **`render.yaml`**.
+El repo incluye `backend/Dockerfile` y opcionalmente `render.yaml`.
 
 ### 2.1 Crear Web Service
 
 1. **[dashboard.render.com](https://dashboard.render.com)** → arriba a la derecha **+ New** → **Web Service**.
-2. Conecta el repo **`backned_sis_rrhh`** (GitHub) si aún no aparece.
+2. Conecta el repo `backned_sis_rrhh` (GitHub) si aún no aparece.
 3. Configura el formulario:
 
 | Campo | Valor |
@@ -139,7 +147,9 @@ El repo incluye **`backend/Dockerfile`** y opcionalmente **`render.yaml`**.
 | **Dockerfile Path** | `./Dockerfile` (relativo a `backend/`) |
 | **Instance type** | **Free** (para pruebas; ver limitaciones abajo) |
 
-4. **Advanced** → **Health Check Path:** `/api/configuracion/publica`
+4. **Advanced** → **Health Check Path:** `/actuator/health`
+
+   (igual que el Blueprint `render.yaml`; la ruta antigua `/api/configuracion/publica` sigue siendo un smoke test útil, pero no el health check).
 
 Documentación: [Docker on Render](https://render.com/docs/docker) · [Web Services](https://render.com/docs/web-services).
 
@@ -156,25 +166,26 @@ En la misma creación (o después en **Environment** del servicio), añade:
 | `CORS_ORIGINS` | Lo completarás en el paso 4 con la URL de Pages |
 | `PUBLIC_API_URL` | `https://<nombre-servicio>.onrender.com` (sin barra final) |
 
-Opcionales (defaults en `application.yml`):
+Opcionales (defaults en `application.yml` / Blueprint):
 
-- `RATE_LIMIT_ENABLED`, `RATE_LIMIT_API`, `RATE_LIMIT_AUTH`
+- `RATE_LIMIT_ENABLED`, `RATE_LIMIT_API` (default **300**), `RATE_LIMIT_AUTH`
 - `IDEMPOTENCY_ENABLED`, `IDEMPOTENCY_TTL_HOURS`
 
 Render **no** usa el archivo `backend/.env` del repo; solo variables del panel.
+
+**Observabilidad:** el API expone `/actuator/health` y `/actuator/prometheus` (público para scrapes). Prometheus/Grafana no van en Render Free; guía local: [docs/OBSERVABILIDAD.md](OBSERVABILIDAD.md).
 
 ### 2.3 Desplegar y probar
 
 1. **Create Web Service**. Render construye la imagen Docker y despliega (pestaña **Logs** / **Events**).
 2. La primera vez en plan **Free** puede tardar varios minutos.
 3. Cuando el estado sea **Live**, abre:
-
-   - `https://<tu-servicio>.onrender.com/api/configuracion/publica` → debe responder JSON.
+   - `https://<tu-servicio>.onrender.com/actuator/health` → `{"status":"UP",...}` (health check de Render).
+   - `https://<tu-servicio>.onrender.com/api/configuracion/publica` → JSON de negocio (smoke test).
    - `https://<tu-servicio>.onrender.com/swagger-ui.html` → Swagger (opcional).
-
 4. Anota la URL base del API, por ejemplo:
 
-   **`https://rrhh-api.onrender.com`**
+   `https://rrhh-api.onrender.com`
 
 **Plan Free:** el servicio **se suspende** tras inactividad; la primera petición puede tardar ~30–60 s en despertar. Para demo en vivo, tenlo en cuenta.
 
@@ -196,7 +207,7 @@ Content-Type: application/json
 1. **[dash.cloudflare.com](https://dash.cloudflare.com)** → menú **Workers & Pages**.
 2. **Create** → pestaña **Pages** → **Connect to Git** (o **Import an existing Git repository**).
 3. Autoriza **GitHub** si te lo pide.
-4. Elige el repo **`backned_sis_rrhh`** → **Begin setup**.
+4. Elige el repo `backned_sis_rrhh` → **Begin setup**.
 
 Documentación: [Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/) · [Build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/).
 
@@ -220,22 +231,20 @@ En **Environment variables** (sección **Build** o **Settings → Environment va
 Sin barra final. Debe ser la **misma URL HTTPS** del API en Render.
 
 3. **Save and Deploy** (o **Deploy**).
+4. Al terminar, abre `https://<project-name>.pages.dev`.
 
-4. Al terminar, abre **`https://<project-name>.pages.dev`**.
-
-El repo ya incluye **`frontend/public/_redirects`** para que React Router no devuelva 404 al refrescar rutas (`/login`, `/bandeja`, etc.).
+El repo ya incluye `frontend/public/_redirects` para que React Router no devuelva 404 al refrescar rutas (`/login`, `/bandeja`, etc.).
 
 ### 3.3 Volver a Render — CORS
 
-1. **dashboard.render.com** → servicio **`rrhh-api`** → **Environment**.
-2. Edita **`CORS_ORIGINS`** con la URL **exacta** de Pages, por ejemplo:
+1. **dashboard.render.com** → servicio `rrhh-api` → **Environment**.
+2. Edita `CORS_ORIGINS` con la URL **exacta** de Pages, por ejemplo:
 
    `https://rrhh-andina.pages.dev`
 
-   Si usas dominio custom en Cloudflare, añádelo separado por coma:
+    Si usas dominio custom en Cloudflare, añádelo separado por coma:
 
-   `https://rrhh-andina.pages.dev,https://app.tudominio.com`
-
+    `https://rrhh-andina.pages.dev,https://app.tudominio.com`
 3. Guarda; Render redeploya solo.
 
 ---
@@ -244,34 +253,34 @@ El repo ya incluye **`frontend/public/_redirects`** para que React Router no dev
 
 | # | Qué probar | Resultado esperado |
 |---|------------|-------------------|
-| 1 | `GET` configuración pública en Render | JSON 200 |
-| 2 | Abrir Pages | Pantalla de login carga (llama al API vía `VITE_API_BASE_URL`) |
-| 3 | Login web `juan.espinoza` / `Andina2026` | Entra al menú según rol |
-| 4 | Campana / notificaciones | STOMP contra el mismo host del API (Render) |
-| 5 | Refrescar una ruta interna | No 404 (gracias a `_redirects`) |
+| 1 | `GET` `/actuator/health` en Render | `status: UP` |
+| 2 | `GET` `/api/configuracion/publica` | JSON 200 |
+| 3 | Abrir Pages | Pantalla de login carga (llama al API vía `VITE_API_BASE_URL`) |
+| 4 | Login web `juan.espinoza` / `Andina2026` | Entra al menú según rol |
+| 5 | Campana / notificaciones | STOMP contra el mismo host del API (Render) |
+| 6 | Refrescar una ruta interna | No 404 (gracias a `_redirects`) |
 
 Si el login falla con error de red en el navegador:
 
-- Revisa **`VITE_API_BASE_URL`** en Pages (Production) y vuelve a desplegar.
-- Revisa **`CORS_ORIGINS`** en Render (origen = URL del front, sin `/` final).
+- Revisa `VITE_API_BASE_URL` en Pages (Production) y vuelve a desplegar.
+- Revisa `CORS_ORIGINS` en Render (origen = URL del front, sin `/` final).
 - Abre DevTools → **Network** y mira si las peticiones van a `onrender.com`.
 
 ---
 
 ## Parte 5 — App móvil (Flutter)
 
-La app **no** se sube a Neon/Render/Pages. Solo necesita la URL HTTPS del API.
+La app **no** se sube a Neon/Render/Pages. Solo necesita la URL HTTPS del API. Detalle: [`mobile/README.md`](../mobile/README.md).
 
-1. Instala la app en dispositivo o emulador.
-2. En **login** o **Perfil → Servidor API**, indica:
+1. Instala el APK/IPA (releases en `mobile/releases/`) o compila en dispositivo/emulador.
+2. En **login** o **Perfil → Configuración → Servidor API**, indica:
 
    `https://<tu-servicio>.onrender.com`
-
 3. O compila con URL fija:
-
    ```bash
-   cd mobile
-   flutter build apk --dart-define=API_URL=https://<tu-servicio>.onrender.com
+    cd mobile
+    flutter build apk --dart-define=API_URL=https://<tu-servicio>.onrender.com
+    # iOS (IPA): ver mobile/docs/INSTALAR_IOS_SIDELOADLY.md
    ```
 
 Usuarios de prueba: ver [docs/PRUEBAS.md](PRUEBAS.md).
@@ -296,10 +305,12 @@ Sin `VITE_API_BASE_URL`, el front en local usa el proxy de Vite (`/api` → `127
 | Archivo | Uso |
 |---------|-----|
 | `backend/Dockerfile` | Imagen Java 21 para Render |
-| `render.yaml` | Plantilla Blueprint (opcional) |
+| `render.yaml` | Plantilla Blueprint (health: `/actuator/health`) |
 | `frontend/.env.example` | Documenta `VITE_API_BASE_URL` |
 | `frontend/src/api/baseUrl.js` | Prefijo del API en producción |
+| `frontend/public/_redirects` | SPA routing en Pages |
 | `database/01_install.sql` | Instalación Neon |
+| `docs/OBSERVABILIDAD.md` | Prometheus/Grafana (local / scrapes) |
 | `docs/DEPLOY.md` | Esta guía |
 
 ---
@@ -308,23 +319,24 @@ Sin `VITE_API_BASE_URL`, el front en local usa el proxy de Vite (`/api` → `127
 
 ### Health check
 
-El Blueprint (`render.yaml`) usa **`/actuator/health`**. Si creaste el servicio a mano con la ruta antigua `/api/configuracion/publica`, puedes cambiarla en **Settings → Health Check Path**.
+El Blueprint y la guía usan `/actuator/health`. Si el servicio se creó a mano con la ruta antigua `/api/configuracion/publica`, cámbiala en **Settings → Health Check Path**.
 
 ### Render: deploy falla o health check rojo
 
 - Revisa **Logs**: error de conexión a Neon → `DB_URL` / SSL / usuario.
-- Falta **`JWT_SECRET`** → el arranque falla.
-- **`DB_PASSWORD`** vacía → obligatoria en `application.yml`.
-- Log: **`Driver org.postgresql.Driver claims to not accept jdbcUrl`** o **`JDBC URL invalid port number`** → `DB_URL` mal formada. Usa solo host y base: `jdbc:postgresql://HOST/BD?sslmode=require` **sin** `usuario:contraseña@` en la URL; credenciales en `DB_USERNAME` / `DB_PASSWORD` (ver paso 1.4).
+- Falta `JWT_SECRET` → el arranque falla.
+- `DB_PASSWORD` vacía → obligatoria en `application.yml`.
+- Log: `Driver org.postgresql.Driver claims to not accept jdbcUrl` o `JDBC URL invalid port number` → `DB_URL` mal formada. Usa solo host y base: `jdbc:postgresql://HOST/BD?sslmode=require` **sin** `usuario:contraseña@` en la URL; credenciales en `DB_USERNAME` / `DB_PASSWORD` (ver paso 1.4).
+- Health rojo con API viva → confirma que el path sea `/actuator/health` (no `/actuator` a secas).
 
 ### Render: 502 o muy lento
 
 - Plan Free **dormido**; espera y reintenta.
-- Comprueba health: `/api/configuracion/publica`.
+- Comprueba health: `/actuator/health` y smoke: `/api/configuracion/publica`.
 
 ### Pages: login no conecta
 
-- Falta **`VITE_API_BASE_URL`** o deploy viejo sin rebuild.
+- Falta `VITE_API_BASE_URL` o deploy viejo sin rebuild.
 - **CORS** en Render no incluye tu `*.pages.dev`.
 
 ### Neon: error al ejecutar `01_install.sql`
@@ -335,7 +347,7 @@ El Blueprint (`render.yaml`) usa **`/actuator/health`**. Si creaste el servicio 
 ### Swagger en Render
 
 - UI: `https://<servicio>.onrender.com/swagger-ui.html`
-- Servidor en Swagger usa **`PUBLIC_API_URL`** si la definiste.
+- Servidor en Swagger usa `PUBLIC_API_URL` si la definiste.
 
 ---
 
@@ -352,8 +364,8 @@ El Blueprint (`render.yaml`) usa **`/actuator/health`**. Si creaste el servicio 
 
 ## Checklist final
 
-- [ ] Neon: `01_install.sql` ejecutado
-- [ ] Render: servicio **Live**, env completo, health OK
+- [ ] Neon: `01_install.sql` ejecutado (`usuario` = 5)
+- [ ] Render: servicio **Live**, env completo, `/actuator/health` OK
 - [ ] Pages: build OK, `VITE_API_BASE_URL` en Production
 - [ ] Render: `CORS_ORIGINS` = URL de Pages
 - [ ] Web: login OK

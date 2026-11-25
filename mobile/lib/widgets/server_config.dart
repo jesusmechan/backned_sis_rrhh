@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,12 +31,12 @@ Future<bool> showServerConfigDialog(BuildContext context) async {
 
   if (action == _ServerDialogAction.autoDetect) {
     await ApiConfig.clearManualBaseUrl();
+    api.resetBaseUrl();
+    await api.ensureReady();
   } else {
-    // La URL ya se guardó dentro del diálogo al pulsar Guardar.
+    // La URL ya se guardó en el diálogo: aplicarla sin que el sondeo la pise.
+    await api.applyConfiguredUrl();
   }
-
-  api.resetBaseUrl();
-  await api.ensureReady();
   return true;
 }
 
@@ -87,9 +89,10 @@ class _ServerConfigDialogState extends State<_ServerConfigDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'URL del backend. En la nube usa HTTPS de Render (sin / final). '
-              'En local: IP de tu PC (ej. http://192.168.0.15:8080) o '
-              'http://127.0.0.1:8080 con USB + adb reverse.',
+              'URL del backend (sin / final). Nube: '
+              'https://backned-sis-rrhh-api.onrender.com '
+              '(Render Free puede tardar ~1 min en despertar). '
+              'Local: IP de tu PC o http://127.0.0.1:8080 con USB + adb reverse.',
               style: TextStyle(fontSize: 13, color: AppColors.mutedOf(context)),
             ),
             const SizedBox(height: 12),
@@ -99,8 +102,8 @@ class _ServerConfigDialogState extends State<_ServerConfigDialog> {
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
                 labelText: 'URL del servidor',
-                hintText: 'https://tu-api.onrender.com',
-                helperText: 'Nube: https://….onrender.com — Local: 192.168.0.25:8080',
+                hintText: 'https://backned-sis-rrhh-api.onrender.com',
+                helperText: 'Nube: …onrender.com — Local: 192.168.0.25:8080',
               ),
             ),
           ],
@@ -126,10 +129,13 @@ class _ServerConfigDialogState extends State<_ServerConfigDialog> {
 
 Future<String> probeServerMessage(ApiClient api) async {
   try {
-    await api.ping();
+    await api.verifyConfiguredConnection();
     return 'Conexión correcta (${api.baseUrlLabel}).';
   } on ApiException catch (e) {
     return e.message;
+  } on TimeoutException {
+    return 'El servidor no respondió a tiempo (${api.baseUrlLabel}). '
+        'En Render Free espera ~1 min y vuelve a probar.';
   } catch (e) {
     return e.toString();
   }
