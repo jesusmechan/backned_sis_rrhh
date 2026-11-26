@@ -1,5 +1,56 @@
+# Env / secretos
 .env
+.env.*
+!.env.example
+
+# Build Maven / Java
 target/
 bin/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Runtime / datos locales
 data/
 logs/
+*.log
+
+# Test / coverage
+.jacoco/
+coverage/
+*.exec
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+.project
+.classpath
+.settings/
+.factorypath
+.springBeans
+.sts4-cache
+.apt_generated/
+*.launch
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Misc
+*.tmp
+*.temp
+*.bak
+*.orig
+*~

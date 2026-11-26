@@ -86,6 +86,15 @@ macos/Flutter/ephemeral/
 .env
 .env.*
 !.env.example
+**/credentials.json
+**/service-account*.json
+**/google-services.json
+**/GoogleService-Info.plist
+*.pem
+*.p12
+
+# FVM (caché local; .fvmrc sí puede versionarse)
+.fvm/
 
 # OS
 Thumbs.db
